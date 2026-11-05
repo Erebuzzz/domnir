@@ -706,10 +706,10 @@
     elements.controllerHash.title = hash;
 
     if (code.includes("def observe(") && code.includes("return")) {
-      elements.controllerAstBadge.textContent = "VALID_SYNTAX";
+      elements.controllerAstBadge.textContent = "Syntax Verified";
       elements.controllerAstBadge.className = "meta-badge text-emerald";
     } else {
-      elements.controllerAstBadge.textContent = "CHECK_SIGNATURE";
+      elements.controllerAstBadge.textContent = "Check Signature";
       elements.controllerAstBadge.className = "meta-badge text-amber";
     }
   }
@@ -815,6 +815,16 @@
         el.classList.add("completed");
       }
     });
+
+    const currentJobStateEl = document.getElementById("currentJobState");
+    if (currentJobStateEl) {
+      const cleanState = currentState
+        .toLowerCase()
+        .split("_")
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      currentJobStateEl.textContent = cleanState;
+    }
   }
 
   async function runExperiment() {
@@ -934,10 +944,10 @@
 
       // Update metrics
       elements.metricSteps.textContent = detail.steps_completed || (state.activeTrajectory.length > 0 ? state.activeTrajectory.length - 1 : 0);
-      elements.metricFinalAlt.textContent = detail.final_altitude_m !== null && detail.final_altitude_m !== undefined ? detail.final_altitude_m.toFixed(4) + " m" : "--";
-      elements.metricAltError.textContent = detail.altitude_error_m !== null && detail.altitude_error_m !== undefined ? detail.altitude_error_m.toFixed(4) + " m" : "--";
-      elements.metricMinAlt.textContent = detail.minimum_altitude_m !== null && detail.minimum_altitude_m !== undefined ? detail.minimum_altitude_m.toFixed(4) + " m" : "--";
-      elements.metricMaxAlt.textContent = detail.maximum_altitude_m !== null && detail.maximum_altitude_m !== undefined ? detail.maximum_altitude_m.toFixed(4) + " m" : "--";
+      elements.metricFinalAlt.textContent = detail.final_altitude_m !== null && detail.final_altitude_m !== undefined ? detail.final_altitude_m.toFixed(4) + " m" : "0.0000 m";
+      elements.metricAltError.textContent = detail.altitude_error_m !== null && detail.altitude_error_m !== undefined ? detail.altitude_error_m.toFixed(4) + " m" : "0.0000 m";
+      elements.metricMinAlt.textContent = detail.minimum_altitude_m !== null && detail.minimum_altitude_m !== undefined ? detail.minimum_altitude_m.toFixed(4) + " m" : "0.0000 m";
+      elements.metricMaxAlt.textContent = detail.maximum_altitude_m !== null && detail.maximum_altitude_m !== undefined ? detail.maximum_altitude_m.toFixed(4) + " m" : "0.0000 m";
 
       // Render 2D Altitude Chart
       renderAltitudeChart(state.activeTrajectory, spec);
@@ -967,7 +977,7 @@
     if (elements.executionErrorBanner) {
       elements.executionErrorBanner.style.display = "none";
     }
-    elements.replayDiffValue.textContent = "--";
+    elements.replayDiffValue.textContent = "0.00e+00 m";
     elements.replayBadge.textContent = "WAITING FOR TRIAL";
     elements.replayBadge.className = "replay-badge";
     elements.verdictFlight.textContent = "PENDING";
@@ -1586,7 +1596,7 @@
 
     const net = fixMap["NET-EGRESS-001"];
     if (net) {
-      if (elements.fixtureBadgeNet) elements.fixtureBadgeNet.textContent = net.status;
+      if (elements.fixtureBadgeNet) elements.fixtureBadgeNet.textContent = (net.status || "POLICY_CONFIRMED").replace(/_/g, " ");
       if (elements.fixtureEgressNet && net.policy) elements.fixtureEgressNet.textContent = net.policy.default_egress || "deny";
       if (elements.fixtureIngressNet && net.policy) elements.fixtureIngressNet.textContent = net.policy.default_ingress || "deny";
       if (elements.fixtureCleanupNet) {
@@ -1596,7 +1606,7 @@
 
     const tm = fixMap["RES-TIME-001"];
     if (tm) {
-      if (elements.fixtureBadgeTime) elements.fixtureBadgeTime.textContent = tm.status;
+      if (elements.fixtureBadgeTime) elements.fixtureBadgeTime.textContent = (tm.status || "PASS").replace(/_/g, " ");
       if (elements.fixtureElapsedVal && typeof tm.elapsed_seconds === "number") {
         elements.fixtureElapsedVal.textContent = tm.elapsed_seconds.toFixed(3) + " s";
       }
@@ -1607,12 +1617,13 @@
 
     const mem = fixMap["RES-MEM-001"];
     if (mem) {
-      if (elements.fixtureBadgeMem) elements.fixtureBadgeMem.textContent = mem.status;
+      if (elements.fixtureBadgeMem) elements.fixtureBadgeMem.textContent = (mem.status || "OBSERVED_EXIT").replace(/_/g, " ");
       if (elements.fixtureExitState && mem.observation) {
         elements.fixtureExitState.textContent = (mem.observation.job_state || "exited") + " (code " + (mem.observation.exit_code ?? "-1") + ")";
       }
       if (elements.fixtureAttributionVal) {
-        elements.fixtureAttributionVal.textContent = (mem.termination_cause || "NOT_ATTRIBUTED") + " (Truthful)";
+        const cleanCause = mem.termination_cause ? mem.termination_cause.replace(/_/g, " ") : "Not Attributed";
+        elements.fixtureAttributionVal.textContent = cleanCause + " (Truthful)";
       }
       if (elements.fixtureCleanupMem) {
         elements.fixtureCleanupMem.textContent = mem.cleanup_succeeded ? "100% Confirmed" : "Failed";

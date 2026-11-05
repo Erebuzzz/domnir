@@ -69,7 +69,7 @@
           <img src="/logo.svg" alt="Dómnir Aegishjalmur Mark" class="brand-logo-img" width="46" height="46">
         </a>
         <div class="brand">
-          <div class="brand-badge">BLAST RADIUS ZERO // VULTR</div>
+          <div class="brand-badge">BLAST RADIUS ZERO ON VULTR</div>
           <h1 class="brand-title">DÓMNIR</h1>
           <p class="brand-tagline">Adversarial Falsification &amp; Containment Platform for AI Flight Controllers</p>
         </div>
@@ -195,7 +195,7 @@
                 <span class="preset-label">Mission Presets:</span>
                 <button type="button" class="preset-chip active" id="presetNominal">Nominal Hover (0.10m)</button>
                 <button type="button" class="preset-chip" id="presetHigh">High Altitude (1.50m)</button>
-                <button type="button" class="preset-chip" id="presetTurbulent">Turbulent (+/-0.20N)</button>
+                <button type="button" class="preset-chip" id="presetTurbulent">Turbulent (&plusmn;0.20 N)</button>
               </div>
 
               <form id="specForm" class="form-grid">
@@ -243,7 +243,7 @@
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="minAltitude" class="form-label">
-                        Safety Floor (z_min)
+                        Safety Floor (Minimum Altitude)
                         <span class="unit-tag">m</span>
                       </label>
                       <input type="number" id="minAltitude" name="min_allowed_altitude_m" step="0.01" min="0.0" max="2.0" value="0.05" class="form-control" required>
@@ -252,7 +252,7 @@
 
                     <div class="form-group">
                       <label for="maxAltitude" class="form-label">
-                        Safety Ceiling (z_max)
+                        Safety Ceiling (Maximum Altitude)
                         <span class="unit-tag">m</span>
                       </label>
                       <input type="number" id="maxAltitude" name="max_allowed_altitude_m" step="0.01" min="0.1" max="10.0" value="1.00" class="form-control" required>
@@ -261,7 +261,7 @@
 
                     <div class="form-group">
                       <label for="distZMin" class="form-label">
-                        Vertical Disturbance Min (Fz_min)
+                        Vertical Disturbance Minimum
                         <span class="unit-tag">N</span>
                       </label>
                       <input type="number" id="distZMin" name="disturbance_force_z_min" step="0.01" min="-1.0" max="0.0" value="-0.05" class="form-control" required>
@@ -270,7 +270,7 @@
 
                     <div class="form-group">
                       <label for="distZMax" class="form-label">
-                        Vertical Disturbance Max (Fz_max)
+                        Vertical Disturbance Maximum
                         <span class="unit-tag">N</span>
                       </label>
                       <input type="number" id="distZMax" name="disturbance_force_z_max" step="0.01" min="0.0" max="1.0" value="0.05" class="form-control" required>
@@ -372,7 +372,7 @@
                     <span class="badge badge-outline font-mono" id="controllerHash">sha256: none</span>
                   </div>
                   <div class="code-header-right">
-                    <span class="contract-badge" id="controllerContractBadge">Action Bounds: [0.0, 0.35]N</span>
+                    <span class="contract-badge" id="controllerContractBadge">Action Bounds: 0.00 to 0.35 N</span>
                     <button type="button" class="btn btn-sm btn-ghost" id="copyCodeBtn" title="Copy Python code">Copy</button>
                   </div>
                 </div>
@@ -522,15 +522,15 @@
               <div class="tracker-card">
                 <div class="tracker-header">
                   <span class="tracker-title">State Machine Status:</span>
-                  <span class="tracker-val font-mono" id="currentJobState">READY_TO_LAUNCH</span>
+                  <span class="tracker-val font-mono" id="currentJobState">Ready to Launch</span>
                 </div>
                 <div class="state-nodes" id="stateTracker">
-                  <div class="state-node" data-state="CREATED">CREATED</div>
-                  <div class="state-node" data-state="SPEC_APPROVED">SPEC_APPROVED</div>
-                  <div class="state-node" data-state="CONTROLLER_VALIDATED">CONTROLLER_VALIDATED</div>
-                  <div class="state-node" data-state="QUEUED">QUEUED</div>
-                  <div class="state-node" data-state="RUNNING">RUNNING</div>
-                  <div class="state-node" data-state="COMPLETED">COMPLETED</div>
+                  <div class="state-node" data-state="CREATED">Created</div>
+                  <div class="state-node" data-state="SPEC_APPROVED">Spec Approved</div>
+                  <div class="state-node" data-state="CONTROLLER_VALIDATED">Controller Validated</div>
+                  <div class="state-node" data-state="QUEUED">Queued</div>
+                  <div class="state-node" data-state="RUNNING">Running</div>
+                  <div class="state-node" data-state="COMPLETED">Completed</div>
                 </div>
               </div>
 
@@ -628,7 +628,7 @@
 
                   <div class="verdict-box">
                     <span class="verdict-tag">Asset Provenance</span>
-                    <div class="verdict-badge verdict-pass" id="verdictProvenance">HASH_LOCKED</div>
+                    <div class="verdict-badge verdict-pass" id="verdictProvenance">Hash Locked</div>
                     <p class="verdict-desc">SHA-256 digests match model XML and controller AST.</p>
                   </div>
 
@@ -645,7 +645,7 @@
                     <span class="disclosure-title">MANDATORY ADJUDICATION DISCLOSURE</span>
                   </div>
                   <p class="disclosure-text" id="adjudicationText">
-                    This trial evaluated AI control code inside a synthetic MuJoCo 3.3.7 simulation environment. A verdict of NOT_FALSIFIED confirms that no safety constraints were breached under the simulated conditions, but remains INCONCLUSIVE regarding universal safety or physical Crazyflie 2 airworthiness. Actuator dynamics are uncalibrated research approximations.
+                    This trial evaluated AI control code inside a synthetic MuJoCo 3.3.7 simulation environment. A verdict of Not Falsified confirms that no safety constraints were breached under the simulated conditions, but remains INCONCLUSIVE regarding universal safety or physical Crazyflie 2 airworthiness. Actuator dynamics are uncalibrated research approximations.
                   </p>
                 </div>
               </div>
@@ -838,7 +838,7 @@
               </div>
               <div class="fixture-row">
                 <span class="row-label">Evidence Source:</span>
-                <span class="row-val font-mono">trusted_host_broker</span>
+                <span class="row-val font-mono">Trusted Host Broker</span>
               </div>
               <div class="fixture-row">
                 <span class="row-label">Host Decision:</span>
@@ -855,7 +855,7 @@
           <div class="card fixture-card" id="fixtureCardNet">
             <div class="fixture-card-header">
               <div class="fixture-id-badge">NET-EGRESS-001</div>
-              <span class="status-badge badge-success" id="fixtureBadgeNet">POLICY_CONFIRMED</span>
+              <span class="status-badge badge-success" id="fixtureBadgeNet">Policy Confirmed</span>
             </div>
             <h3 class="fixture-title">Network Isolation</h3>
             <p class="fixture-summary">Default-deny egress and ingress. Zero published ports, zero host mounts, and guest TCP connection failure.</p>
@@ -898,7 +898,7 @@
               </div>
               <div class="fixture-row">
                 <span class="row-label">Evidence Source:</span>
-                <span class="row-val font-mono">trusted_host_watchdog</span>
+                <span class="row-val font-mono">Trusted Host Watchdog</span>
               </div>
               <div class="fixture-row">
                 <span class="row-label">MicroVM Cleanup:</span>
@@ -911,7 +911,7 @@
           <div class="card fixture-card" id="fixtureCardMem">
             <div class="fixture-card-header">
               <div class="fixture-id-badge">RES-MEM-001</div>
-              <span class="status-badge badge-warning" id="fixtureBadgeMem">OBSERVED_EXIT_CAUSE_UNKNOWN</span>
+              <span class="status-badge badge-warning" id="fixtureBadgeMem">Observed Exit (Cause Unknown)</span>
             </div>
             <h3 class="fixture-title">Memory &amp; Runtime Exit</h3>
             <p class="fixture-summary">Truthful observation: 1 GiB allocation requested under 512 MiB limit. Exited with code -1 without unsupported OOM claims.</p>
@@ -930,7 +930,7 @@
               </div>
               <div class="fixture-row">
                 <span class="row-label">Termination Attribution:</span>
-                <span class="row-val font-mono text-amber" id="fixtureAttributionVal">NOT_ATTRIBUTED (Truthful)</span>
+                <span class="row-val font-mono text-amber" id="fixtureAttributionVal">Not Attributed (Truthful)</span>
               </div>
               <div class="fixture-row">
                 <span class="row-label">MicroVM Cleanup:</span>
