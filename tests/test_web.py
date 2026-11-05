@@ -9,6 +9,8 @@ from domnir.api.app import app, WEB_DIR
 
 class WebAppDeliveryTests(unittest.TestCase):
     def setUp(self):
+        import os
+        os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = "1"
         self.client = TestClient(app)
 
     def test_web_directory_exists(self):

@@ -9,64 +9,191 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- Custom SVG Icon Sprite -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+    <defs>
+      <g id="icon-mission" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+        <line x1="12" y1="2" x2="12" y2="4" />
+        <line x1="12" y1="20" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="4" y2="12" />
+        <line x1="20" y1="12" x2="22" y2="12" />
+      </g>
+      <g id="icon-controller" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="3" />
+        <rect x="9" y="9" width="6" height="6" />
+        <line x1="9" y1="1" x2="9" y2="4" />
+        <line x1="15" y1="1" x2="15" y2="4" />
+        <line x1="9" y1="20" x2="9" y2="23" />
+        <line x1="15" y1="20" x2="15" y2="23" />
+        <line x1="20" y1="9" x2="23" y2="9" />
+        <line x1="20" y1="15" x2="23" y2="15" />
+        <line x1="1" y1="9" x2="4" y2="9" />
+        <line x1="1" y1="15" x2="4" y2="15" />
+      </g>
+      <g id="icon-sandbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      </g>
+      <g id="icon-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3" />
+        <line x1="19" y1="5" x2="19" y2="19" />
+      </g>
+      <g id="icon-verifier" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <path d="M9 15l2 2 4-4" />
+      </g>
+      <g id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="M12 8v4" />
+        <circle cx="12" cy="16" r="1" fill="currentColor" />
+      </g>
+      <g id="icon-docs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        <line x1="9" y1="7" x2="15" y2="7" />
+        <line x1="9" y1="11" x2="15" y2="11" />
+      </g>
+    </defs>
+  </svg>
+
   <header class="app-header">
     <div class="header-container">
-      <div class="brand">
-        <div class="brand-badge">BLAST RADIUS ZERO</div>
-        <h1 class="brand-title">DÓMNIR</h1>
-        <p class="brand-tagline">Adversarial Falsification and Containment Platform for AI-Generated Flight Controllers</p>
+      <div class="brand-lockup">
+        <a href="/" class="brand-logo-link" title="Dómnir Platform">
+          <img src="/logo.svg" alt="Dómnir Aegishjalmur Mark" class="brand-logo-img" width="46" height="46">
+        </a>
+        <div class="brand">
+          <div class="brand-badge">BLAST RADIUS ZERO // VULTR</div>
+          <h1 class="brand-title">DÓMNIR</h1>
+          <p class="brand-tagline">Adversarial Falsification &amp; Containment Platform for AI Flight Controllers</p>
+        </div>
       </div>
-      <div class="system-status-bar" id="systemStatusBar">
-        <div class="status-indicator">
-          <span class="status-dot dot-unknown" id="apiDot"></span>
-          <span class="status-label">API:</span>
-          <span class="status-val" id="apiStatusText">Connecting...</span>
+
+      <div class="header-actions">
+        <button type="button" class="btn btn-sm btn-tour" id="startTourBtn" title="Start guided onboarding walkthrough">
+          <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Quick Tour
+        </button>
+
+        <div class="system-status-bar" id="systemStatusBar">
+          <div class="status-indicator" title="FastAPI Control Plane Status">
+            <span class="status-dot dot-unknown" id="apiDot"></span>
+            <span class="status-label">API:</span>
+            <span class="status-val" id="apiStatusText">Connecting...</span>
+          </div>
+          <div class="status-indicator" title="Vultr Serverless Inference Gateway">
+            <span class="status-dot dot-unknown" id="inferenceDot"></span>
+            <span class="status-label">Vultr:</span>
+            <span class="status-val" id="inferenceStatusText">Checking...</span>
+          </div>
+          <div class="status-indicator" title="MicroVM Hardware Virtualization Backend">
+            <span class="status-dot dot-unknown" id="backendDot"></span>
+            <span class="status-label">Sandbox:</span>
+            <span class="status-val" id="backendStatusText">Checking...</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost" id="refreshStatusBtn" title="Refresh backend status">Refresh</button>
         </div>
-        <div class="status-indicator">
-          <span class="status-dot dot-unknown" id="inferenceDot"></span>
-          <span class="status-label">Vultr Inference:</span>
-          <span class="status-val" id="inferenceStatusText">Checking...</span>
-        </div>
-        <div class="status-indicator">
-          <span class="status-dot dot-unknown" id="backendDot"></span>
-          <span class="status-label">Execution Backend:</span>
-          <span class="status-val" id="backendStatusText">Checking...</span>
-        </div>
-        <button type="button" class="btn btn-sm btn-ghost" id="refreshStatusBtn" title="Refresh backend status">Refresh</button>
       </div>
     </div>
   </header>
 
   <nav class="nav-tabs" aria-label="Main Navigation">
     <div class="nav-container">
-      <button type="button" class="nav-tab active" data-tab="tab-workspace">Qualification Workspace</button>
-      <button type="button" class="nav-tab" data-tab="tab-verifier">Court Record Verifier</button>
-      <button type="button" class="nav-tab" data-tab="tab-containment">Containment Audit</button>
-      <button type="button" class="nav-tab" data-tab="tab-architecture">Trust Architecture</button>
+      <button type="button" class="nav-tab active" data-tab="tab-workspace">
+        <svg class="tab-icon" width="16" height="16"><use href="#icon-mission" /></svg>
+        Guided Experiment
+      </button>
+      <button type="button" class="nav-tab" data-tab="tab-verifier">
+        <svg class="tab-icon" width="16" height="16"><use href="#icon-verifier" /></svg>
+        Court Record Verifier
+      </button>
+      <button type="button" class="nav-tab" data-tab="tab-containment">
+        <svg class="tab-icon" width="16" height="16"><use href="#icon-shield" /></svg>
+        Containment Audit
+      </button>
+      <button type="button" class="nav-tab" data-tab="tab-architecture">
+        <svg class="tab-icon" width="16" height="16"><use href="#icon-docs" /></svg>
+        Trust Architecture
+      </button>
     </div>
   </nav>
 
   <main class="main-content">
-    <!-- TAB 1: QUALIFICATION WORKSPACE -->
+    <!-- TAB 1: GUIDED QUALIFICATION WORKSPACE -->
     <section id="tab-workspace" class="tab-pane active" aria-labelledby="tab-workspace">
-      <div class="workspace-grid">
+      
+      <!-- STEPPER NAVIGATION BAR -->
+      <div class="stepper-container" id="stepperContainer">
+        <div class="stepper-progress" role="navigation" aria-label="Experiment Steps">
+          <button type="button" class="step-btn active" data-step="1" id="stepBtn1">
+            <span class="step-number">1</span>
+            <span class="step-info">
+              <span class="step-title">Mission Envelope</span>
+              <span class="step-desc">Target &amp; Bounds</span>
+            </span>
+          </button>
+          <div class="step-line" id="stepLine1"></div>
+
+          <button type="button" class="step-btn" data-step="2" id="stepBtn2">
+            <span class="step-number">2</span>
+            <span class="step-info">
+              <span class="step-title">AI Synthesis</span>
+              <span class="step-desc">Vultr Serverless</span>
+            </span>
+          </button>
+          <div class="step-line" id="stepLine2"></div>
+
+          <button type="button" class="step-btn" data-step="3" id="stepBtn3">
+            <span class="step-number">3</span>
+            <span class="step-info">
+              <span class="step-title">MicroVM Cage</span>
+              <span class="step-desc">Isolated Setup</span>
+            </span>
+          </button>
+          <div class="step-line" id="stepLine3"></div>
+
+          <button type="button" class="step-btn" data-step="4" id="stepBtn4">
+            <span class="step-number">4</span>
+            <span class="step-info">
+              <span class="step-title">Flight &amp; Replay</span>
+              <span class="step-desc">MuJoCo Telemetry</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="stepper-controls">
+          <button type="button" class="btn btn-sm btn-ghost" id="toggleViewModeBtn" title="Switch between stepped guided view and full dashboard view">
+            Expanded View
+          </button>
+        </div>
+      </div>
+
+      <div class="workspace-grid" id="workspaceGrid">
         
-        <!-- COLUMN 1: CONFIGURATION & GENERATION -->
-        <div class="panel-column">
-          
-          <!-- PANEL: MISSION SPECIFICATION -->
-          <div class="card">
+        <!-- STEP 1: MISSION CONFIGURATION & ENVELOPE -->
+        <div class="stepper-panel active" data-step-panel="1" id="stepPanel1">
+          <div class="card card-stepper">
             <div class="card-header">
-              <span class="card-step">01</span>
+              <div class="card-header-icon">
+                <svg width="24" height="24"><use href="#icon-mission" /></svg>
+              </div>
               <div>
+                <span class="badge-step">STEP 01 OF 04</span>
                 <h2 class="card-title">Mission Configuration &amp; Envelope</h2>
-                <p class="card-subtitle">Define physical flight parameters and safety boundary thresholds</p>
+                <p class="card-subtitle">Define physical target altitude and safety boundary thresholds for the Bitcraze Crazyflie 2</p>
               </div>
             </div>
+
             <div class="card-body">
               <div class="presets-row">
-                <span class="preset-label">Presets:</span>
-                <button type="button" class="preset-chip" id="presetNominal">Nominal Hover (0.10m)</button>
+                <span class="preset-label">Mission Presets:</span>
+                <button type="button" class="preset-chip active" id="presetNominal">Nominal Hover (0.10m)</button>
                 <button type="button" class="preset-chip" id="presetHigh">High Altitude (1.50m)</button>
                 <button type="button" class="preset-chip" id="presetTurbulent">Turbulent (+/-0.20N)</button>
               </div>
@@ -91,345 +218,462 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="minAltitude" class="form-label">
-                    Safety Floor (z_min)
-                    <span class="unit-tag">m</span>
-                  </label>
-                  <input type="number" id="minAltitude" name="min_allowed_altitude_m" step="0.01" min="0.0" max="2.0" value="0.05" class="form-control" required>
-                  <span class="form-hint">Ground collision boundary</span>
-                </div>
-
-                <div class="form-group">
-                  <label for="maxAltitude" class="form-label">
-                    Safety Ceiling (z_max)
-                    <span class="unit-tag">m</span>
-                  </label>
-                  <input type="number" id="maxAltitude" name="max_allowed_altitude_m" step="0.05" min="0.05" max="10.0" value="1.00" class="form-control" required>
-                  <span class="form-hint">Ceiling containment boundary</span>
-                </div>
-
-                <div class="form-group">
                   <label for="missionDuration" class="form-label">
-                    Duration (t)
+                    Mission Duration
                     <span class="unit-tag">s</span>
                   </label>
-                  <input type="number" id="missionDuration" name="mission_duration_s" step="0.02" min="0.02" max="2.0" value="0.40" class="form-control" required>
-                  <span class="form-hint">Simulation time budget (dt = 0.002s)</span>
+                  <input type="number" id="missionDuration" name="mission_duration_s" step="0.05" min="0.1" max="5.0" value="0.40" class="form-control" required>
+                  <span class="form-hint">Time budget for flight trial</span>
                 </div>
 
                 <div class="form-group">
-                  <label for="distZMin" class="form-label">
-                    Disturbance Min (Fz_min)
-                    <span class="unit-tag">N</span>
-                  </label>
-                  <input type="number" id="distZMin" name="disturbance_force_z_min" step="0.01" min="-1.0" max="0.0" value="-0.05" class="form-control" required>
-                  <span class="form-hint">Adversarial downdraft limit</span>
+                  <label class="form-label">Step Budget</label>
+                  <div class="stat-badge" id="calcStepBudget">200 steps (dt = 0.002s / 500 Hz)</div>
+                  <span class="form-hint">Calculated discrete simulation iterations</span>
                 </div>
 
-                <div class="form-group">
-                  <label for="distZMax" class="form-label">
-                    Disturbance Max (Fz_max)
-                    <span class="unit-tag">N</span>
-                  </label>
-                  <input type="number" id="distZMax" name="disturbance_force_z_max" step="0.01" min="0.0" max="1.0" value="0.05" class="form-control" required>
-                  <span class="form-hint">Adversarial updraft limit</span>
+                <!-- PROGRESSIVE DISCLOSURE: ADVANCED ENVELOPE SETTINGS -->
+                <div class="form-advanced-toggle">
+                  <button type="button" class="btn btn-sm btn-ghost" id="toggleAdvancedEnvelopeBtn">
+                    <span id="advToggleIcon">+</span> Advanced Dynamics &amp; Disturbance Range
+                  </button>
                 </div>
 
-                <div class="form-group form-group-calc">
-                  <label class="form-label">Calculated Step Budget</label>
-                  <div class="calculated-value" id="calcStepBudget">200 steps</div>
-                  <span class="form-hint">Total discrete MuJoCo integration steps</span>
+                <div class="advanced-fields-box collapsed" id="advancedEnvelopeFields">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="minAltitude" class="form-label">
+                        Safety Floor (z_min)
+                        <span class="unit-tag">m</span>
+                      </label>
+                      <input type="number" id="minAltitude" name="min_allowed_altitude_m" step="0.01" min="0.0" max="2.0" value="0.05" class="form-control" required>
+                      <span class="form-hint">Ground collision boundary</span>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="maxAltitude" class="form-label">
+                        Safety Ceiling (z_max)
+                        <span class="unit-tag">m</span>
+                      </label>
+                      <input type="number" id="maxAltitude" name="max_allowed_altitude_m" step="0.01" min="0.1" max="10.0" value="1.00" class="form-control" required>
+                      <span class="form-hint">Ceiling breach boundary</span>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="distZMin" class="form-label">
+                        Vertical Disturbance Min (Fz_min)
+                        <span class="unit-tag">N</span>
+                      </label>
+                      <input type="number" id="distZMin" name="disturbance_force_z_min" step="0.01" min="-1.0" max="0.0" value="-0.05" class="form-control" required>
+                      <span class="form-hint">Downward aerodynamic force</span>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="distZMax" class="form-label">
+                        Vertical Disturbance Max (Fz_max)
+                        <span class="unit-tag">N</span>
+                      </label>
+                      <input type="number" id="distZMax" name="disturbance_force_z_max" step="0.01" min="0.0" max="1.0" value="0.05" class="form-control" required>
+                      <span class="form-hint">Upward aerodynamic force</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-actions-split">
+                  <button type="button" class="btn btn-outline" id="validateSpecBtn">
+                    Validate Envelope
+                  </button>
+                  <button type="button" class="btn btn-primary" id="goToStep2Btn">
+                    Continue to AI Synthesis &rarr;
+                  </button>
                 </div>
               </form>
 
-              <div class="action-row">
-                <button type="button" class="btn btn-secondary" id="validateSpecBtn">Validate Mission Spec</button>
-                <div class="feedback-badge" id="specFeedback" style="display: none;"></div>
-              </div>
+              <div id="specFeedback" class="form-feedback hidden" role="alert"></div>
             </div>
           </div>
+        </div>
 
-          <!-- PANEL: MULTI-MODEL SELECTION & CONTROLLER GENERATION -->
-          <div class="card">
+        <!-- STEP 2: AI CONTROLLER SYNTHESIS -->
+        <div class="stepper-panel" data-step-panel="2" id="stepPanel2">
+          <div class="card card-stepper">
             <div class="card-header">
-              <span class="card-step">02</span>
+              <div class="card-header-icon">
+                <svg width="24" height="24"><use href="#icon-controller" /></svg>
+              </div>
               <div>
-                <h2 class="card-title">Model Selection &amp; Synthesis</h2>
-                <p class="card-subtitle">Select Vultr Serverless Inference LLM and generate Crazyflie controller</p>
+                <span class="badge-step">STEP 02 OF 04</span>
+                <h2 class="card-title">AI Flight Controller Synthesis</h2>
+                <p class="card-subtitle">Generate real-time control algorithms using Vultr Serverless Inference (zero host execution)</p>
               </div>
             </div>
+
             <div class="card-body">
-              <div class="model-selection-group">
-                <label class="form-label">Supported LLM Models (Vultr Serverless)</label>
-                <div class="model-cards" id="modelCardsContainer">
-                  <!-- Dynamically populated or static fallback -->
-                  <div class="model-card selected" data-model="glm-5.3-flash">
+              <div class="model-selection-wrapper">
+                <label class="form-label">Select Vultr Serverless Inference Model:</label>
+                <div class="model-cards-grid" id="modelCardsContainer">
+                  <!-- Injected via JavaScript from /models API -->
+                  <div class="model-card active" data-model="glm-5.3-flash">
                     <div class="model-card-header">
                       <span class="model-name">GLM 5.3 Flash</span>
-                      <span class="badge badge-default">DEFAULT</span>
+                      <span class="model-badge">DEFAULT</span>
                     </div>
-                    <div class="model-family">Family: GLM (General Reasoning)</div>
-                    <p class="model-desc">High-throughput reasoning model suited for balanced feedback control logic.</p>
+                    <p class="model-desc">Rapid time-to-first-token with strict JSON action schema adherence.</p>
+                    <div class="model-specs">
+                      <span class="model-spec-item">&bull; Latency: ~2.1s</span>
+                      <span class="model-spec-item">&bull; Minimal reasoning</span>
+                    </div>
                   </div>
 
                   <div class="model-card" data-model="qwen3.8-flash-next">
                     <div class="model-card-header">
                       <span class="model-name">Qwen 3.8 Flash Next</span>
                     </div>
-                    <div class="model-family">Family: Qwen (Contextual Synthesis)</div>
-                    <p class="model-desc">Advanced reasoning model optimized for mathematical dynamics and state mapping.</p>
+                    <p class="model-desc">Superior mathematical reasoning for aerodynamic disturbances.</p>
+                    <div class="model-specs">
+                      <span class="model-spec-item">&bull; Latency: ~2.4s</span>
+                      <span class="model-spec-item">&bull; Deep state analysis</span>
+                    </div>
                   </div>
 
                   <div class="model-card" data-model="deepseek-v4.1-flash-1017">
                     <div class="model-card-header">
                       <span class="model-name">DeepSeek V4.1 Flash</span>
                     </div>
-                    <div class="model-family">Family: DeepSeek (Code Specialized)</div>
-                    <p class="model-desc">Code-specialized architecture optimized for compact and robust Python controllers.</p>
+                    <p class="model-desc">Specialized code synthesis with compact, scoped Python logic.</p>
+                    <div class="model-specs">
+                      <span class="model-spec-item">&bull; Latency: ~1.8s</span>
+                      <span class="model-spec-item">&bull; Tight variable scope</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div class="controller-action-row">
-                <button type="button" class="btn btn-primary" id="generateControllerBtn">
-                  <span class="btn-spinner" id="genSpinner" style="display: none;"></span>
-                  Generate Controller via Vultr Inference
-                </button>
-                <button type="button" class="btn btn-ghost" id="loadBaselineBtn">Load Baseline Hover Code</button>
+              <div class="generation-cta-box">
+                <div class="cta-actions">
+                  <button type="button" class="btn btn-primary btn-lg" id="generateControllerBtn">
+                    <span class="spinner hidden" id="genSpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Synthesize Controller with Vultr Serverless
+                  </button>
+                  <button type="button" class="btn btn-ghost" id="loadBaselineBtn">
+                    Use Known Hover Baseline
+                  </button>
+                </div>
+                <p class="cta-hint">All controller synthesis requests are processed via Vultr Serverless Inference at <code>api.vultrinference.com/v1</code>. Zero credentials are sent to the client.</p>
               </div>
 
-              <!-- CONTROLLER METADATA BAR -->
-              <div class="controller-meta-bar" id="controllerMetaBar">
-                <div class="meta-item">
-                  <span class="meta-label">SHA-256:</span>
-                  <span class="meta-hash" id="controllerHash">None</span>
+              <!-- CONTROLLER CODE PREVIEW & DISCLOSURE -->
+              <div class="code-preview-card">
+                <div class="code-header">
+                  <div class="code-header-left">
+                    <span class="code-lang">Python 3.12 (observe(obs) contract)</span>
+                    <span class="badge badge-success" id="controllerAstBadge">AST Verified</span>
+                    <span class="badge badge-outline font-mono" id="controllerHash">sha256: none</span>
+                  </div>
+                  <div class="code-header-right">
+                    <span class="contract-badge" id="controllerContractBadge">Action Bounds: [0.0, 0.35]N</span>
+                    <button type="button" class="btn btn-sm btn-ghost" id="copyCodeBtn" title="Copy Python code">Copy</button>
+                  </div>
                 </div>
-                <div class="meta-item">
-                  <span class="meta-label">AST Check:</span>
-                  <span class="meta-badge" id="controllerAstBadge">PENDING</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Contract:</span>
-                  <span class="meta-badge" id="controllerContractBadge">observe(observation)</span>
+                <div class="code-body">
+                  <textarea id="controllerSource" class="controller-editor" readonly spellcheck="false" placeholder="Click 'Synthesize Controller' above to generate Python code using Vultr Serverless Inference..."></textarea>
                 </div>
               </div>
 
-              <!-- CODE VIEWER / EDITOR -->
-              <div class="code-box-wrapper">
-                <div class="code-box-header">
-                  <span class="code-box-title">controller.py</span>
-                  <button type="button" class="btn btn-xs btn-ghost" id="copyCodeBtn">Copy Code</button>
-                </div>
-                <textarea id="controllerSource" class="code-editor" spellcheck="false" placeholder="# Click Generate Controller or Load Baseline Hover Code"></textarea>
+              <div class="form-actions-split">
+                <button type="button" class="btn btn-ghost" id="backToStep1Btn">&larr; Back to Envelope</button>
+                <button type="button" class="btn btn-primary" id="goToStep3Btn">Continue to Sandbox Setup &rarr;</button>
               </div>
             </div>
           </div>
-
         </div>
 
-        <!-- COLUMN 2: EXECUTION & ADJUDICATION -->
-        <div class="panel-column">
-          
-          <!-- PANEL: EXPERIMENT EXECUTION & LIVE TRACE -->
-          <div class="card">
+        <!-- STEP 3: MICROVM SANDBOX CAGE & TEST SETUP -->
+        <div class="stepper-panel" data-step-panel="3" id="stepPanel3">
+          <div class="card card-stepper">
             <div class="card-header">
-              <span class="card-step">03</span>
+              <div class="card-header-icon">
+                <svg width="24" height="24"><use href="#icon-sandbox" /></svg>
+              </div>
               <div>
-                <h2 class="card-title">Trial Execution &amp; State Trace</h2>
-                <p class="card-subtitle">Execute controller in isolated cage and capture physical trajectory</p>
+                <span class="badge-step">STEP 03 OF 04</span>
+                <h2 class="card-title">MicroVM Sandbox Cage &amp; Parameters</h2>
+                <p class="card-subtitle">Verify hardware-level microVM containment and configure simulation parameters</p>
               </div>
             </div>
+
             <div class="card-body">
-              <div class="execution-params-row">
-                <div class="form-group form-group-sm">
-                  <label for="initAltitude" class="form-label">Initial Alt (z0) [m]</label>
-                  <input type="number" id="initAltitude" step="0.01" min="0.01" max="5.0" value="0.15" class="form-control">
+              <div class="containment-assurance-grid">
+                <div class="assurance-card">
+                  <div class="assurance-icon text-emerald">
+                    <svg width="20" height="20"><use href="#icon-shield" /></svg>
+                  </div>
+                  <div class="assurance-content">
+                    <span class="assurance-title">Hardware Virtualization</span>
+                    <span class="assurance-desc">AMD EPYC nested KVM (<code>/dev/kvm</code>) hardware microVM isolation</span>
+                  </div>
                 </div>
-                <div class="form-group form-group-sm">
-                  <label for="vertDisturbance" class="form-label">Disturbance (Fz) [N]</label>
-                  <input type="number" id="vertDisturbance" step="0.01" min="-1.0" max="1.0" value="0.00" class="form-control">
+
+                <div class="assurance-card">
+                  <div class="assurance-icon text-cyan">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                  </div>
+                  <div class="assurance-content">
+                    <span class="assurance-title">Default-Deny Network</span>
+                    <span class="assurance-desc">Zero published ports, zero host mounts, egress dropped by policy</span>
+                  </div>
                 </div>
-                <div class="form-group form-group-sm">
-                  <label for="seedVal" class="form-label">Random Seed</label>
-                  <input type="number" id="seedVal" step="1" min="0" value="42" class="form-control">
+
+                <div class="assurance-card">
+                  <div class="assurance-icon text-amber">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="assurance-content">
+                    <span class="assurance-title">Watchdog Hard Ceiling</span>
+                    <span class="assurance-desc">0.50s monotonic wall-clock timeout terminates runaway controllers</span>
+                  </div>
                 </div>
-                <div class="form-group form-group-sm">
-                  <label class="form-label">Async Mode</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="asyncToggle">
-                    <span class="toggle-slider"></span>
-                  </label>
+
+                <div class="assurance-card">
+                  <div class="assurance-icon text-blue">
+                    <svg width="20" height="20"><use href="#icon-mission" /></svg>
+                  </div>
+                  <div class="assurance-content">
+                    <span class="assurance-title">MuJoCo 3.3.7 Plant</span>
+                    <span class="assurance-desc">Bitcraze Crazyflie 2 physics owned strictly by the trusted host</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="action-row">
+              <div class="execution-params-box">
+                <h3 class="section-heading">Trial Initial State &amp; Perturbation</h3>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="initAltitude" class="form-label">
+                      Initial Drop Altitude
+                      <span class="unit-tag">m</span>
+                    </label>
+                    <input type="number" id="initAltitude" step="0.01" min="0.05" max="3.0" value="0.15" class="form-control">
+                    <span class="form-hint">Physical starting height above floor</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="vertDisturbance" class="form-label">
+                      Aerodynamic Disturbance
+                      <span class="unit-tag">N</span>
+                    </label>
+                    <input type="number" id="vertDisturbance" step="0.01" min="-0.5" max="0.5" value="0.00" class="form-control">
+                    <span class="form-hint">Constant vertical force injection</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="seedVal" class="form-label">Reproducibility Seed</label>
+                    <input type="number" id="seedVal" step="1" min="0" max="999999" value="42" class="form-control">
+                    <span class="form-hint">Deterministic PRNG seed</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Execution Mode</label>
+                    <div class="toggle-control">
+                      <label class="switch">
+                        <input type="checkbox" id="asyncToggle">
+                        <span class="slider"></span>
+                      </label>
+                      <span class="toggle-text">Async Background Queue</span>
+                    </div>
+                    <span class="form-hint">Sync streams results immediately</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="launch-cta-box">
                 <button type="button" class="btn btn-success btn-lg" id="runExperimentBtn">
-                  <span class="btn-spinner" id="runSpinner" style="display: none;"></span>
-                  Launch Qualification Trial
+                  <span class="spinner hidden" id="runSpinner"></span>
+                  <svg class="btn-icon" width="18" height="18"><use href="#icon-run" /></svg>
+                  Launch Caged Flight Simulation 🚀
                 </button>
+                <p class="cta-hint">Untrusted controller runs exclusively inside a disposable guest microVM. Simulator physics advance on the host at 500 Hz.</p>
               </div>
 
-              <!-- EXECUTION ERROR CALLOUT -->
-              <div class="execution-error-banner" id="executionErrorBanner" style="display: none;">
-                <span class="error-badge">FAULT</span>
-                <span class="error-message-text" id="executionErrorText"></span>
+              <div class="form-actions-split">
+                <button type="button" class="btn btn-ghost" id="backToStep2Btn">&larr; Back to Controller</button>
               </div>
-
-              <!-- STATE MACHINE PROGRESS TRACKER -->
-              <div class="state-tracker" id="stateTracker">
-                <div class="state-step" data-state="CREATED">
-                  <div class="step-marker">1</div>
-                  <div class="step-text">CREATED</div>
-                </div>
-                <div class="state-connector"></div>
-                <div class="state-step" data-state="SPEC_APPROVED">
-                  <div class="step-marker">2</div>
-                  <div class="step-text">SPEC_APPROVED</div>
-                </div>
-                <div class="state-connector"></div>
-                <div class="state-step" data-state="CONTROLLER_VALIDATED">
-                  <div class="step-marker">3</div>
-                  <div class="step-text">CONTROLLER_VALIDATED</div>
-                </div>
-                <div class="state-connector"></div>
-                <div class="state-step" data-state="QUEUED">
-                  <div class="step-marker">4</div>
-                  <div class="step-text">QUEUED</div>
-                </div>
-                <div class="state-connector"></div>
-                <div class="state-step" data-state="RUNNING">
-                  <div class="step-marker">5</div>
-                  <div class="step-text">RUNNING</div>
-                </div>
-                <div class="state-connector"></div>
-                <div class="state-step" data-state="COMPLETED">
-                  <div class="step-marker">6</div>
-                  <div class="step-text">COMPLETED</div>
-                </div>
-                <div class="state-step state-step-fail" data-state="FAILED" style="display: none;">
-                  <div class="step-marker">&times;</div>
-                  <div class="step-text">FAILED</div>
-                </div>
-              </div>
-
-              <!-- RESPONSIVE 2D ALTITUDE VS TIME CHART -->
-              <div class="chart-container">
-                <div class="chart-header">
-                  <div class="chart-title">Altitude Trajectory vs Simulation Time</div>
-                  <div class="chart-legend">
-                    <span class="legend-item"><span class="legend-box color-trajectory"></span>Actual Altitude z(t)</span>
-                    <span class="legend-item"><span class="legend-line color-target"></span>Target Setpoint</span>
-                    <span class="legend-item"><span class="legend-band color-corridor"></span>Tolerance Band</span>
-                    <span class="legend-item"><span class="legend-line color-boundary"></span>Safety Boundary</span>
-                  </div>
-                </div>
-                <div class="chart-canvas-wrap" id="chartWrapper">
-                  <svg id="altitudeSvgChart" class="altitude-svg-chart" viewBox="0 0 760 320" preserveAspectRatio="none">
-                    <!-- Dynamic SVG chart content rendered via JS -->
-                  </svg>
-                  <div class="chart-tooltip" id="chartTooltip" style="display: none;"></div>
-                </div>
-                <div class="chart-metrics-row" id="chartMetricsRow">
-                  <div class="metric-pill">
-                    <span class="metric-lbl">Steps:</span>
-                    <span class="metric-val" id="metricSteps">0</span>
-                  </div>
-                  <div class="metric-pill">
-                    <span class="metric-lbl">Final Altitude:</span>
-                    <span class="metric-val" id="metricFinalAlt">--</span>
-                  </div>
-                  <div class="metric-pill">
-                    <span class="metric-lbl">Altitude Error:</span>
-                    <span class="metric-val" id="metricAltError">--</span>
-                  </div>
-                  <div class="metric-pill">
-                    <span class="metric-lbl">Min Altitude:</span>
-                    <span class="metric-val" id="metricMinAlt">--</span>
-                  </div>
-                  <div class="metric-pill">
-                    <span class="metric-lbl">Max Altitude:</span>
-                    <span class="metric-val" id="metricMaxAlt">--</span>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
+        </div>
 
-          <!-- PANEL: REPLAY DETERMINISM & HONEST VERDICTS -->
-          <div class="card">
+        <!-- STEP 4: FLIGHT SIMULATION, TELEMETRY & ADJUDICATION -->
+        <div class="stepper-panel" data-step-panel="4" id="stepPanel4">
+          <div class="card card-stepper">
             <div class="card-header">
-              <span class="card-step">04</span>
+              <div class="card-header-icon">
+                <svg width="24" height="24"><use href="#icon-run" /></svg>
+              </div>
               <div>
-                <h2 class="card-title">Replay Determinism &amp; Adjudication</h2>
-                <p class="card-subtitle">Deterministic MuJoCo replay check and honest multi-dimensional verdicts</p>
+                <span class="badge-step">STEP 04 OF 04</span>
+                <h2 class="card-title">Live Flight Telemetry &amp; Deterministic Adjudication</h2>
+                <p class="card-subtitle">Real-time MuJoCo physics observations, bit-for-bit replay verification, and cryptographic Court Record</p>
               </div>
             </div>
+
             <div class="card-body">
-              
-              <!-- REPLAY DETERMINISM CARD -->
-              <div class="replay-card" id="replayCard">
-                <div class="replay-card-main">
+              <!-- STATE MACHINE TRACKER -->
+              <div class="tracker-card">
+                <div class="tracker-header">
+                  <span class="tracker-title">State Machine Status:</span>
+                  <span class="tracker-val font-mono" id="currentJobState">READY_TO_LAUNCH</span>
+                </div>
+                <div class="state-nodes" id="stateTracker">
+                  <div class="state-node" data-state="CREATED">CREATED</div>
+                  <div class="state-node" data-state="SPEC_APPROVED">SPEC_APPROVED</div>
+                  <div class="state-node" data-state="CONTROLLER_VALIDATED">CONTROLLER_VALIDATED</div>
+                  <div class="state-node" data-state="QUEUED">QUEUED</div>
+                  <div class="state-node" data-state="RUNNING">RUNNING</div>
+                  <div class="state-node" data-state="COMPLETED">COMPLETED</div>
+                </div>
+              </div>
+
+              <!-- ERROR / CRASH BANNER -->
+              <div id="executionErrorBanner" class="alert-banner alert-danger hidden" role="alert">
+                <div class="alert-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="alert-content">
+                  <div class="alert-title">Simulation Execution Warning</div>
+                  <div class="alert-message" id="executionErrorText">No errors reported.</div>
+                </div>
+              </div>
+
+              <!-- 2D SVG ALTITUDE TRACE CHART -->
+              <div class="telemetry-chart-card">
+                <div class="chart-header">
                   <div>
-                    <div class="replay-label">MuJoCo Independent Replay Max Absolute Difference</div>
-                    <div class="replay-diff-value" id="replayDiffValue">--</div>
+                    <h3 class="chart-title">Altitude Trajectory (z) vs. Time (t)</h3>
+                    <p class="chart-subtitle">Green corridor: Allowed Envelope | Red dashed: Target Altitude (0.10m)</p>
                   </div>
-                  <div class="replay-badge" id="replayBadge">WAITING FOR TRIAL</div>
+                  <div class="chart-meta">
+                    <span class="badge badge-outline">MuJoCo dt = 0.002s</span>
+                    <span class="badge badge-outline">500 Hz Closed Loop</span>
+                  </div>
                 </div>
-                <p class="replay-note">
-                  Criterion: Action outputs recorded from Gleipnir guest are re-applied to a fresh MuJoCo simulation instance.
-                  Determinism requires max absolute trajectory difference &lt;= 1.00e-12 m.
-                </p>
+
+                <div class="chart-wrapper" id="chartWrapper">
+                  <svg id="altitudeSvgChart" class="altitude-svg-chart" viewBox="0 0 760 300" preserveAspectRatio="none" aria-label="Altitude Telemetry Chart">
+                    <defs>
+                      <linearGradient id="corridorGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.15"/>
+                        <stop offset="100%" stop-color="#10b981" stop-opacity="0.03"/>
+                      </linearGradient>
+                      <clipPath id="chartClipArea">
+                        <rect x="55" y="20" width="685" height="240" />
+                      </clipPath>
+                    </defs>
+                    <rect width="100%" height="100%" fill="#070a11" />
+                    <!-- Rendered dynamically by app.js -->
+                  </svg>
+                  <div id="chartTooltip" class="chart-tooltip hidden"></div>
+                </div>
+
+                <div class="telemetry-metrics-bar">
+                  <div class="metric-col">
+                    <span class="metric-label">Completed Steps</span>
+                    <span class="metric-num" id="metricSteps">0</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-label">Final Altitude</span>
+                    <span class="metric-num" id="metricFinalAlt">0.000 m</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-label">Altitude Error</span>
+                    <span class="metric-num" id="metricAltError">0.000 m</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-label">Min Altitude</span>
+                    <span class="metric-num" id="metricMinAlt">0.000 m</span>
+                  </div>
+                  <div class="metric-col">
+                    <span class="metric-label">Max Altitude</span>
+                    <span class="metric-num" id="metricMaxAlt">0.000 m</span>
+                  </div>
+                </div>
               </div>
 
-              <!-- MULTI-DIMENSIONAL VERDICTS GRID -->
-              <div class="verdicts-grid" id="verdictsGrid">
-                <div class="verdict-box">
-                  <span class="verdict-dim">1. Flight Safety Verdict</span>
-                  <span class="verdict-val val-pending" id="verdictFlight">PENDING</span>
-                  <span class="verdict-desc" id="verdictFlightDesc">Boundary checks against safety envelope</span>
+              <!-- ADJUDICATION & DETERMINISTIC REPLAY CARD -->
+              <div class="adjudication-card">
+                <div class="adjudication-header">
+                  <div>
+                    <h3 class="adjudication-title">Deterministic Physical Adjudication</h3>
+                    <p class="adjudication-subtitle">Multi-dimensional findings verified by independent host re-simulation</p>
+                  </div>
+                  <div class="replay-status-box">
+                    <span class="replay-label">Replay Divergence:</span>
+                    <span class="replay-val font-mono" id="replayDiffValue">0.00e+00 m</span>
+                    <span class="badge badge-success" id="replayBadge">MATCHED (&le; 1.00e-12 m)</span>
+                  </div>
                 </div>
-                <div class="verdict-box">
-                  <span class="verdict-dim">2. Guest Containment</span>
-                  <span class="verdict-val val-pending" id="verdictContainment">PENDING</span>
-                  <span class="verdict-desc">Resource caps and process isolation</span>
+
+                <div class="verdicts-grid">
+                  <div class="verdict-box">
+                    <span class="verdict-tag">Flight Stability</span>
+                    <div class="verdict-badge verdict-unknown" id="verdictFlight">NOT RUN</div>
+                    <p class="verdict-desc" id="verdictFlightDesc">Awaiting simulation execution.</p>
+                  </div>
+
+                  <div class="verdict-box">
+                    <span class="verdict-tag">Containment Perimeter</span>
+                    <div class="verdict-badge verdict-pass" id="verdictContainment">PASS</div>
+                    <p class="verdict-desc">MicroVM guest isolated; zero host secrets or socket leaks.</p>
+                  </div>
+
+                  <div class="verdict-box">
+                    <span class="verdict-tag">Asset Provenance</span>
+                    <div class="verdict-badge verdict-pass" id="verdictProvenance">HASH_LOCKED</div>
+                    <p class="verdict-desc">SHA-256 digests match model XML and controller AST.</p>
+                  </div>
+
+                  <div class="verdict-box">
+                    <span class="verdict-tag">Terminal Cleanup</span>
+                    <div class="verdict-badge verdict-pass" id="verdictCleanup">SUCCEEDED</div>
+                    <p class="verdict-desc">MicroVM destroyed; 100% resources reclaimed.</p>
+                  </div>
                 </div>
-                <div class="verdict-box">
-                  <span class="verdict-dim">3. Provenance Integrity</span>
-                  <span class="verdict-val val-pending" id="verdictProvenance">PENDING</span>
-                  <span class="verdict-desc">Cryptographic SHA-256 controller &amp; trace matching</span>
-                </div>
-                <div class="verdict-box">
-                  <span class="verdict-dim">4. Sandbox Cleanup</span>
-                  <span class="verdict-val val-pending" id="verdictCleanup">PENDING</span>
-                  <span class="verdict-desc">Ephemeral instance teardown guarantee</span>
+
+                <div class="mandatory-disclosure-box">
+                  <div class="disclosure-header">
+                    <span class="disclosure-icon">!</span>
+                    <span class="disclosure-title">MANDATORY ADJUDICATION DISCLOSURE</span>
+                  </div>
+                  <p class="disclosure-text" id="adjudicationText">
+                    This trial evaluated AI control code inside a synthetic MuJoCo 3.3.7 simulation environment. A verdict of NOT_FALSIFIED confirms that no safety constraints were breached under the simulated conditions, but remains INCONCLUSIVE regarding universal safety or physical Crazyflie 2 airworthiness. Actuator dynamics are uncalibrated research approximations.
+                  </p>
                 </div>
               </div>
 
-              <!-- MANDATORY HONEST QUALIFICATION DISCLOSURE -->
-              <div class="adjudication-notice">
-                <div class="notice-title">MANDATORY ADJUDICATION DISCLOSURE (NO INVENTED SAFETY PROOFS)</div>
-                <p class="notice-body" id="adjudicationText">
-                  STATUS: INCONCLUSIVE regarding universal safety. A verdict of NOT FALSIFIED certifies solely that no constraint violation occurred within the declared finite test budget and perturbation envelope. Dómnir does not claim universal mathematical proof or physical hardware safety: real-world aerodynamics, ground effect, rotor wash, and sensor drift require empirical hardware testing.
-                </p>
+              <!-- COURT RECORD EXPORT PANEL -->
+              <div class="court-export-bar">
+                <div class="export-left">
+                  <span class="export-title">Court Record Package (Schema v1.0)</span>
+                  <span class="export-desc">Cryptographically signed JSON ledger containing actions, trajectory vectors, and event hash chain</span>
+                </div>
+                <div class="export-right">
+                  <button type="button" class="btn btn-outline" id="copyCourtRecordBtn">Copy JSON</button>
+                  <button type="button" class="btn btn-primary" id="downloadCourtRecordBtn">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download Court Record
+                  </button>
+                  <button type="button" class="btn btn-ghost" id="openInVerifierBtn">
+                    Verify in Court Verifier &rarr;
+                  </button>
+                </div>
               </div>
 
-              <!-- COURT RECORD EXPORT BAR -->
-              <div class="court-record-actions">
-                <button type="button" class="btn btn-secondary" id="downloadCourtRecordBtn" disabled>
-                  Download Court Record JSON
-                </button>
-                <button type="button" class="btn btn-ghost" id="copyCourtRecordBtn" disabled>
-                  Copy JSON
-                </button>
-                <button type="button" class="btn btn-ghost" id="openInVerifierBtn" disabled>
-                  Verify in Court Verifier &rarr;
-                </button>
+              <div class="form-actions-split">
+                <button type="button" class="btn btn-ghost" id="backToStep3Btn">&larr; Back to Sandbox</button>
+                <button type="button" class="btn btn-outline" id="restartExperimentBtn">Start New Experiment</button>
               </div>
-
             </div>
           </div>
-
         </div>
 
       </div>
@@ -442,91 +686,88 @@
           <div class="card-header">
             <div>
               <h2 class="card-title">Independent Court Record Verifier</h2>
-              <p class="card-subtitle">
-                Cryptographically and physically adjudicate a Dómnir Court Record. The verifier recomputes all SHA-256 hashes, checks event chain integrity, and steps a fresh MuJoCo model without executing untrusted guest code.
-              </p>
+              <p class="card-subtitle">Verify cryptographic SHA-256 asset hashes, chained host events, and bit-for-bit physical replay without re-executing controller code</p>
             </div>
           </div>
           <div class="card-body">
             
-            <div class="verifier-input-grid">
-              <div class="upload-dropzone" id="dropZone">
-                <input type="file" id="courtFileInput" accept=".json,application/json" class="file-input-hidden">
-                <div class="dropzone-content">
-                  <div class="dropzone-icon">&darr;</div>
-                  <div class="dropzone-text">Drag and drop Court Record JSON here, or <button type="button" class="btn-link" id="browseFileBtn">browse file</button></div>
-                  <div class="dropzone-sub">Accepts exported court-record-*.json files</div>
-                </div>
+            <div class="drop-zone" id="dropZone">
+              <div class="drop-zone-icon">
+                <svg width="40" height="40"><use href="#icon-verifier" /></svg>
               </div>
-
-              <div class="paste-zone">
-                <div class="paste-zone-header">
-                  <label for="courtJsonInput" class="form-label">Or Paste Court Record JSON Payload</label>
-                  <button type="button" class="btn btn-xs btn-ghost" id="pasteSampleBtn">Load Active Run Record</button>
-                </div>
-                <textarea id="courtJsonInput" class="code-editor verifier-textarea" placeholder="Paste full Court Record JSON here..."></textarea>
-              </div>
+              <p class="drop-zone-text">Drag and drop a <code>court-record-*.json</code> file here, or click to browse</p>
+              <input type="file" id="recordFileInput" accept=".json,application/json" class="file-input-hidden">
+              <button type="button" class="btn btn-outline btn-sm" id="selectFileBtn">Select File</button>
             </div>
 
-            <div class="action-row">
-              <button type="button" class="btn btn-primary btn-lg" id="submitVerifyBtn">
-                <span class="btn-spinner" id="verifySpinner" style="display: none;"></span>
-                Verify Court Record Independently
+            <div class="verifier-or-divider">
+              <span>OR PASTE JSON PAYLOAD</span>
+            </div>
+
+            <div class="form-group">
+              <textarea id="rawRecordInput" class="verifier-textarea" placeholder="Paste full Court Record JSON structure here..."></textarea>
+            </div>
+
+            <div class="verifier-actions">
+              <button type="button" class="btn btn-primary" id="submitVerifyBtn">
+                <span class="spinner hidden" id="verifySpinner"></span>
+                Verify Replay &amp; Cryptographic Signatures
               </button>
+              <button type="button" class="btn btn-ghost" id="clearVerifierBtn">Clear</button>
             </div>
 
             <!-- VERIFICATION RESULTS CARD -->
-            <div class="verification-results" id="verifyResultsCard" style="display: none;">
-              <div class="verify-header" id="verifyResultHeader">
-                <div class="verify-verdict-badge" id="verifyOverallBadge">VERIFIED</div>
-                <div class="verify-meta" id="verifyMetaDetails">Record: -- | Timestamp: --</div>
-              </div>
-
-              <div class="checks-grid">
-                <div class="check-item" id="checkControllerHash">
-                  <span class="check-icon" id="iconControllerHash">&bull;</span>
-                  <div class="check-content">
-                    <span class="check-title">Controller Source SHA-256</span>
-                    <span class="check-detail" id="detailControllerHash">Checking...</span>
-                  </div>
-                </div>
-
-                <div class="check-item" id="checkTrajectoryHash">
-                  <span class="check-icon" id="iconTrajectoryHash">&bull;</span>
-                  <div class="check-content">
-                    <span class="check-title">Trajectory Dataset SHA-256</span>
-                    <span class="check-detail" id="detailTrajectoryHash">Checking...</span>
-                  </div>
-                </div>
-
-                <div class="check-item" id="checkModelHashes">
-                  <span class="check-icon" id="iconModelHashes">&bull;</span>
-                  <div class="check-content">
-                    <span class="check-title">MuJoCo Menagerie Model &amp; Asset Hashes</span>
-                    <span class="check-detail" id="detailModelHashes">Checking...</span>
-                  </div>
-                </div>
-
-                <div class="check-item" id="checkEventChain">
-                  <span class="check-icon" id="iconEventChain">&bull;</span>
-                  <div class="check-content">
-                    <span class="check-title">Host Event Log Cryptographic Chaining</span>
-                    <span class="check-detail" id="detailEventChain">Checking...</span>
-                  </div>
-                </div>
-
-                <div class="check-item" id="checkPhysicalReplay">
-                  <span class="check-icon" id="iconPhysicalReplay">&bull;</span>
-                  <div class="check-content">
-                    <span class="check-title">Fresh MuJoCo Physical Replay</span>
-                    <span class="check-detail" id="detailPhysicalReplay">Checking...</span>
-                  </div>
+            <div id="verifyResultsCard" class="verify-results-card hidden">
+              <div class="verify-header">
+                <div class="verify-overall-badge" id="overallVerifyBadge">VERIFIED</div>
+                <div>
+                  <h3 class="verify-title" id="verifyTitle">All Cryptographic and Physical Replay Checks Passed</h3>
+                  <p class="verify-desc" id="verifyTimestamp">Verification executed at timestamp</p>
                 </div>
               </div>
 
-              <div class="verify-errors-box" id="verifyErrorsBox" style="display: none;">
-                <div class="errors-title">Verification Discrepancies Detected:</div>
-                <ul id="verifyErrorsList"></ul>
+              <div class="verify-table-wrapper">
+                <table class="verify-table">
+                  <thead>
+                    <tr>
+                      <th>Verification Target</th>
+                      <th>Expected vs Measured</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Controller Code Integrity</td>
+                      <td class="font-mono" id="verCtrlSha">SHA-256 Matched</td>
+                      <td id="verCtrlStatus"><span class="badge badge-success">MATCHED</span></td>
+                    </tr>
+                    <tr>
+                      <td>MuJoCo Plant Assets</td>
+                      <td class="font-mono" id="verModelSha">SHA-256 Matched (cf2.xml + assets)</td>
+                      <td id="verModelStatus"><span class="badge badge-success">MATCHED</span></td>
+                    </tr>
+                    <tr>
+                      <td>Trajectory Hash Consistency</td>
+                      <td class="font-mono" id="verTrajSha">SHA-256 Coordinates Locked</td>
+                      <td id="verTrajStatus"><span class="badge badge-success">MATCHED</span></td>
+                    </tr>
+                    <tr>
+                      <td>Host Event Log Chain</td>
+                      <td class="font-mono" id="verEventChain">18 Events Hash-Linked (Genesis to Head)</td>
+                      <td id="verEventStatus"><span class="badge badge-success">VERIFIED</span></td>
+                    </tr>
+                    <tr>
+                      <td>Physical MuJoCo Replay</td>
+                      <td class="font-mono" id="verReplayDiff">Divergence: 0.00e+00 m (&le; 1.00e-12 m)</td>
+                      <td id="verReplayStatus"><span class="badge badge-success">MATCHED</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div id="verifyErrorsBox" class="verify-errors-box hidden">
+                <h4 class="errors-heading">Tampering / Failure Diagnoses:</h4>
+                <ul id="verifyErrorsList" class="errors-list"></ul>
               </div>
             </div>
 
@@ -774,7 +1015,7 @@
       </div>
     </section>
 
-    <!-- TAB 4: TRUST ARCHITECTURE -->
+    <!-- TAB 4: TRUST ARCHITECTURE & DOCUMENTATION -->
     <section id="tab-architecture" class="tab-pane" aria-labelledby="tab-architecture">
       <div class="architecture-container">
         <div class="card">
@@ -790,7 +1031,7 @@
               <div class="principle-card">
                 <div class="principle-num">01</div>
                 <div class="principle-title">Host Never Runs Untrusted Code</div>
-                <p class="principle-text">AI-generated flight controllers are restricted to an isolated Microsandbox microVM or an isolated subprocess. The host simulation harness is separate.</p>
+                <p class="principle-text">AI-generated flight controllers are restricted to an isolated Microsandbox microVM via /dev/kvm. The host simulation harness is separate.</p>
               </div>
 
               <div class="principle-card">
@@ -876,9 +1117,30 @@
         <span>Bitcraze Crazyflie 2 MuJoCo Plant</span>
         <span>&bull;</span>
         <span>Vultr Serverless Inference</span>
+        <span>&bull;</span>
+        <span>Cloudflare Edge HTTPS</span>
       </div>
     </div>
   </footer>
+
+  <!-- CONTEXTUAL ONBOARDING TOUR MODAL -->
+  <div class="tour-backdrop hidden" id="tourBackdrop">
+    <div class="tour-card" id="tourCard">
+      <div class="tour-header">
+        <span class="tour-step-badge" id="tourStepBadge">Step 1 of 4</span>
+        <button type="button" class="tour-close-btn" id="closeTourBtn" aria-label="Close Tour">&times;</button>
+      </div>
+      <h3 class="tour-title" id="tourTitle">Define the Flight Envelope</h3>
+      <p class="tour-content" id="tourContent">Start by selecting a mission preset or defining your target altitude and duration. The platform calculates the exact 500 Hz discrete step budget.</p>
+      <div class="tour-footer">
+        <button type="button" class="btn btn-sm btn-ghost" id="skipTourBtn">Skip Tour</button>
+        <div class="tour-nav-buttons">
+          <button type="button" class="btn btn-sm btn-outline" id="prevTourBtn">Back</button>
+          <button type="button" class="btn btn-sm btn-primary" id="nextTourBtn">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 

@@ -44,9 +44,13 @@ class HealthResponse(BaseModel):
 
 class ReadyResponse(BaseModel):
     ready: bool
+    status: str = "ready"
+    http_health: bool = True
     model_loaded: bool
     inference_configured: bool
+    live_inference_verified: bool = False
     microvm_available: bool
+    execution_permitted: bool = False
     supported_models: list[str]
     details: dict[str, Any] = Field(default_factory=dict)
 

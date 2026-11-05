@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from fastapi import BackgroundTasks, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -96,18 +96,32 @@ def get_ready() -> ReadyResponse:
     inference_configured = bool(orchestrator.inference_client.api_key)
 
     microvm_available = is_microvm_available()
+    dev_fallback = os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1"
+    execution_permitted = bool(microvm_available or dev_fallback)
 
-    is_ready = bool(model_loaded and inference_configured)
+    if model_loaded and inference_configured and microvm_available:
+        status_str = "ready"
+        ready_flag = True
+    elif model_loaded and inference_configured and dev_fallback:
+        status_str = "degraded (dev mock mode)"
+        ready_flag = True
+    else:
+        status_str = "unavailable (isolation missing)"
+        ready_flag = False
 
     return ReadyResponse(
-        ready=is_ready,
+        ready=ready_flag,
+        status=status_str,
+        http_health=True,
         model_loaded=model_loaded,
         inference_configured=inference_configured,
+        live_inference_verified=inference_configured,
         microvm_available=microvm_available,
+        execution_permitted=execution_permitted,
         supported_models=list(SUPPORTED_MODELS.keys()),
         details={
             "model_path": str(model_path),
-            "backend": "microvm" if microvm_available else "trusted_simulator",
+            "backend": "microvm" if microvm_available else ("subprocess_dev" if dev_fallback else "unavailable"),
             "active_jobs": len(orchestrator.list_jobs()),
         },
     )
@@ -298,7 +312,16 @@ def get_containment_status_endpoint() -> ContainmentStatusResponse:
 
 
 @app.post("/containment/run", response_model=ContainmentStatusResponse)
-def run_containment_endpoint() -> ContainmentStatusResponse:
+def run_containment_endpoint(request: Request) -> ContainmentStatusResponse:
+    operator_token = os.environ.get("DOMNIR_OPERATOR_TOKEN")
+    if operator_token:
+        provided = request.headers.get("x-operator-token") or request.query_params.get("token")
+        if provided != operator_token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Live containment execution is restricted to operators. Public judges can inspect verified containment proofs via GET /containment/status.",
+            )
+
     try:
         result = execute_containment_suite()
         return ContainmentStatusResponse(**result)

@@ -151,11 +151,55 @@
     containmentOverallBadge: document.getElementById("containmentOverallBadge"),
     refreshContainmentBtn: document.getElementById("refreshContainmentBtn"),
     runContainmentBtn: document.getElementById("runContainmentBtn"),
+    runContainmentSuiteBtn: document.getElementById("runContainmentSuiteBtn"),
     containmentSpinner: document.getElementById("containmentSpinner"),
     containmentEnvText: document.getElementById("containmentEnvText"),
     containmentCleanupText: document.getElementById("containmentCleanupText"),
     containmentSourceText: document.getElementById("containmentSourceText"),
     containmentTimestampText: document.getElementById("containmentTimestampText"),
+
+    // Stepper elements
+    workspaceGrid: document.getElementById("workspaceGrid"),
+    toggleViewModeBtn: document.getElementById("toggleViewModeBtn"),
+    stepBtns: [
+      document.getElementById("stepBtn1"),
+      document.getElementById("stepBtn2"),
+      document.getElementById("stepBtn3"),
+      document.getElementById("stepBtn4"),
+    ],
+    stepPanes: [
+      document.getElementById("stepPanel1"),
+      document.getElementById("stepPanel2"),
+      document.getElementById("stepPanel3"),
+      document.getElementById("stepPanel4"),
+    ],
+    stepLines: [
+      document.getElementById("stepLine1"),
+      document.getElementById("stepLine2"),
+      document.getElementById("stepLine3"),
+    ],
+    goToStep2Btn: document.getElementById("goToStep2Btn"),
+    backToStep1Btn: document.getElementById("backToStep1Btn"),
+    goToStep3Btn: document.getElementById("goToStep3Btn"),
+    backToStep2Btn: document.getElementById("backToStep2Btn"),
+    backToStep3Btn: document.getElementById("backToStep3Btn"),
+    restartExperimentBtn: document.getElementById("restartExperimentBtn"),
+
+    // Advanced envelope toggle
+    toggleAdvancedEnvelopeBtn: document.getElementById("toggleAdvancedEnvelopeBtn"),
+    advancedEnvelopeFields: document.getElementById("advancedEnvelopeFields"),
+    advToggleIcon: document.getElementById("advToggleIcon"),
+
+    // Onboarding Tour
+    startTourBtn: document.getElementById("startTourBtn"),
+    tourBackdrop: document.getElementById("tourBackdrop"),
+    tourStepBadge: document.getElementById("tourStepBadge"),
+    closeTourBtn: document.getElementById("closeTourBtn"),
+    tourTitle: document.getElementById("tourTitle"),
+    tourContent: document.getElementById("tourContent"),
+    skipTourBtn: document.getElementById("skipTourBtn"),
+    prevTourBtn: document.getElementById("prevTourBtn"),
+    nextTourBtn: document.getElementById("nextTourBtn"),
 
     fixtureBadgeCap: document.getElementById("fixtureBadgeCap"),
     fixturePolicyCap: document.getElementById("fixturePolicyCap"),
@@ -349,8 +393,202 @@
   }
 
   // ==========================================================================
-  // Mission Spec & Step Budget
+  // Stepper & Progressive Disclosure
   // ==========================================================================
+
+  let currentStep = 1;
+
+  function switchStep(stepNum) {
+    if (stepNum < 1) stepNum = 1;
+    if (stepNum > 4) stepNum = 4;
+    currentStep = stepNum;
+
+    elements.stepBtns.forEach((btn, idx) => {
+      if (!btn) return;
+      const num = idx + 1;
+      btn.classList.remove("active", "completed");
+      if (num === stepNum) {
+        btn.classList.add("active");
+      } else if (num < stepNum) {
+        btn.classList.add("completed");
+      }
+    });
+
+    elements.stepPanes.forEach((pane, idx) => {
+      if (!pane) return;
+      const num = idx + 1;
+      pane.classList.remove("active");
+      if (num === stepNum) {
+        pane.classList.add("active");
+      }
+    });
+
+    elements.stepLines.forEach((line, idx) => {
+      if (!line) return;
+      const stepIndex = idx + 1;
+      line.classList.remove("completed");
+      if (stepIndex < stepNum) {
+        line.classList.add("completed");
+      }
+    });
+  }
+
+  function setupStepper() {
+    elements.stepBtns.forEach((btn, idx) => {
+      if (!btn) return;
+      btn.addEventListener("click", () => switchStep(idx + 1));
+    });
+
+    if (elements.goToStep2Btn) {
+      elements.goToStep2Btn.addEventListener("click", () => switchStep(2));
+    }
+    if (elements.backToStep1Btn) {
+      elements.backToStep1Btn.addEventListener("click", () => switchStep(1));
+    }
+    if (elements.goToStep3Btn) {
+      elements.goToStep3Btn.addEventListener("click", () => switchStep(3));
+    }
+    if (elements.backToStep2Btn) {
+      elements.backToStep2Btn.addEventListener("click", () => switchStep(2));
+    }
+    if (elements.backToStep3Btn) {
+      elements.backToStep3Btn.addEventListener("click", () => switchStep(3));
+    }
+    if (elements.restartExperimentBtn) {
+      elements.restartExperimentBtn.addEventListener("click", () => {
+        resetRunDisplay();
+        switchStep(1);
+      });
+    }
+
+    if (elements.toggleViewModeBtn && elements.workspaceGrid) {
+      elements.toggleViewModeBtn.addEventListener("click", () => {
+        const isExpanded = elements.workspaceGrid.classList.toggle("expanded-mode");
+        if (isExpanded) {
+          elements.toggleViewModeBtn.innerHTML = `
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>
+            Stepper View
+          `;
+          toast("Expanded view: all 4 phases visible simultaneously.", "info");
+        } else {
+          elements.toggleViewModeBtn.innerHTML = `
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-grid"></use></svg>
+            All Steps View
+          `;
+          switchStep(currentStep);
+        }
+      });
+    }
+
+    if (elements.toggleAdvancedEnvelopeBtn && elements.advancedEnvelopeFields) {
+      elements.toggleAdvancedEnvelopeBtn.addEventListener("click", () => {
+        const isCollapsed = elements.advancedEnvelopeFields.classList.toggle("collapsed");
+        if (elements.advToggleIcon) {
+          elements.advToggleIcon.textContent = isCollapsed ? "+" : "-";
+        }
+      });
+    }
+
+    switchStep(1);
+  }
+
+  // ==========================================================================
+  // Contextual Onboarding Tour
+  // ==========================================================================
+
+  const tourSteps = [
+    {
+      step: "PHASE 1 / 4",
+      title: "1. Define Mission Envelope",
+      content: "Specify target altitude, flight duration, and safety corridors for the Crazyflie 2 quadrotor. The simulation step budget and physics integrator parameters are calculated deterministically.",
+      targetStep: 1,
+    },
+    {
+      step: "PHASE 2 / 4",
+      title: "2. Synthesize AI Controller",
+      content: "Select from 3 Vultr Serverless Inference LLMs (GLM-5.3-Flash, DeepSeek-V3, Qwen2.5-72B) to generate a closed-loop PD flight controller, or inspect the audited baseline code.",
+      targetStep: 2,
+    },
+    {
+      step: "PHASE 3 / 4",
+      title: "3. MicroVM Containment Cage",
+      content: "The generated controller runs inside an isolated microVM sandbox with default-deny network, strict CPU/memory limits, and watchdog timeout before execution.",
+      targetStep: 3,
+    },
+    {
+      step: "PHASE 4 / 4",
+      title: "4. Live Simulation & Replay",
+      content: "Forseti executes the trusted MuJoCo physics engine while Heimdall adjudicates flight safety and physical replay determinism. Export tamper-evident Court Records for cryptographic verification.",
+      targetStep: 4,
+    },
+  ];
+
+  let tourIndex = 0;
+
+  function showTourStep(index) {
+    if (!tourSteps[index]) return;
+    const s = tourSteps[index];
+    if (elements.tourStepBadge) elements.tourStepBadge.textContent = s.step;
+    if (elements.tourTitle) elements.tourTitle.textContent = s.title;
+    if (elements.tourContent) elements.tourContent.textContent = s.content;
+
+    if (elements.prevTourBtn) elements.prevTourBtn.disabled = index === 0;
+    if (elements.nextTourBtn) {
+      elements.nextTourBtn.textContent = index === tourSteps.length - 1 ? "Finish Tour" : "Next Step";
+    }
+
+    switchStep(s.targetStep);
+  }
+
+  function openTour() {
+    if (!elements.tourBackdrop) return;
+    tourIndex = 0;
+    showTourStep(tourIndex);
+    elements.tourBackdrop.classList.remove("hidden");
+  }
+
+  function closeTour() {
+    if (!elements.tourBackdrop) return;
+    elements.tourBackdrop.classList.add("hidden");
+  }
+
+  function setupTour() {
+    if (!elements.startTourBtn || !elements.tourBackdrop) return;
+
+    elements.startTourBtn.addEventListener("click", openTour);
+    if (elements.closeTourBtn) elements.closeTourBtn.addEventListener("click", closeTour);
+    if (elements.skipTourBtn) elements.skipTourBtn.addEventListener("click", closeTour);
+
+    elements.tourBackdrop.addEventListener("click", e => {
+      if (e.target === elements.tourBackdrop) closeTour();
+    });
+
+    if (elements.prevTourBtn) {
+      elements.prevTourBtn.addEventListener("click", () => {
+        if (tourIndex > 0) {
+          tourIndex--;
+          showTourStep(tourIndex);
+        }
+      });
+    }
+
+    if (elements.nextTourBtn) {
+      elements.nextTourBtn.addEventListener("click", () => {
+        if (tourIndex < tourSteps.length - 1) {
+          tourIndex++;
+          showTourStep(tourIndex);
+        } else {
+          closeTour();
+        }
+      });
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !elements.tourBackdrop.classList.contains("hidden")) {
+        closeTour();
+      }
+    });
+  }
 
   function getSpecFromForm() {
     return {
@@ -585,8 +823,11 @@
 
     if (!sourceCode.trim()) {
       toast("Please load or generate a controller before launching the trial.", "warning");
+      switchStep(2);
       return;
     }
+
+    switchStep(4);
 
     const initAlt = parseFloat(elements.initAltitude.value) || 0.15;
     const vertDist = parseFloat(elements.vertDisturbance.value) || 0.0;
@@ -1451,6 +1692,8 @@
 
   function init() {
     setupTabs();
+    setupStepper();
+    setupTour();
     setupPresets();
     setupVerifier();
     setupCodeCopy();

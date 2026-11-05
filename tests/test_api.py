@@ -185,7 +185,28 @@ class ControllerGenerationEndpointTests(unittest.TestCase):
 
 class ExperimentWorkflowTests(unittest.TestCase):
     def setUp(self):
+        import os
+        os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = "1"
         self.client = TestClient(app)
+
+    def test_production_fails_closed_when_microvm_unavailable(self):
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK": ""}):
+            with patch("domnir.api.jobs.is_microvm_available", return_value=False):
+                spec = FlightSpec(target_altitude_m=0.1, mission_duration_s=0.1)
+                ctrl = GeneratedController.from_source(SAMPLE_CONTROLLER_SOURCE, model_id="glm-5.3-flash")
+                payload = {
+                    "spec": spec.model_dump(),
+                    "controller": ctrl.model_dump(),
+                    "steps": 10,
+                    "run_async": False,
+                }
+                response = self.client.post("/experiments/run", json=payload)
+                self.assertEqual(response.status_code, 200)
+                summary = response.json()
+                self.assertEqual(summary["state"], "FAILED")
+                self.assertIn("BLOCKED: ISOLATION_UNAVAILABLE", summary["error_message"])
 
     def test_run_experiment_synchronous_success_nominal(self):
         spec = FlightSpec(

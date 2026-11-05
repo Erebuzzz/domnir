@@ -86,6 +86,23 @@ class ContainmentApiTests(unittest.TestCase):
         else:
             self.assertEqual(response.status_code, 200)
 
+    def test_operator_token_protection(self):
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"DOMNIR_OPERATOR_TOKEN": "secret-ops-key-123"}):
+            # Without token: 403 Forbidden
+            unauth = self.client.post("/containment/run")
+            self.assertEqual(unauth.status_code, 403)
+            self.assertIn("restricted to operators", unauth.json()["detail"])
+
+            # With wrong token: 403 Forbidden
+            wrong = self.client.post("/containment/run", headers={"X-Operator-Token": "bad-key"})
+            self.assertEqual(wrong.status_code, 403)
+
+            # Public status endpoint is still accessible without token
+            pub_status = self.client.get("/containment/status")
+            self.assertEqual(pub_status.status_code, 200)
+
     def test_execute_containment_suite_with_mock_fixtures(self):
         class MockLease:
             def __init__(self, msb_path, duration_seconds=40):
