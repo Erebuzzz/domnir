@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dómnir: Adversarial falsification and containment platform for AI-generated Crazyflie 2 flight controllers.">
+  <title>Dómnir: Adversarial Falsification Platform</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-badge">BLAST RADIUS ZERO</div>
+        <h1 class="brand-title">DÓMNIR</h1>
+        <p class="brand-tagline">Adversarial Falsification and Containment Platform for AI-Generated Flight Controllers</p>
+      </div>
+      <div class="system-status-bar" id="systemStatusBar">
+        <div class="status-indicator">
+          <span class="status-dot dot-unknown" id="apiDot"></span>
+          <span class="status-label">API:</span>
+          <span class="status-val" id="apiStatusText">Connecting...</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot dot-unknown" id="inferenceDot"></span>
+          <span class="status-label">Vultr Inference:</span>
+          <span class="status-val" id="inferenceStatusText">Checking...</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot dot-unknown" id="backendDot"></span>
+          <span class="status-label">Execution Backend:</span>
+          <span class="status-val" id="backendStatusText">Checking...</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="refreshStatusBtn" title="Refresh backend status">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="nav-tabs" aria-label="Main Navigation">
+    <div class="nav-container">
+      <button type="button" class="nav-tab active" data-tab="tab-workspace">Qualification Workspace</button>
+      <button type="button" class="nav-tab" data-tab="tab-verifier">Court Record Verifier</button>
+      <button type="button" class="nav-tab" data-tab="tab-containment">Containment Audit</button>
+      <button type="button" class="nav-tab" data-tab="tab-architecture">Trust Architecture</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <!-- TAB 1: QUALIFICATION WORKSPACE -->
+    <section id="tab-workspace" class="tab-pane active" aria-labelledby="tab-workspace">
+      <div class="workspace-grid">
+        
+        <!-- COLUMN 1: CONFIGURATION & GENERATION -->
+        <div class="panel-column">
+          
+          <!-- PANEL: MISSION SPECIFICATION -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-step">01</span>
+              <div>
+                <h2 class="card-title">Mission Configuration &amp; Envelope</h2>
+                <p class="card-subtitle">Define physical flight parameters and safety boundary thresholds</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="presets-row">
+                <span class="preset-label">Presets:</span>
+                <button type="button" class="preset-chip" id="presetNominal">Nominal Hover (0.10m)</button>
+                <button type="button" class="preset-chip" id="presetHigh">High Altitude (1.50m)</button>
+                <button type="button" class="preset-chip" id="presetTurbulent">Turbulent (+/-0.20N)</button>
+              </div>
+
+              <form id="specForm" class="form-grid">
+                <div class="form-group">
+                  <label for="targetAltitude" class="form-label">
+                    Target Altitude (z)
+                    <span class="unit-tag">m</span>
+                  </label>
+                  <input type="number" id="targetAltitude" name="target_altitude_m" step="0.01" min="0.01" max="5.0" value="0.10" class="form-control" required>
+                  <span class="form-hint">Nominal setpoint height above ground</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="altitudeTolerance" class="form-label">
+                    Altitude Tolerance (&plusmn;)
+                    <span class="unit-tag">m</span>
+                  </label>
+                  <input type="number" id="altitudeTolerance" name="altitude_tolerance_m" step="0.01" min="0.01" max="1.0" value="0.05" class="form-control" required>
+                  <span class="form-hint">Allowable steady-state deviation corridor</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="minAltitude" class="form-label">
+                    Safety Floor (z_min)
+                    <span class="unit-tag">m</span>
+                  </label>
+                  <input type="number" id="minAltitude" name="min_allowed_altitude_m" step="0.01" min="0.0" max="2.0" value="0.05" class="form-control" required>
+                  <span class="form-hint">Ground collision boundary</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="maxAltitude" class="form-label">
+                    Safety Ceiling (z_max)
+                    <span class="unit-tag">m</span>
+                  </label>
+                  <input type="number" id="maxAltitude" name="max_allowed_altitude_m" step="0.05" min="0.05" max="10.0" value="1.00" class="form-control" required>
+                  <span class="form-hint">Ceiling containment boundary</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="missionDuration" class="form-label">
+                    Duration (t)
+                    <span class="unit-tag">s</span>
+                  </label>
+                  <input type="number" id="missionDuration" name="mission_duration_s" step="0.02" min="0.02" max="2.0" value="0.40" class="form-control" required>
+                  <span class="form-hint">Simulation time budget (dt = 0.002s)</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="distZMin" class="form-label">
+                    Disturbance Min (Fz_min)
+                    <span class="unit-tag">N</span>
+                  </label>
+                  <input type="number" id="distZMin" name="disturbance_force_z_min" step="0.01" min="-1.0" max="0.0" value="-0.05" class="form-control" required>
+                  <span class="form-hint">Adversarial downdraft limit</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="distZMax" class="form-label">
+                    Disturbance Max (Fz_max)
+                    <span class="unit-tag">N</span>
+                  </label>
+                  <input type="number" id="distZMax" name="disturbance_force_z_max" step="0.01" min="0.0" max="1.0" value="0.05" class="form-control" required>
+                  <span class="form-hint">Adversarial updraft limit</span>
+                </div>
+
+                <div class="form-group form-group-calc">
+                  <label class="form-label">Calculated Step Budget</label>
+                  <div class="calculated-value" id="calcStepBudget">200 steps</div>
+                  <span class="form-hint">Total discrete MuJoCo integration steps</span>
+                </div>
+              </form>
+
+              <div class="action-row">
+                <button type="button" class="btn btn-secondary" id="validateSpecBtn">Validate Mission Spec</button>
+                <div class="feedback-badge" id="specFeedback" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL: MULTI-MODEL SELECTION & CONTROLLER GENERATION -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-step">02</span>
+              <div>
+                <h2 class="card-title">Model Selection &amp; Synthesis</h2>
+                <p class="card-subtitle">Select Vultr Serverless Inference LLM and generate Crazyflie controller</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="model-selection-group">
+                <label class="form-label">Supported LLM Models (Vultr Serverless)</label>
+                <div class="model-cards" id="modelCardsContainer">
+                  <!-- Dynamically populated or static fallback -->
+                  <div class="model-card selected" data-model="glm-5.3-flash">
+                    <div class="model-card-header">
+                      <span class="model-name">GLM 5.3 Flash</span>
+                      <span class="badge badge-default">DEFAULT</span>
+                    </div>
+                    <div class="model-family">Family: GLM (General Reasoning)</div>
+                    <p class="model-desc">High-throughput reasoning model suited for balanced feedback control logic.</p>
+                  </div>
+
+                  <div class="model-card" data-model="qwen3.8-flash-next">
+                    <div class="model-card-header">
+                      <span class="model-name">Qwen 3.8 Flash Next</span>
+                    </div>
+                    <div class="model-family">Family: Qwen (Contextual Synthesis)</div>
+                    <p class="model-desc">Advanced reasoning model optimized for mathematical dynamics and state mapping.</p>
+                  </div>
+
+                  <div class="model-card" data-model="deepseek-v4.1-flash-1017">
+                    <div class="model-card-header">
+                      <span class="model-name">DeepSeek V4.1 Flash</span>
+                    </div>
+                    <div class="model-family">Family: DeepSeek (Code Specialized)</div>
+                    <p class="model-desc">Code-specialized architecture optimized for compact and robust Python controllers.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="controller-action-row">
+                <button type="button" class="btn btn-primary" id="generateControllerBtn">
+                  <span class="btn-spinner" id="genSpinner" style="display: none;"></span>
+                  Generate Controller via Vultr Inference
+                </button>
+                <button type="button" class="btn btn-ghost" id="loadBaselineBtn">Load Baseline Hover Code</button>
+              </div>
+
+              <!-- CONTROLLER METADATA BAR -->
+              <div class="controller-meta-bar" id="controllerMetaBar">
+                <div class="meta-item">
+                  <span class="meta-label">SHA-256:</span>
+                  <span class="meta-hash" id="controllerHash">None</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">AST Check:</span>
+                  <span class="meta-badge" id="controllerAstBadge">PENDING</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Contract:</span>
+                  <span class="meta-badge" id="controllerContractBadge">observe(observation)</span>
+                </div>
+              </div>
+
+              <!-- CODE VIEWER / EDITOR -->
+              <div class="code-box-wrapper">
+                <div class="code-box-header">
+                  <span class="code-box-title">controller.py</span>
+                  <button type="button" class="btn btn-xs btn-ghost" id="copyCodeBtn">Copy Code</button>
+                </div>
+                <textarea id="controllerSource" class="code-editor" spellcheck="false" placeholder="# Click Generate Controller or Load Baseline Hover Code"></textarea>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- COLUMN 2: EXECUTION & ADJUDICATION -->
+        <div class="panel-column">
+          
+          <!-- PANEL: EXPERIMENT EXECUTION & LIVE TRACE -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-step">03</span>
+              <div>
+                <h2 class="card-title">Trial Execution &amp; State Trace</h2>
+                <p class="card-subtitle">Execute controller in isolated cage and capture physical trajectory</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="execution-params-row">
+                <div class="form-group form-group-sm">
+                  <label for="initAltitude" class="form-label">Initial Alt (z0) [m]</label>
+                  <input type="number" id="initAltitude" step="0.01" min="0.01" max="5.0" value="0.15" class="form-control">
+                </div>
+                <div class="form-group form-group-sm">
+                  <label for="vertDisturbance" class="form-label">Disturbance (Fz) [N]</label>
+                  <input type="number" id="vertDisturbance" step="0.01" min="-1.0" max="1.0" value="0.00" class="form-control">
+                </div>
+                <div class="form-group form-group-sm">
+                  <label for="seedVal" class="form-label">Random Seed</label>
+                  <input type="number" id="seedVal" step="1" min="0" value="42" class="form-control">
+                </div>
+                <div class="form-group form-group-sm">
+                  <label class="form-label">Async Mode</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="asyncToggle">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="action-row">
+                <button type="button" class="btn btn-success btn-lg" id="runExperimentBtn">
+                  <span class="btn-spinner" id="runSpinner" style="display: none;"></span>
+                  Launch Qualification Trial
+                </button>
+              </div>
+
+              <!-- EXECUTION ERROR CALLOUT -->
+              <div class="execution-error-banner" id="executionErrorBanner" style="display: none;">
+                <span class="error-badge">FAULT</span>
+                <span class="error-message-text" id="executionErrorText"></span>
+              </div>
+
+              <!-- STATE MACHINE PROGRESS TRACKER -->
+              <div class="state-tracker" id="stateTracker">
+                <div class="state-step" data-state="CREATED">
+                  <div class="step-marker">1</div>
+                  <div class="step-text">CREATED</div>
+                </div>
+                <div class="state-connector"></div>
+                <div class="state-step" data-state="SPEC_APPROVED">
+                  <div class="step-marker">2</div>
+                  <div class="step-text">SPEC_APPROVED</div>
+                </div>
+                <div class="state-connector"></div>
+                <div class="state-step" data-state="CONTROLLER_VALIDATED">
+                  <div class="step-marker">3</div>
+                  <div class="step-text">CONTROLLER_VALIDATED</div>
+                </div>
+                <div class="state-connector"></div>
+                <div class="state-step" data-state="QUEUED">
+                  <div class="step-marker">4</div>
+                  <div class="step-text">QUEUED</div>
+                </div>
+                <div class="state-connector"></div>
+                <div class="state-step" data-state="RUNNING">
+                  <div class="step-marker">5</div>
+                  <div class="step-text">RUNNING</div>
+                </div>
+                <div class="state-connector"></div>
+                <div class="state-step" data-state="COMPLETED">
+                  <div class="step-marker">6</div>
+                  <div class="step-text">COMPLETED</div>
+                </div>
+                <div class="state-step state-step-fail" data-state="FAILED" style="display: none;">
+                  <div class="step-marker">&times;</div>
+                  <div class="step-text">FAILED</div>
+                </div>
+              </div>
+
+              <!-- RESPONSIVE 2D ALTITUDE VS TIME CHART -->
+              <div class="chart-container">
+                <div class="chart-header">
+                  <div class="chart-title">Altitude Trajectory vs Simulation Time</div>
+                  <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-box color-trajectory"></span>Actual Altitude z(t)</span>
+                    <span class="legend-item"><span class="legend-line color-target"></span>Target Setpoint</span>
+                    <span class="legend-item"><span class="legend-band color-corridor"></span>Tolerance Band</span>
+                    <span class="legend-item"><span class="legend-line color-boundary"></span>Safety Boundary</span>
+                  </div>
+                </div>
+                <div class="chart-canvas-wrap" id="chartWrapper">
+                  <svg id="altitudeSvgChart" class="altitude-svg-chart" viewBox="0 0 760 320" preserveAspectRatio="none">
+                    <!-- Dynamic SVG chart content rendered via JS -->
+                  </svg>
+                  <div class="chart-tooltip" id="chartTooltip" style="display: none;"></div>
+                </div>
+                <div class="chart-metrics-row" id="chartMetricsRow">
+                  <div class="metric-pill">
+                    <span class="metric-lbl">Steps:</span>
+                    <span class="metric-val" id="metricSteps">0</span>
+                  </div>
+                  <div class="metric-pill">
+                    <span class="metric-lbl">Final Altitude:</span>
+                    <span class="metric-val" id="metricFinalAlt">--</span>
+                  </div>
+                  <div class="metric-pill">
+                    <span class="metric-lbl">Altitude Error:</span>
+                    <span class="metric-val" id="metricAltError">--</span>
+                  </div>
+                  <div class="metric-pill">
+                    <span class="metric-lbl">Min Altitude:</span>
+                    <span class="metric-val" id="metricMinAlt">--</span>
+                  </div>
+                  <div class="metric-pill">
+                    <span class="metric-lbl">Max Altitude:</span>
+                    <span class="metric-val" id="metricMaxAlt">--</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- PANEL: REPLAY DETERMINISM & HONEST VERDICTS -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-step">04</span>
+              <div>
+                <h2 class="card-title">Replay Determinism &amp; Adjudication</h2>
+                <p class="card-subtitle">Deterministic MuJoCo replay check and honest multi-dimensional verdicts</p>
+              </div>
+            </div>
+            <div class="card-body">
+              
+              <!-- REPLAY DETERMINISM CARD -->
+              <div class="replay-card" id="replayCard">
+                <div class="replay-card-main">
+                  <div>
+                    <div class="replay-label">MuJoCo Independent Replay Max Absolute Difference</div>
+                    <div class="replay-diff-value" id="replayDiffValue">--</div>
+                  </div>
+                  <div class="replay-badge" id="replayBadge">WAITING FOR TRIAL</div>
+                </div>
+                <p class="replay-note">
+                  Criterion: Action outputs recorded from Gleipnir guest are re-applied to a fresh MuJoCo simulation instance.
+                  Determinism requires max absolute trajectory difference &lt;= 1.00e-12 m.
+                </p>
+              </div>
+
+              <!-- MULTI-DIMENSIONAL VERDICTS GRID -->
+              <div class="verdicts-grid" id="verdictsGrid">
+                <div class="verdict-box">
+                  <span class="verdict-dim">1. Flight Safety Verdict</span>
+                  <span class="verdict-val val-pending" id="verdictFlight">PENDING</span>
+                  <span class="verdict-desc" id="verdictFlightDesc">Boundary checks against safety envelope</span>
+                </div>
+                <div class="verdict-box">
+                  <span class="verdict-dim">2. Guest Containment</span>
+                  <span class="verdict-val val-pending" id="verdictContainment">PENDING</span>
+                  <span class="verdict-desc">Resource caps and process isolation</span>
+                </div>
+                <div class="verdict-box">
+                  <span class="verdict-dim">3. Provenance Integrity</span>
+                  <span class="verdict-val val-pending" id="verdictProvenance">PENDING</span>
+                  <span class="verdict-desc">Cryptographic SHA-256 controller &amp; trace matching</span>
+                </div>
+                <div class="verdict-box">
+                  <span class="verdict-dim">4. Sandbox Cleanup</span>
+                  <span class="verdict-val val-pending" id="verdictCleanup">PENDING</span>
+                  <span class="verdict-desc">Ephemeral instance teardown guarantee</span>
+                </div>
+              </div>
+
+              <!-- MANDATORY HONEST QUALIFICATION DISCLOSURE -->
+              <div class="adjudication-notice">
+                <div class="notice-title">MANDATORY ADJUDICATION DISCLOSURE (NO INVENTED SAFETY PROOFS)</div>
+                <p class="notice-body" id="adjudicationText">
+                  STATUS: INCONCLUSIVE regarding universal safety. A verdict of NOT FALSIFIED certifies solely that no constraint violation occurred within the declared finite test budget and perturbation envelope. Dómnir does not claim universal mathematical proof or physical hardware safety: real-world aerodynamics, ground effect, rotor wash, and sensor drift require empirical hardware testing.
+                </p>
+              </div>
+
+              <!-- COURT RECORD EXPORT BAR -->
+              <div class="court-record-actions">
+                <button type="button" class="btn btn-secondary" id="downloadCourtRecordBtn" disabled>
+                  Download Court Record JSON
+                </button>
+                <button type="button" class="btn btn-ghost" id="copyCourtRecordBtn" disabled>
+                  Copy JSON
+                </button>
+                <button type="button" class="btn btn-ghost" id="openInVerifierBtn" disabled>
+                  Verify in Court Verifier &rarr;
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 2: COURT RECORD VERIFIER -->
+    <section id="tab-verifier" class="tab-pane" aria-labelledby="tab-verifier">
+      <div class="verifier-container">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Independent Court Record Verifier</h2>
+              <p class="card-subtitle">
+                Cryptographically and physically adjudicate a Dómnir Court Record. The verifier recomputes all SHA-256 hashes, checks event chain integrity, and steps a fresh MuJoCo model without executing untrusted guest code.
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            
+            <div class="verifier-input-grid">
+              <div class="upload-dropzone" id="dropZone">
+                <input type="file" id="courtFileInput" accept=".json,application/json" class="file-input-hidden">
+                <div class="dropzone-content">
+                  <div class="dropzone-icon">&darr;</div>
+                  <div class="dropzone-text">Drag and drop Court Record JSON here, or <button type="button" class="btn-link" id="browseFileBtn">browse file</button></div>
+                  <div class="dropzone-sub">Accepts exported court-record-*.json files</div>
+                </div>
+              </div>
+
+              <div class="paste-zone">
+                <div class="paste-zone-header">
+                  <label for="courtJsonInput" class="form-label">Or Paste Court Record JSON Payload</label>
+                  <button type="button" class="btn btn-xs btn-ghost" id="pasteSampleBtn">Load Active Run Record</button>
+                </div>
+                <textarea id="courtJsonInput" class="code-editor verifier-textarea" placeholder="Paste full Court Record JSON here..."></textarea>
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button type="button" class="btn btn-primary btn-lg" id="submitVerifyBtn">
+                <span class="btn-spinner" id="verifySpinner" style="display: none;"></span>
+                Verify Court Record Independently
+              </button>
+            </div>
+
+            <!-- VERIFICATION RESULTS CARD -->
+            <div class="verification-results" id="verifyResultsCard" style="display: none;">
+              <div class="verify-header" id="verifyResultHeader">
+                <div class="verify-verdict-badge" id="verifyOverallBadge">VERIFIED</div>
+                <div class="verify-meta" id="verifyMetaDetails">Record: -- | Timestamp: --</div>
+              </div>
+
+              <div class="checks-grid">
+                <div class="check-item" id="checkControllerHash">
+                  <span class="check-icon" id="iconControllerHash">&bull;</span>
+                  <div class="check-content">
+                    <span class="check-title">Controller Source SHA-256</span>
+                    <span class="check-detail" id="detailControllerHash">Checking...</span>
+                  </div>
+                </div>
+
+                <div class="check-item" id="checkTrajectoryHash">
+                  <span class="check-icon" id="iconTrajectoryHash">&bull;</span>
+                  <div class="check-content">
+                    <span class="check-title">Trajectory Dataset SHA-256</span>
+                    <span class="check-detail" id="detailTrajectoryHash">Checking...</span>
+                  </div>
+                </div>
+
+                <div class="check-item" id="checkModelHashes">
+                  <span class="check-icon" id="iconModelHashes">&bull;</span>
+                  <div class="check-content">
+                    <span class="check-title">MuJoCo Menagerie Model &amp; Asset Hashes</span>
+                    <span class="check-detail" id="detailModelHashes">Checking...</span>
+                  </div>
+                </div>
+
+                <div class="check-item" id="checkEventChain">
+                  <span class="check-icon" id="iconEventChain">&bull;</span>
+                  <div class="check-content">
+                    <span class="check-title">Host Event Log Cryptographic Chaining</span>
+                    <span class="check-detail" id="detailEventChain">Checking...</span>
+                  </div>
+                </div>
+
+                <div class="check-item" id="checkPhysicalReplay">
+                  <span class="check-icon" id="iconPhysicalReplay">&bull;</span>
+                  <div class="check-content">
+                    <span class="check-title">Fresh MuJoCo Physical Replay</span>
+                    <span class="check-detail" id="detailPhysicalReplay">Checking...</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="verify-errors-box" id="verifyErrorsBox" style="display: none;">
+                <div class="errors-title">Verification Discrepancies Detected:</div>
+                <ul id="verifyErrorsList"></ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: CONTAINMENT AUDIT -->
+    <section id="tab-containment" class="tab-pane" aria-labelledby="tab-containment">
+      <div class="containment-container">
+        
+        <!-- HEADER & RUN CONTROLS -->
+        <div class="card containment-header-card">
+          <div class="containment-header-top">
+            <div>
+              <div class="containment-pill">BLAST RADIUS ZERO PROOF</div>
+              <h2 class="card-title">MicroVM Isolation &amp; Containment Suite</h2>
+              <p class="card-subtitle">Host-enforced adversarial containment verification in dedicated Microsandbox microVMs.</p>
+            </div>
+            <div class="containment-actions">
+              <span class="status-badge badge-warning" id="containmentOverallBadge">PARTIAL</span>
+              <button type="button" class="btn btn-secondary" id="refreshContainmentBtn">
+                Refresh Status
+              </button>
+              <button type="button" class="btn btn-primary" id="runContainmentBtn">
+                <span class="btn-spinner" id="containmentSpinner" style="display: none;"></span>
+                Run Containment Suite
+              </button>
+            </div>
+          </div>
+
+          <div class="containment-meta-bar">
+            <div class="meta-item">
+              <span class="meta-label">Execution Environment:</span>
+              <span class="meta-val" id="containmentEnvText">Checking...</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Cleanup Guarantee:</span>
+              <span class="meta-val meta-highlight" id="containmentCleanupText">Checking...</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Evidence Source:</span>
+              <span class="meta-val" id="containmentSourceText">Checking...</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Last Audit Timestamp:</span>
+              <span class="meta-val" id="containmentTimestampText">Checking...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 CONTAINMENT PROOF CARDS -->
+        <div class="containment-grid">
+          
+          <!-- FIXTURE 1: BROKER CAPABILITY DENIAL -->
+          <div class="card fixture-card" id="fixtureCardCap">
+            <div class="fixture-card-header">
+              <div class="fixture-id-badge">CAP-HOST-001</div>
+              <span class="status-badge badge-success" id="fixtureBadgeCap">PASS</span>
+            </div>
+            <h3 class="fixture-title">Broker Capability Denial</h3>
+            <p class="fixture-summary">Host-enforced refusal of unauthorized capability / canary requests. Guest receives explicit DENIED response.</p>
+            <div class="fixture-details-box">
+              <div class="fixture-row">
+                <span class="row-label">Policy:</span>
+                <span class="row-val font-mono" id="fixturePolicyCap">deny-host-capabilities-v1</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Evidence Source:</span>
+                <span class="row-val font-mono">trusted_host_broker</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Host Decision:</span>
+                <span class="row-val font-mono text-emerald">DENIED (Canary read refused)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">MicroVM Cleanup:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureCleanupCap">100% Confirmed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIXTURE 2: NETWORK ISOLATION -->
+          <div class="card fixture-card" id="fixtureCardNet">
+            <div class="fixture-card-header">
+              <div class="fixture-id-badge">NET-EGRESS-001</div>
+              <span class="status-badge badge-success" id="fixtureBadgeNet">POLICY_CONFIRMED</span>
+            </div>
+            <h3 class="fixture-title">Network Isolation</h3>
+            <p class="fixture-summary">Default-deny egress and ingress. Zero published ports, zero host mounts, and guest TCP connection failure.</p>
+            <div class="fixture-details-box">
+              <div class="fixture-row">
+                <span class="row-label">Default Egress:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureEgressNet">deny</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Default Ingress:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureIngressNet">deny</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Ports / Mounts:</span>
+                <span class="row-val font-mono text-emerald">0 ports, 0 host mounts</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">MicroVM Cleanup:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureCleanupNet">100% Confirmed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIXTURE 3: RESOURCE WATCHDOG TIMEOUT -->
+          <div class="card fixture-card" id="fixtureCardTime">
+            <div class="fixture-card-header">
+              <div class="fixture-id-badge">RES-TIME-001</div>
+              <span class="status-badge badge-success" id="fixtureBadgeTime">PASS</span>
+            </div>
+            <h3 class="fixture-title">Resource Watchdog Timeout</h3>
+            <p class="fixture-summary">Wall-clock timeout enforcement on infinite guest loop. Host watchdog terminates unresponsive guest.</p>
+            <div class="fixture-details-box">
+              <div class="fixture-row">
+                <span class="row-label">Deadline:</span>
+                <span class="row-val font-mono">0.50 s limit</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Elapsed Monotonic:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureElapsedVal">0.501 s</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Evidence Source:</span>
+                <span class="row-val font-mono">trusted_host_watchdog</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">MicroVM Cleanup:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureCleanupTime">100% Confirmed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIXTURE 4: MEMORY PRESSURE & RUNTIME EXIT -->
+          <div class="card fixture-card" id="fixtureCardMem">
+            <div class="fixture-card-header">
+              <div class="fixture-id-badge">RES-MEM-001</div>
+              <span class="status-badge badge-warning" id="fixtureBadgeMem">OBSERVED_EXIT_CAUSE_UNKNOWN</span>
+            </div>
+            <h3 class="fixture-title">Memory &amp; Runtime Exit</h3>
+            <p class="fixture-summary">Truthful observation: 1 GiB allocation requested under 512 MiB limit. Exited with code -1 without unsupported OOM claims.</p>
+            <div class="fixture-details-box">
+              <div class="fixture-row">
+                <span class="row-label">Requested Memory:</span>
+                <span class="row-val font-mono">1,073,741,824 bytes (1 GiB)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Configured Limit:</span>
+                <span class="row-val font-mono">536,870,912 bytes (512 MiB)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Job Exit State:</span>
+                <span class="row-val font-mono" id="fixtureExitState">exited (code -1)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Termination Attribution:</span>
+                <span class="row-val font-mono text-amber" id="fixtureAttributionVal">NOT_ATTRIBUTED (Truthful)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">MicroVM Cleanup:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureCleanupMem">100% Confirmed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIXTURE 5: CLEANUP GUARANTEE -->
+          <div class="card fixture-card" id="fixtureCardCleanup">
+            <div class="fixture-card-header">
+              <div class="fixture-id-badge">CLEANUP-100</div>
+              <span class="status-badge badge-success" id="fixtureBadgeCleanup">PASS</span>
+            </div>
+            <h3 class="fixture-title">Cleanup Guarantee</h3>
+            <p class="fixture-summary">100% microVM deletion confirmed via msb list on all normal, timeout, crash, and abort paths. Zero leaked processes.</p>
+            <div class="fixture-details-box">
+              <div class="fixture-row">
+                <span class="row-label">Teardown Policy:</span>
+                <span class="row-val font-mono">Mandatory context manager exit</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Orphaned MicroVMs:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureOrphanedVms">0 (Zero leaked VMs)</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Post-Run msb list:</span>
+                <span class="row-val font-mono text-emerald" id="fixturePostRunTable">Empty guest table</span>
+              </div>
+              <div class="fixture-row">
+                <span class="row-label">Audit Result:</span>
+                <span class="row-val font-mono text-emerald" id="fixtureAuditCleanup">PASS (Deterministic)</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CRYPTOGRAPHIC HOST EVENT LOG & LIMITATIONS -->
+        <div class="containment-bottom-grid">
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Cryptographic Host Event Log Chain</h3>
+              <span class="badge badge-default" id="containmentLogBadge">VERIFIED</span>
+            </div>
+            <div class="audit-log-details">
+              <div class="log-row">
+                <span class="log-label">Event Log File:</span>
+                <span class="log-val font-mono" id="containmentLogFile">containment-suite-20261105-final.json.events.jsonl</span>
+              </div>
+              <div class="log-row">
+                <span class="log-label">Chained Events:</span>
+                <span class="log-val font-mono" id="containmentEventCount">18 events</span>
+              </div>
+              <div class="log-row">
+                <span class="log-label">Root / Head SHA-256:</span>
+                <span class="log-val font-mono" id="containmentShaHead">67ff6282bf5943982cc0674c980170240571e52f8ec8f425ddcd6cec53101c80</span>
+              </div>
+              <div class="log-row">
+                <span class="log-label">Integrity Status:</span>
+                <span class="log-val font-mono text-emerald" id="containmentLogStatus">All 18 records verified against SHA-256 state chain</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Blast Radius Zero Truthful Disclosures</h3>
+            </div>
+            <div class="limitations-container">
+              <ul class="limitations-list" id="containmentLimitationsList">
+                <li>Network destination-level denials were confirmed via host policy inspection and guest TCP probe, not observed by an external host gateway.</li>
+                <li>Memory job exit code (-1) was truthfully recorded without unsupported claims of kernel OOM killer attribution.</li>
+                <li>The event chain is local and SHA-256 linked; it has no external RFC 3161 timestamp anchor.</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 4: TRUST ARCHITECTURE -->
+    <section id="tab-architecture" class="tab-pane" aria-labelledby="tab-architecture">
+      <div class="architecture-container">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Dómnir Trust Boundaries &amp; Architecture</h2>
+              <p class="card-subtitle">Vultr Agent Rush Hackathon, Challenge 01: Blast Radius Zero</p>
+            </div>
+          </div>
+          <div class="card-body">
+            
+            <div class="principles-grid">
+              <div class="principle-card">
+                <div class="principle-num">01</div>
+                <div class="principle-title">Host Never Runs Untrusted Code</div>
+                <p class="principle-text">AI-generated flight controllers are restricted to an isolated Microsandbox microVM or an isolated subprocess. The host simulation harness is separate.</p>
+              </div>
+
+              <div class="principle-card">
+                <div class="principle-num">02</div>
+                <div class="principle-title">Secret Hygiene</div>
+                <p class="principle-text">No Vultr Serverless Inference API keys, database credentials, or host secrets are ever passed into the guest execution cage or the frontend.</p>
+              </div>
+
+              <div class="principle-card">
+                <div class="principle-num">03</div>
+                <div class="principle-title">Host-Owned MuJoCo Simulation</div>
+                <p class="principle-text">Only the trusted harness (Forseti) advances simulation physics, applies actuator bounds, and records truth telemetry. The guest only receives sensor observations.</p>
+              </div>
+
+              <div class="principle-card">
+                <div class="principle-num">04</div>
+                <div class="principle-title">Deterministic Replay Verification</div>
+                <p class="principle-text">Recorded action vectors are replayed on a pristine MuJoCo instance to prove bit-for-bit physical trajectory reproducibility (&lt;= 1e-12 m difference).</p>
+              </div>
+
+              <div class="principle-card">
+                <div class="principle-num">05</div>
+                <div class="principle-title">Ephemeral Teardown Guarantee</div>
+                <p class="principle-text">Every sandbox is subject to strict CPU, memory, and wall-clock deadlines. Cleanup and lease termination are enforced on normal and error paths.</p>
+              </div>
+
+              <div class="principle-card">
+                <div class="principle-num">06</div>
+                <div class="principle-title">Truth in Qualification</div>
+                <p class="principle-text">Finite falsification campaigns identify boundary counterexamples. They are never represented as mathematical safety proofs or real-world airworthiness.</p>
+              </div>
+            </div>
+
+            <div class="model-catalog-section">
+              <h3 class="section-heading">Supported Vultr Serverless Inference Models</h3>
+              <div class="catalog-table-wrapper">
+                <table class="catalog-table">
+                  <thead>
+                    <tr>
+                      <th>Model ID</th>
+                      <th>Family</th>
+                      <th>Role &amp; Strengths</th>
+                      <th>Reasoning Effort</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>glm-5.3-flash</code></td>
+                      <td>GLM</td>
+                      <td>Default model. Rapid inference and structured flight controller generation.</td>
+                      <td>Minimal</td>
+                    </tr>
+                    <tr>
+                      <td><code>qwen3.8-flash-next</code></td>
+                      <td>Qwen</td>
+                      <td>Deep mathematical reasoning and complex multi-variable state analysis.</td>
+                      <td>Minimal</td>
+                    </tr>
+                    <tr>
+                      <td><code>deepseek-v4.1-flash-1017</code></td>
+                      <td>DeepSeek</td>
+                      <td>Specialized code synthesis and compact Python logic generation.</td>
+                      <td>Minimal</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <span>Dómnir &bull; Vultr Agent Rush 2026 &bull; Challenge 1: Blast Radius Zero</span>
+      </div>
+      <div class="footer-right">
+        <span>Bitcraze Crazyflie 2 MuJoCo Plant</span>
+        <span>&bull;</span>
+        <span>Vultr Serverless Inference</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Python and virtual environments
+.venv/
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+
+# Environment secrets and credentials
+.env
+*.env
+*.tar.gz
+
+# Agent instructions and internal planning files
+AGENTS.md
+docs/DOMNIR_IMPLEMENTATION_PLAN.md
+*IMPLEMENTATION_PLAN*.md
+*AGENT_HANDOFF*.md
+*START_HERE*.md
+
+# Agent brain (strictly developer and agent reference)
+brain/

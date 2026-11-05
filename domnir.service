@@ -1,0 +1,38 @@
+[Unit]
+Description=Domnir Adversarial Falsification Platform API and Web Service
+After=network.target
+
+[Service]
+Type=simple
+User=domnir
+Group=domnir
+WorkingDirectory=/home/domnir/project
+Environment="PATH=/home/domnir/sim-venv/bin:/home/domnir/.microsandbox/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="DOMNIR_MSB=/home/domnir/.microsandbox/bin/msb"
+Environment="DOMNIR_SPIKE_MODEL=/home/domnir/menagerie/bitcraze_crazyflie_2/cf2.xml"
+EnvironmentFile=-/home/domnir/project/.env
+EnvironmentFile=-/etc/domnir.env
+ExecStart=/home/domnir/sim-venv/bin/uvicorn domnir.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
+Restart=always
+RestartSec=5s
+
+# Security and isolation hardening
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/home/domnir
+PrivateTmp=true
+NoNewPrivileges=false
+DeviceAllow=/dev/kvm rw
+DeviceAllow=/dev/net/tun rw
+
+# Resource bounds
+LimitNOFILE=65536
+LimitNPROC=4096
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=domnir
+
+[Install]
+WantedBy=multi-user.target

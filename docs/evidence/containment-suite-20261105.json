@@ -1,0 +1,74 @@
+{
+  "schema_version": "containment-feasibility-1",
+  "status": "PARTIAL",
+  "fixtures": [
+    {
+      "status": "PASS",
+      "evidence_source": "trusted_host_broker",
+      "request_id": "99a5b81962a54360b4bf42438fd8f12d",
+      "policy_id": "deny-host-capabilities-v1",
+      "guest_diagnostic": {
+        "source": "guest_untrusted",
+        "acknowledgement": {
+          "received": "DENIED"
+        }
+      },
+      "fixture_id": "CAP-HOST-001",
+      "cleanup_succeeded": true
+    },
+    {
+      "status": "POLICY_CONFIRMED",
+      "evidence_source": "trusted_runtime_configuration",
+      "policy": {
+        "default_egress": "deny",
+        "default_ingress": "deny",
+        "rule_count": 0,
+        "published_port_count": 0,
+        "host_mount_count": 0
+      },
+      "guest_diagnostic": {
+        "source": "guest_untrusted",
+        "observation": {
+          "observation": "connection_failed"
+        }
+      },
+      "per_attempt_host_observation": "NOT_AVAILABLE",
+      "fixture_id": "NET-EGRESS-001",
+      "cleanup_succeeded": true
+    },
+    {
+      "status": "PASS",
+      "evidence_source": "trusted_host_watchdog",
+      "elapsed_seconds": 0.5009003939994727,
+      "fixture_id": "RES-TIME-001",
+      "cleanup_succeeded": true
+    },
+    {
+      "status": "OBSERVED_EXIT_CAUSE_UNKNOWN",
+      "evidence_source": "trusted_runtime_metrics_and_job_status",
+      "observation": {
+        "job_id": "job_24381de936552bf051deed36eb96c59a",
+        "requested_bytes": 1073741824,
+        "configured_limit_bytes": 536870912,
+        "sampled_peak_bytes": 536870912,
+        "job_state": "exited",
+        "exit_code": -1,
+        "sample_count": 13
+      },
+      "termination_cause": "NOT_ATTRIBUTED",
+      "fixture_id": "RES-MEM-001",
+      "cleanup_succeeded": true
+    }
+  ],
+  "host_event_log": {
+    "file": "containment-suite-20261105.json.events.jsonl",
+    "sha256_head": "730b171c16850b0a0916c2b7e7ae779a308c4281e8807ca8ceb0e1139480d583",
+    "event_count": 18,
+    "verified": true
+  },
+  "limitations": [
+    "Network destination-level denials were not observed by a trusted host gateway.",
+    "Memory job exit cause was not independently attributed to out-of-memory enforcement.",
+    "The event chain is unsigned and has no protected external anchor."
+  ]
+}
