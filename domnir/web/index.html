@@ -198,22 +198,24 @@
         </button>
 
         <div class="system-status-bar" id="systemStatusBar">
-          <div class="status-indicator" title="FastAPI Control Plane Status">
+          <div class="status-indicator-pill" id="statusApiPill" title="FastAPI Control Plane: Connecting...">
             <span class="status-dot dot-unknown" id="apiDot"></span>
-            <span class="status-label">API:</span>
-            <span class="status-val" id="apiStatusText">Connecting...</span>
+            <span class="status-name">API</span>
+            <span class="status-val hidden" id="apiStatusText">Connecting...</span>
           </div>
-          <div class="status-indicator" title="Vultr Serverless Inference Gateway">
+          <div class="status-indicator-pill" id="statusInferencePill" title="Vultr Serverless Inference: Checking...">
             <span class="status-dot dot-unknown" id="inferenceDot"></span>
-            <span class="status-label">Inference:</span>
-            <span class="status-val" id="inferenceStatusText">Checking...</span>
+            <span class="status-name">Inference</span>
+            <span class="status-val hidden" id="inferenceStatusText">Checking...</span>
           </div>
-          <div class="status-indicator" title="MicroVM Hardware Virtualization Backend">
+          <div class="status-indicator-pill" id="statusSandboxPill" title="MicroVM Hardware Virtualization: Checking...">
             <span class="status-dot dot-unknown" id="backendDot"></span>
-            <span class="status-label">Sandbox:</span>
-            <span class="status-val" id="backendStatusText">Checking...</span>
+            <span class="status-name">Sandbox</span>
+            <span class="status-val hidden" id="backendStatusText">Checking...</span>
           </div>
-          <button type="button" class="btn btn-sm btn-ghost" id="refreshStatusBtn" title="Refresh backend status">Refresh</button>
+          <button type="button" class="status-refresh-btn" id="refreshStatusBtn" title="Refresh system status" aria-label="Refresh system status">
+            <svg width="12" height="12"><use href="#icon-reset" /></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -280,12 +282,6 @@
               <span class="step-title">Flight &amp; Replay</span>
               <span class="step-desc">MuJoCo Telemetry</span>
             </span>
-          </button>
-        </div>
-
-        <div class="stepper-controls">
-          <button type="button" class="btn btn-sm btn-ghost" id="toggleViewModeBtn" title="Switch between stepped guided view and full dashboard view">
-            Expanded View
           </button>
         </div>
       </div>

@@ -43,11 +43,14 @@
 `;
 
   const elements = {
-    // Status bar
+    // Status bar (minimalist indicators)
+    statusApiPill: document.getElementById("statusApiPill"),
     apiDot: document.getElementById("apiDot"),
     apiStatusText: document.getElementById("apiStatusText"),
+    statusInferencePill: document.getElementById("statusInferencePill"),
     inferenceDot: document.getElementById("inferenceDot"),
     inferenceStatusText: document.getElementById("inferenceStatusText"),
+    statusSandboxPill: document.getElementById("statusSandboxPill"),
     backendDot: document.getElementById("backendDot"),
     backendStatusText: document.getElementById("backendStatusText"),
     refreshStatusBtn: document.getElementById("refreshStatusBtn"),
@@ -337,42 +340,51 @@
   // ==========================================================================
 
   async function checkHealthAndReadiness() {
-    elements.apiDot.className = "status-dot dot-unknown";
-    elements.apiStatusText.textContent = "Connecting...";
+    if (elements.apiDot) elements.apiDot.className = "status-dot dot-unknown";
+    if (elements.apiStatusText) elements.apiStatusText.textContent = "Connecting...";
+    if (elements.statusApiPill) elements.statusApiPill.title = "FastAPI Control Plane: Connecting...";
 
     try {
       const healthRes = await fetch("/health");
       if (!healthRes.ok) throw new Error("HTTP " + healthRes.status);
       const healthData = await healthRes.json();
-      elements.apiDot.className = "status-dot dot-ok";
-      elements.apiStatusText.textContent = "ONLINE (v" + (healthData.version || "0.1.0") + ")";
+      if (elements.apiDot) elements.apiDot.className = "status-dot dot-ok";
+      if (elements.apiStatusText) elements.apiStatusText.textContent = "ONLINE (v" + (healthData.version || "0.1.0") + ")";
+      if (elements.statusApiPill) elements.statusApiPill.title = "FastAPI Control Plane: Online (v" + (healthData.version || "0.1.0") + ")";
 
       const readyRes = await fetch("/ready");
       if (readyRes.ok) {
         const readyData = await readyRes.json();
         if (readyData.inference_configured) {
-          elements.inferenceDot.className = "status-dot dot-ok";
-          elements.inferenceStatusText.textContent = "CONNECTED";
+          if (elements.inferenceDot) elements.inferenceDot.className = "status-dot dot-ok";
+          if (elements.inferenceStatusText) elements.inferenceStatusText.textContent = "CONNECTED";
+          if (elements.statusInferencePill) elements.statusInferencePill.title = "Vultr Serverless Inference: Connected";
         } else {
-          elements.inferenceDot.className = "status-dot dot-warning";
-          elements.inferenceStatusText.textContent = "LOCAL SIM ONLY";
+          if (elements.inferenceDot) elements.inferenceDot.className = "status-dot dot-warn";
+          if (elements.inferenceStatusText) elements.inferenceStatusText.textContent = "LOCAL SIM ONLY";
+          if (elements.statusInferencePill) elements.statusInferencePill.title = "Inference Gateway: Local Simulation Only";
         }
 
         if (readyData.microvm_available) {
-          elements.backendDot.className = "status-dot dot-ok";
-          elements.backendStatusText.textContent = "MICROVM (KVM)";
+          if (elements.backendDot) elements.backendDot.className = "status-dot dot-ok";
+          if (elements.backendStatusText) elements.backendStatusText.textContent = "MICROVM (KVM)";
+          if (elements.statusSandboxPill) elements.statusSandboxPill.title = "Sandbox: Hardware MicroVM Isolation (/dev/kvm verified)";
         } else {
-          elements.backendDot.className = "status-dot dot-ok";
-          elements.backendStatusText.textContent = "TRUSTED SIMULATOR";
+          if (elements.backendDot) elements.backendDot.className = "status-dot dot-ok";
+          if (elements.backendStatusText) elements.backendStatusText.textContent = "TRUSTED SIMULATOR";
+          if (elements.statusSandboxPill) elements.statusSandboxPill.title = "Sandbox: Trusted Host Simulator Fallback";
         }
       }
     } catch (err) {
-      elements.apiDot.className = "status-dot dot-error";
-      elements.apiStatusText.textContent = "OFFLINE";
-      elements.inferenceDot.className = "status-dot dot-unknown";
-      elements.inferenceStatusText.textContent = "UNKNOWN";
-      elements.backendDot.className = "status-dot dot-unknown";
-      elements.backendStatusText.textContent = "UNKNOWN";
+      if (elements.apiDot) elements.apiDot.className = "status-dot dot-err";
+      if (elements.apiStatusText) elements.apiStatusText.textContent = "OFFLINE";
+      if (elements.statusApiPill) elements.statusApiPill.title = "FastAPI Control Plane: Offline";
+      if (elements.inferenceDot) elements.inferenceDot.className = "status-dot dot-unknown";
+      if (elements.inferenceStatusText) elements.inferenceStatusText.textContent = "UNKNOWN";
+      if (elements.statusInferencePill) elements.statusInferencePill.title = "Inference: Unknown";
+      if (elements.backendDot) elements.backendDot.className = "status-dot dot-unknown";
+      if (elements.backendStatusText) elements.backendStatusText.textContent = "UNKNOWN";
+      if (elements.statusSandboxPill) elements.statusSandboxPill.title = "Sandbox: Unknown";
     }
   }
 
@@ -1824,7 +1836,7 @@
 
     let isDawn = document.documentElement.classList.contains("rune-dawn");
 
-    const particleCount = 32;
+    const particleCount = 48;
     const particles = [];
 
     function initParticles() {
@@ -1852,143 +1864,248 @@
       const bg = offscreenCtx;
       bg.clearRect(0, 0, width, height);
 
-      // Sky gradient
-      const skyGrad = bg.createLinearGradient(0, 0, 0, height);
       if (isDawn) {
+        // RUNE DAWN: HIGH-KEY MONOCHROMATIC MIST FJORD
+        const skyGrad = bg.createLinearGradient(0, 0, 0, height);
         skyGrad.addColorStop(0, "#f8fafc");
         skyGrad.addColorStop(0.55, "#e2e8f0");
         skyGrad.addColorStop(0.72, "#cbd5e1");
         skyGrad.addColorStop(1.0, "#94a3b8");
-      } else {
-        skyGrad.addColorStop(0, "#050811");
-        skyGrad.addColorStop(0.5, "#0b1220");
-        skyGrad.addColorStop(0.68, "#1e131d");
-        skyGrad.addColorStop(0.72, "#381710");
-        skyGrad.addColorStop(1.0, "#080c18");
-      }
-      bg.fillStyle = skyGrad;
-      bg.fillRect(0, 0, width, height);
+        bg.fillStyle = skyGrad;
+        bg.fillRect(0, 0, width, height);
 
-      // Horizon Vegvisir / Runic Compass Ring
-      const runeCenterX = width * 0.52;
-      const runeCenterY = height * 0.44;
-      const runeRadius = Math.min(width * 0.16, 120);
+        // Weathered Runic Compass Watermark
+        const runeCenterX = width * 0.52;
+        const runeCenterY = height * 0.44;
+        const runeRadius = Math.min(width * 0.15, 110);
 
-      bg.save();
-      bg.strokeStyle = isDawn ? "rgba(234, 88, 12, 0.12)" : "rgba(6, 182, 212, 0.14)";
-      bg.lineWidth = 1.2;
-      bg.beginPath();
-      bg.arc(runeCenterX, runeCenterY, runeRadius, 0, Math.PI * 2);
-      bg.stroke();
-
-      bg.beginPath();
-      bg.arc(runeCenterX, runeCenterY, runeRadius * 0.65, 0, Math.PI * 2);
-      bg.stroke();
-
-      // Runic Compass 8 Spokes
-      for (let s = 0; s < 8; s++) {
-        const angle = (s * Math.PI) / 4;
-        const x1 = runeCenterX + Math.cos(angle) * (runeRadius * 0.3);
-        const y1 = runeCenterY + Math.sin(angle) * (runeRadius * 0.3);
-        const x2 = runeCenterX + Math.cos(angle) * (runeRadius * 1.08);
-        const y2 = runeCenterY + Math.sin(angle) * (runeRadius * 1.08);
+        bg.save();
+        bg.strokeStyle = "rgba(100, 116, 139, 0.15)";
+        bg.lineWidth = 1.2;
         bg.beginPath();
-        bg.moveTo(x1, y1);
-        bg.lineTo(x2, y2);
+        bg.arc(runeCenterX, runeCenterY, runeRadius, 0, Math.PI * 2);
         bg.stroke();
-      }
-      bg.restore();
 
-      // Distant Jagged Fjord Peaks (Layer 1)
-      const waterY = height * 0.74;
-      bg.save();
-      bg.fillStyle = isDawn ? "rgba(100, 116, 139, 0.25)" : "rgba(15, 23, 42, 0.55)";
-      bg.beginPath();
-      bg.moveTo(0, waterY);
-      const peaks1 = [
-        [0.0, waterY - height * 0.18],
-        [0.12, waterY - height * 0.28],
-        [0.22, waterY - height * 0.22],
-        [0.34, waterY - height * 0.36],
-        [0.48, waterY - height * 0.26],
-        [0.62, waterY - height * 0.38],
-        [0.76, waterY - height * 0.25],
-        [0.88, waterY - height * 0.32],
-        [1.0, waterY - height * 0.20],
-      ];
-      for (const pt of peaks1) {
-        bg.lineTo(pt[0] * width, pt[1]);
-      }
-      bg.lineTo(width, waterY);
-      bg.closePath();
-      bg.fill();
+        bg.beginPath();
+        bg.arc(runeCenterX, runeCenterY, runeRadius * 0.65, 0, Math.PI * 2);
+        bg.stroke();
 
-      // Mid Fjord Mountain Ridge with Dither Stipple (Layer 2)
-      bg.fillStyle = isDawn ? "rgba(51, 65, 85, 0.45)" : "rgba(8, 14, 26, 0.82)";
-      bg.beginPath();
-      bg.moveTo(0, waterY);
-      const peaks2 = [
-        [0.0, waterY - height * 0.12],
-        [0.10, waterY - height * 0.22],
-        [0.25, waterY - height * 0.14],
-        [0.40, waterY - height * 0.26],
-        [0.55, waterY - height * 0.17],
-        [0.70, waterY - height * 0.24],
-        [0.85, waterY - height * 0.15],
-        [1.0, waterY - height * 0.20],
-      ];
-      for (const pt of peaks2) {
-        bg.lineTo(pt[0] * width, pt[1]);
-      }
-      bg.lineTo(width, waterY);
-      bg.closePath();
-      bg.fill();
+        for (let s = 0; s < 8; s++) {
+          const angle = (s * Math.PI) / 4;
+          const x1 = runeCenterX + Math.cos(angle) * (runeRadius * 0.25);
+          const y1 = runeCenterY + Math.sin(angle) * (runeRadius * 0.25);
+          const x2 = runeCenterX + Math.cos(angle) * (runeRadius * 1.05);
+          const y2 = runeCenterY + Math.sin(angle) * (runeRadius * 1.05);
+          bg.beginPath();
+          bg.moveTo(x1, y1);
+          bg.lineTo(x2, y2);
+          bg.stroke();
+        }
+        bg.restore();
 
-      // Procedural Dither Stippling along Mountain Slopes
-      bg.fillStyle = isDawn ? "rgba(15, 23, 42, 0.25)" : "rgba(6, 182, 212, 0.18)";
-      const ditherStep = 12;
-      for (let dx = 0; dx < width; dx += ditherStep) {
-        const normX = dx / width;
-        const mountainTopY = waterY - height * (0.16 + 0.12 * Math.sin(normX * 6.28));
-        const span = waterY - mountainTopY;
-        if (span > 10) {
-          for (let dy = mountainTopY; dy < waterY; dy += ditherStep) {
-            const density = (dy - mountainTopY) / span;
-            if (Math.sin(dx * 13.7 + dy * 27.3) > (1.0 - density * 1.5)) {
-              bg.fillRect(dx, dy, 1.5, 1.5);
+        // Distant Jagged Fjord Peaks (Layer 1)
+        const waterY = height * 0.74;
+        bg.save();
+        bg.fillStyle = "rgba(100, 116, 139, 0.25)";
+        bg.beginPath();
+        bg.moveTo(0, waterY);
+        const peaks1 = [
+          [0.0, waterY - height * 0.18],
+          [0.12, waterY - height * 0.28],
+          [0.22, waterY - height * 0.22],
+          [0.34, waterY - height * 0.36],
+          [0.48, waterY - height * 0.26],
+          [0.62, waterY - height * 0.38],
+          [0.76, waterY - height * 0.25],
+          [0.88, waterY - height * 0.32],
+          [1.0, waterY - height * 0.20],
+        ];
+        for (const pt of peaks1) {
+          bg.lineTo(pt[0] * width, pt[1]);
+        }
+        bg.lineTo(width, waterY);
+        bg.closePath();
+        bg.fill();
+
+        // Mid Fjord Mountain Ridge with Dither Stipple (Layer 2)
+        bg.fillStyle = "rgba(51, 65, 85, 0.45)";
+        bg.beginPath();
+        bg.moveTo(0, waterY);
+        const peaks2 = [
+          [0.0, waterY - height * 0.12],
+          [0.10, waterY - height * 0.22],
+          [0.25, waterY - height * 0.14],
+          [0.40, waterY - height * 0.26],
+          [0.55, waterY - height * 0.17],
+          [0.70, waterY - height * 0.24],
+          [0.85, waterY - height * 0.15],
+          [1.0, waterY - height * 0.20],
+        ];
+        for (const pt of peaks2) {
+          bg.lineTo(pt[0] * width, pt[1]);
+        }
+        bg.lineTo(width, waterY);
+        bg.closePath();
+        bg.fill();
+
+        // Procedural Dither Stippling along Mountain Slopes
+        bg.fillStyle = "rgba(15, 23, 42, 0.25)";
+        const ditherStep = 12;
+        for (let dx = 0; dx < width; dx += ditherStep) {
+          const normX = dx / width;
+          const mountainTopY = waterY - height * (0.16 + 0.12 * Math.sin(normX * 6.28));
+          const span = waterY - mountainTopY;
+          if (span > 10) {
+            for (let dy = mountainTopY; dy < waterY; dy += ditherStep) {
+              const density = (dy - mountainTopY) / span;
+              if (Math.sin(dx * 13.7 + dy * 27.3) > (1.0 - density * 1.5)) {
+                bg.fillRect(dx, dy, 1.5, 1.5);
+              }
             }
           }
         }
-      }
 
-      // Fjord Water Line and Specular Reflection
-      const waterGrad = bg.createLinearGradient(0, waterY, 0, height);
-      if (isDawn) {
+        // Fjord Water Line
+        const waterGrad = bg.createLinearGradient(0, waterY, 0, height);
         waterGrad.addColorStop(0, "#cbd5e1");
         waterGrad.addColorStop(0.3, "#94a3b8");
         waterGrad.addColorStop(1.0, "#64748b");
-      } else {
-        waterGrad.addColorStop(0, "#080d1a");
-        waterGrad.addColorStop(0.2, "#040710");
-        waterGrad.addColorStop(1.0, "#020408");
-      }
-      bg.fillStyle = waterGrad;
-      bg.fillRect(0, waterY, width, height - waterY);
+        bg.fillStyle = waterGrad;
+        bg.fillRect(0, waterY, width, height - waterY);
 
-      // Water Surface Dither Ripples
-      bg.fillStyle = isDawn ? "rgba(255, 255, 255, 0.4)" : "rgba(249, 115, 22, 0.25)";
-      for (let wy = waterY + 6; wy < height; wy += 8) {
-        const waveSpan = width * 0.45;
-        const startX = width * 0.3 + (Math.sin(wy * 0.1) * 30);
-        for (let wx = startX; wx < startX + waveSpan; wx += 14) {
-          if (Math.sin(wx * 0.05 + wy * 0.3) > 0.3) {
-            bg.fillRect(wx, wy, 8, 1);
+        bg.restore();
+      } else {
+        // RUNE DUSK: BLAZING ELDEN RING CELESTIAL GREAT RUNE & VOLCANIC DITHER
+        const skyGrad = bg.createLinearGradient(0, 0, 0, height);
+        skyGrad.addColorStop(0, "#050103");
+        skyGrad.addColorStop(0.25, "#140307");
+        skyGrad.addColorStop(0.48, "#2d050a");
+        skyGrad.addColorStop(0.66, "#550b11");
+        skyGrad.addColorStop(0.74, "#7f1d1d");
+        skyGrad.addColorStop(0.82, "#35080c");
+        skyGrad.addColorStop(1.0, "#070104");
+        bg.fillStyle = skyGrad;
+        bg.fillRect(0, 0, width, height);
+
+        // Blazing Elden Ring Celestial Great Rune
+        const runeCenterX = width * 0.50;
+        const runeCenterY = height * 0.36;
+        const R = Math.min(width * 0.12, 108);
+
+        bg.save();
+
+        // Stippled Dither Clouds around the Great Rune
+        bg.fillStyle = "rgba(239, 68, 68, 0.20)";
+        const ditherStep = 10;
+        for (let dx = runeCenterX - R * 2.2; dx < runeCenterX + R * 2.2; dx += ditherStep) {
+          for (let dy = runeCenterY - R * 1.8; dy < runeCenterY + R * 2.2; dy += ditherStep) {
+            const dist = Math.hypot(dx - runeCenterX, dy - runeCenterY);
+            if (dist < R * 2.2 && Math.sin(dx * 17.1 + dy * 23.3) > (dist / (R * 2.2))) {
+              bg.fillRect(dx, dy, 1.8, 1.8);
+            }
           }
         }
-      }
 
-      bg.restore();
-    }
+        // Multi-Pass Glowing Molten Arc Geometry
+        function drawRunePass(strokeCol, lineW, shadowBlur, shadowCol) {
+          bg.save();
+          bg.strokeStyle = strokeCol;
+          bg.lineWidth = lineW;
+          if (shadowBlur > 0) {
+            bg.shadowBlur = shadowBlur;
+            bg.shadowColor = shadowCol;
+          }
+
+          // 1. Top Inverted Molten Basin & Vertical Ray Conduit
+          bg.beginPath();
+          const basinY = runeCenterY - R * 1.52;
+          bg.moveTo(runeCenterX - R * 0.65, basinY - 6);
+          bg.quadraticCurveTo(runeCenterX, basinY + 14, runeCenterX + R * 0.65, basinY - 6);
+          bg.stroke();
+
+          // Vertical Molten Spear Conduit through the center
+          bg.beginPath();
+          bg.moveTo(runeCenterX, basinY);
+          bg.lineTo(runeCenterX, runeCenterY + R * 1.55);
+          bg.stroke();
+
+          // 2. Primary Upper Ring
+          bg.beginPath();
+          bg.arc(runeCenterX, runeCenterY - R * 0.22, R * 0.88, 0, Math.PI * 2);
+          bg.stroke();
+
+          // 3. Central Great Interlocking Ring
+          bg.beginPath();
+          bg.arc(runeCenterX, runeCenterY + R * 0.15, R * 0.95, 0, Math.PI * 2);
+          bg.stroke();
+
+          // 4. Lower Intersecting Left & Right Rings
+          bg.beginPath();
+          bg.arc(runeCenterX - R * 0.44, runeCenterY + R * 0.48, R * 0.74, 0, Math.PI * 2);
+          bg.stroke();
+
+          bg.beginPath();
+          bg.arc(runeCenterX + R * 0.44, runeCenterY + R * 0.48, R * 0.74, 0, Math.PI * 2);
+          bg.stroke();
+
+          // 5. Bottom Anchor Basin Arc
+          bg.beginPath();
+          bg.arc(runeCenterX, runeCenterY + R * 0.85, R * 0.65, 0.2 * Math.PI, 0.8 * Math.PI);
+          bg.stroke();
+
+          // 6. Cross-Axis Curved Rays
+          bg.beginPath();
+          bg.arc(runeCenterX, runeCenterY - R * 0.1, R * 1.35, 0.3 * Math.PI, 0.7 * Math.PI);
+          bg.stroke();
+
+          bg.restore();
+        }
+
+        // Pass 1: Volcanic Crimson Radiance
+        drawRunePass("rgba(220, 38, 38, 0.42)", 16, 28, "#dc2626");
+        // Pass 2: Blazing Molten Ember
+        drawRunePass("rgba(249, 115, 22, 0.85)", 5.5, 14, "#f97316");
+        // Pass 3: Radiant Core Golden Fire
+        drawRunePass("rgba(254, 240, 138, 0.98)", 1.8, 4, "#fef08a");
+
+        // Jagged Volcanic Crags (Bottom Silhouette)
+        const waterY = height * 0.76;
+        bg.fillStyle = "#070204";
+        bg.beginPath();
+        bg.moveTo(0, waterY);
+        const volcanicPeaks = [
+          [0.0, waterY - height * 0.14],
+          [0.12, waterY - height * 0.22],
+          [0.26, waterY - height * 0.16],
+          [0.38, waterY - height * 0.25],
+          [0.50, waterY - height * 0.18],
+          [0.64, waterY - height * 0.27],
+          [0.78, waterY - height * 0.16],
+          [0.90, waterY - height * 0.23],
+          [1.0, waterY - height * 0.15],
+        ];
+        for (const pt of volcanicPeaks) {
+          bg.lineTo(pt[0] * width, pt[1]);
+        }
+        bg.lineTo(width, height);
+        bg.lineTo(0, height);
+        bg.closePath();
+        bg.fill();
+
+        // Molten Lava Reflection Ripples
+        bg.fillStyle = "rgba(249, 115, 22, 0.35)";
+        for (let wy = waterY + 4; wy < height; wy += 8) {
+          const waveSpan = width * 0.36;
+          const startX = width * 0.32 + (Math.sin(wy * 0.1) * 20);
+          for (let wx = startX; wx < startX + waveSpan; wx += 12) {
+            if (Math.sin(wx * 0.08 + wy * 0.25) > 0.35) {
+              bg.fillRect(wx, wy, 7, 1.2);
+            }
+          }
+        }
+
+        bg.restore();
+      }
 
     function resize() {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2046,9 +2163,13 @@
             p.x = Math.random() * width;
           }
           const emberAlpha = p.opacity * (0.7 + 0.3 * Math.sin(p.pulsePhase));
-          ctx.fillStyle = i % 3 === 0
-            ? `rgba(251, 191, 36, ${emberAlpha})`
-            : `rgba(249, 115, 22, ${emberAlpha})`;
+          if (i % 3 === 0) {
+            ctx.fillStyle = `rgba(254, 240, 138, ${emberAlpha})`;
+          } else if (i % 3 === 1) {
+            ctx.fillStyle = `rgba(249, 115, 22, ${emberAlpha})`;
+          } else {
+            ctx.fillStyle = `rgba(239, 68, 68, ${emberAlpha})`;
+          }
         }
 
         ctx.fillRect(p.x, p.y, p.size, p.size);

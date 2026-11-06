@@ -296,53 +296,83 @@ html.rune-dawn .brand-logo-img {
   align-items: center;
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 4px 10px;
-  gap: 14px;
+  border-radius: 9999px;
+  padding: 3px 6px 3px 12px;
+  gap: 12px;
 }
 
-.status-indicator {
+.status-indicator-pill {
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: help;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease;
+}
+
+.status-indicator-pill:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-name {
+  font-family: var(--font-mono);
   font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.dot-ok {
+.dot-ok,
+.dot-green {
   background-color: var(--accent-emerald);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
 }
 
-.dot-err {
+.dot-err,
+.dot-red {
   background-color: var(--accent-rose);
-  box-shadow: 0 0 8px rgba(244, 63, 94, 0.7);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.8);
 }
 
 .dot-warn {
   background-color: var(--accent-amber);
-  box-shadow: 0 0 8px rgba(250, 115, 20, 0.7);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.8);
 }
 
 .dot-unknown {
   background-color: var(--text-subtle);
+  box-shadow: none;
 }
 
-.status-label {
+.status-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-muted);
-  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
 }
 
-.status-val {
+.status-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-color);
   color: var(--text-main);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  transform: rotate(180deg);
 }
 
 /* ==========================================================================
