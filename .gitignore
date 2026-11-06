@@ -21,3 +21,7 @@ docs/DOMNIR_IMPLEMENTATION_PLAN.md
 
 # Agent brain (strictly developer and agent reference)
 brain/
+
+# Cloudflare Wrangler build cache
+.wrangler/
+deploy/cloudflare/.wrangler/

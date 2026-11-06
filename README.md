@@ -8,14 +8,15 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](pyproject.toml)
 [![MuJoCo 3.3.7](https://img.shields.io/badge/MuJoCo-3.3.7-green.svg)](https://github.com/google-deepmind/mujoco)
 [![Vultr Serverless Inference](https://img.shields.io/badge/Vultr-Serverless%20Inference-007bfc.svg)](https://www.vultr.com/)
-[![Tests: 133 Passed](https://img.shields.io/badge/Tests-133%20Passed-success.svg)](tests/)
+[![Tests: 135 Passed](https://img.shields.io/badge/Tests-135%20Passed-success.svg)](tests/)
 
 ---
 
 ### Quick Links
-- **Live Web Observatory**: [http://45.76.48.77:8000/](http://45.76.48.77:8000/) (or [http://45.76.48.77/](http://45.76.48.77/))
-- **Live Readiness API**: [http://45.76.48.77:8000/ready](http://45.76.48.77:8000/ready)
-- **Containment Audit API**: [http://45.76.48.77:8000/containment/status](http://45.76.48.77:8000/containment/status)
+- **Live Edge Observatory (HTTPS)**: [https://domnir.erebuzzz.tech](https://domnir.erebuzzz.tech)
+- **Live Direct Origin**: [http://45.76.48.77:8000/](http://45.76.48.77:8000/) (or [http://45.76.48.77/](http://45.76.48.77/))
+- **Live Readiness API**: [https://domnir.erebuzzz.tech/ready](https://domnir.erebuzzz.tech/ready)
+- **Containment Audit API**: [https://domnir.erebuzzz.tech/containment/status](https://domnir.erebuzzz.tech/containment/status)
 - **Challenge**: Vultr Agent Rush Hackathon | Challenge 1: Blast Radius Zero
 - **License**: MIT License (MIT-compliant)
 
@@ -341,9 +342,9 @@ echo "VULTR_INFERENCE_API_KEY=your_key_here" > .env
 uv run pytest -v
 ```
 
-All 133 tests run deterministically:
-- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, and containment verification tests pass (122 passed, 11 skipped, 0 failed).
-- On live KVM-enabled Vultr hosts: all 133 tests pass (133 passed, 0 failed).
+All 135 tests run deterministically:
+- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, and containment verification tests pass (124 passed, 11 skipped, 0 failed).
+- On live KVM-enabled Vultr hosts: all 135 tests pass (135 passed, 0 failed).
 
 ### 3. Launch the Web Application
 
@@ -389,6 +390,16 @@ sudo systemctl start domnir
 sudo systemctl status domnir
 journalctl -u domnir -f
 ```
+
+### 3. Cloudflare Edge Reverse Proxy with Custom Domain
+To provide edge TLS termination, HTTP/2 and HTTP/3 support, DDoS mitigation, and global custom domain routing (`https://domnir.erebuzzz.tech`) to the Vultr Cloud Compute instance, Dómnir includes a lightweight edge reverse proxy in `deploy/cloudflare/`:
+
+```bash
+cd deploy/cloudflare
+npx wrangler deploy
+```
+
+The worker terminates TLS at Cloudflare edge locations, forwards requests to the live Vultr compute instance origin, preserves full streaming request/response bodies, and injects origin observability headers.
 
 ---
 

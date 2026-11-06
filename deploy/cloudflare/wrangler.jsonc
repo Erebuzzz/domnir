@@ -1,0 +1,14 @@
+{
+  "name": "domnir-proxy",
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-06",
+  "routes": [
+    {
+      "pattern": "domnir.erebuzzz.tech",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
