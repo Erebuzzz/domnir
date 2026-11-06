@@ -87,6 +87,11 @@
       <g id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12" />
       </g>
+
+      <!-- Faceted Celestial Star / Theme Switcher -->
+      <g id="icon-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9" fill="currentColor" fill-opacity="0.25" />
+      </g>
     </defs>
   </svg>
 
@@ -107,6 +112,12 @@
       </div>
 
       <div class="header-actions">
+        <!-- Theme Toggle: Rune Dusk (Night / Cool) & Rune Dawn (Sunrise / Warm) -->
+        <button type="button" class="btn btn-sm btn-ghost theme-toggle-btn" id="themeToggleBtn" title="Switch between Rune Dusk and Rune Dawn">
+          <svg class="btn-icon" width="14" height="14"><use href="#icon-theme" /></svg>
+          <span id="themeToggleLabel">Rune Dusk</span>
+        </button>
+
         <button type="button" class="btn btn-sm btn-ghost" id="openOracleHeaderBtn" title="Search Ragnarok Knowledge Oracle">
           <svg class="btn-icon" width="14" height="14"><use href="#icon-search" /></svg>
           Oracle
@@ -474,7 +485,7 @@
 
             <div class="plant-visual-stage">
               <div class="runic-halo-ring"></div>
-              <img src="/assets/crazyflie_ragnarok_3d.png" alt="Bitcraze Crazyflie 2 with Runic Halo" class="crazyflie-hero-img" width="280" height="280" loading="eager">
+              <img src="/assets/crazyflie_ragnarok_dusk.png" alt="Bitcraze Crazyflie 2 with Runic Halo" class="crazyflie-hero-img" width="280" height="280" loading="eager">
               
               <div class="telemetry-hud-overlay">
                 <div class="hud-tag tag-top-left">
@@ -677,7 +688,7 @@
                           <rect x="55" y="20" width="685" height="240" />
                         </clipPath>
                       </defs>
-                      <rect width="100%" height="100%" fill="#030509" />
+                      <rect width="100%" height="100%" fill="var(--chart-bg)" />
                     </svg>
                     <div id="chartTooltip" class="chart-tooltip hidden"></div>
                   </div>
@@ -785,6 +796,40 @@
 
         </div>
 
+      </div>
+
+      <!-- WORKSPACE QUICK KNOWLEDGE ORACLE DRAWER -->
+      <div class="workspace-oracle-panel" id="workspaceOraclePanel">
+        <div class="ws-oracle-header">
+          <div class="ws-oracle-title-group">
+            <svg class="ws-oracle-icon" width="20" height="20"><use href="#icon-search" /></svg>
+            <div>
+              <h3 class="ws-oracle-title">Ragnarok Knowledge Oracle &bull; Quick Query</h3>
+              <p class="ws-oracle-subtitle">Instant architectural bounds, replay formulas, and containment proofs</p>
+            </div>
+          </div>
+          <div class="ws-oracle-actions">
+            <button type="button" class="btn btn-sm btn-ghost" id="wsOracleJumpArchitectureBtn">
+              Full Codex &rarr;
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="toggleWsOracleBtn">
+              <span id="wsOracleToggleIcon">-</span> Hide Drawer
+            </button>
+          </div>
+        </div>
+
+        <div class="ws-oracle-body" id="wsOracleBody">
+          <div class="ws-oracle-search-row">
+            <input type="text" id="wsOracleSearchInput" class="form-control" placeholder="Quick query (e.g., 'hover thrust', 'ast forbidden', 'kvm isolation', 'court record')..." aria-label="Quick Query Oracle">
+            <div class="ws-oracle-chips">
+              <button type="button" class="preset-chip active" data-ws-topic="all">All</button>
+              <button type="button" class="preset-chip" data-ws-topic="bounds">Bounds</button>
+              <button type="button" class="preset-chip" data-ws-topic="replay">Replay</button>
+              <button type="button" class="preset-chip" data-ws-topic="microvm">MicroVM</button>
+            </div>
+          </div>
+          <div class="ws-oracle-results-grid" id="wsOracleResultsGrid"></div>
+        </div>
       </div>
     </section>
 

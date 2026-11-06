@@ -1,14 +1,16 @@
 /* ==========================================================================
    Dómnir: Dark Engineering Observatory Stylesheet
-   Theme: Runes & Ragnarok with Stained Glass & Bayer Matrix Dithering
+   Theme: Runes & Ragnarok with Rune Dusk (Cool Night) & Rune Dawn (Warm Sunrise)
    Zero external runtime dependencies. Zero em dashes. Zero emojis.
    ========================================================================== */
 
-:root {
-  --bg-core: #05070d;
-  --bg-card: rgba(13, 19, 33, 0.72);
-  --bg-surface: rgba(18, 25, 44, 0.65);
-  --bg-subtle: rgba(24, 33, 56, 0.5);
+:root,
+html.rune-dusk {
+  --theme-mode: "dusk";
+  --bg-core: #04060a;
+  --bg-card: rgba(10, 16, 28, 0.72);
+  --bg-surface: rgba(14, 22, 38, 0.65);
+  --bg-subtle: rgba(20, 28, 48, 0.5);
   --border-color: rgba(255, 255, 255, 0.08);
   --border-specular: rgba(255, 255, 255, 0.18);
   --border-focus: #06b6d4;
@@ -24,12 +26,12 @@
   --accent-ember: #ea580c;
   --accent-rose: #f43f5e;
 
-  --glass-bg: linear-gradient(135deg, rgba(13, 19, 33, 0.75) 0%, rgba(8, 12, 22, 0.85) 100%);
+  --glass-bg: linear-gradient(135deg, rgba(10, 16, 28, 0.75) 0%, rgba(6, 10, 18, 0.85) 100%);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-border-specular: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7), 0 0 24px -6px rgba(250, 115, 20, 0.08);
+  --glass-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7), 0 0 24px -6px rgba(6, 182, 212, 0.1);
   --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(250, 115, 20, 0.12) 0%, transparent 70%);
-  --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+  --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 70%);
 
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -39,6 +41,43 @@
   --radius-lg: 10px;
 
   --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.55);
+
+  --chart-bg: #030509;
+  --code-bg: #04060a;
+}
+
+html.rune-dawn {
+  --theme-mode: "dawn";
+  --bg-core: #fbf7ee;
+  --bg-card: rgba(255, 252, 245, 0.85);
+  --bg-surface: rgba(254, 248, 237, 0.9);
+  --bg-subtle: rgba(246, 237, 222, 0.75);
+  --border-color: rgba(234, 88, 12, 0.16);
+  --border-specular: rgba(255, 255, 255, 0.9);
+  --border-focus: #ea580c;
+
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  --text-subtle: #64748b;
+
+  --accent-cyan: #0284c7;
+  --accent-blue: #0369a1;
+  --accent-emerald: #059669;
+  --accent-amber: #ea580c;
+  --accent-ember: #c2410c;
+  --accent-rose: #e11d48;
+
+  --glass-bg: linear-gradient(135deg, rgba(255, 252, 245, 0.88) 0%, rgba(254, 246, 232, 0.94) 100%);
+  --glass-border: rgba(234, 88, 12, 0.18);
+  --glass-border-specular: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 16px 36px -10px rgba(234, 88, 12, 0.12), 0 0 24px -6px rgba(249, 115, 22, 0.08);
+  --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 70%);
+  --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(2, 132, 199, 0.14) 0%, transparent 70%);
+
+  --shadow-card: 0 8px 28px rgba(234, 88, 12, 0.1);
+
+  --chart-bg: #111827;
+  --code-bg: #0f172a;
 }
 
 *, *::before, *::after {
@@ -50,8 +89,8 @@
 body {
   background-color: var(--bg-core);
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(250, 115, 20, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 85% 60%, rgba(6, 182, 212, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 50% 0%, rgba(250, 115, 20, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 85% 60%, rgba(6, 182, 212, 0.05) 0%, transparent 45%),
     radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 16px 16px;
   color: var(--text-main);
@@ -62,6 +101,14 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
+  transition: background-color 0.4s ease, color 0.3s ease;
+}
+
+html.rune-dawn body {
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.1) 0%, transparent 55%),
+    radial-gradient(circle at 85% 60%, rgba(251, 146, 60, 0.08) 0%, transparent 50%),
+    radial-gradient(rgba(234, 88, 12, 0.03) 1px, transparent 1px);
 }
 
 /* Bayer Matrix Dither Overlay Texture */
@@ -78,6 +125,13 @@ body {
   background-position: 0 0, 4px 4px;
 }
 
+html.rune-dawn .dither-overlay {
+  opacity: 0.25;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(234, 88, 12, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+}
+
 /* ==========================================================================
    Header & System Status Bar
    ========================================================================== */
@@ -87,10 +141,11 @@ body {
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border-bottom: 1px solid var(--glass-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   padding: 0.85rem 1.75rem;
   position: relative;
   z-index: 10;
+  transition: all 0.3s ease;
 }
 
 .header-container {
@@ -113,6 +168,10 @@ body {
   display: block;
   filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.35));
   transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+html.rune-dawn .brand-logo-img {
+  filter: drop-shadow(0 0 12px rgba(234, 88, 12, 0.4));
 }
 
 .brand-logo-img:hover {
@@ -158,10 +217,7 @@ body {
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ffffff 40%, rgba(255, 255, 255, 0.75) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
   line-height: 1.1;
 }
 
@@ -178,10 +234,29 @@ body {
   flex-wrap: wrap;
 }
 
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+  transition: all 0.25s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(250, 115, 20, 0.15);
+  border-color: var(--accent-amber);
+  transform: translateY(-1px);
+}
+
 .system-status-bar {
   display: flex;
   align-items: center;
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 4px 10px;
@@ -237,7 +312,7 @@ body {
    ========================================================================== */
 
 .nav-tabs {
-  background: rgba(8, 12, 22, 0.85);
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   padding: 0 1.75rem;
   position: relative;
@@ -276,7 +351,7 @@ body {
 }
 
 .nav-tab.active {
-  color: #ffffff;
+  color: var(--text-main);
   border-bottom-color: var(--accent-amber);
   background: linear-gradient(180deg, transparent 0%, rgba(250, 115, 20, 0.08) 100%);
 }
@@ -361,7 +436,7 @@ body {
 .step-btn.active {
   background: rgba(250, 115, 20, 0.12);
   border-color: rgba(250, 115, 20, 0.35);
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .step-btn.completed {
@@ -416,7 +491,7 @@ body {
 .step-line {
   flex: 1;
   height: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border-color);
   min-width: 20px;
 }
 
@@ -477,7 +552,7 @@ body {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .card-subtitle {
@@ -551,25 +626,24 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
   color: var(--text-main);
   border-color: var(--border-color);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--bg-subtle);
 }
 
 .btn-outline {
   background: transparent;
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: var(--border-color);
 }
 
 .btn-outline:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--accent-cyan);
-  color: #ffffff;
 }
 
 .btn-ghost {
@@ -669,20 +743,20 @@ body {
    ========================================================================== */
 
 .plant-hero-card {
-  background: linear-gradient(135deg, rgba(13, 19, 33, 0.85) 0%, rgba(6, 10, 18, 0.95) 100%);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-top: 1px solid rgba(250, 115, 20, 0.3);
   border-radius: var(--radius-lg);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
 }
 
 .plant-hero-header {
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -693,7 +767,7 @@ body {
 .plant-hero-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   letter-spacing: 0.02em;
 }
 
@@ -742,6 +816,10 @@ body {
   background: radial-gradient(circle at 50% 50%, rgba(250, 115, 20, 0.07) 0%, transparent 65%);
 }
 
+html.rune-dawn .plant-visual-stage {
+  background: radial-gradient(circle at 50% 50%, rgba(234, 88, 12, 0.1) 0%, transparent 70%);
+}
+
 .runic-halo-ring {
   position: absolute;
   width: 260px;
@@ -763,8 +841,8 @@ body {
   z-index: 2;
   max-width: 280px;
   height: auto;
-  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 16px rgba(250, 115, 20, 0.25));
-  transition: transform 0.4s ease;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 16px rgba(250, 115, 20, 0.25));
+  transition: transform 0.4s ease, filter 0.4s ease;
 }
 
 .crazyflie-hero-img:hover {
@@ -782,13 +860,13 @@ body {
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: rgba(8, 12, 22, 0.75);
+  background: var(--bg-surface);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 3px 8px;
   font-family: var(--font-mono);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .tag-top-left { top: 6px; left: 6px; }
@@ -842,13 +920,13 @@ body {
 .preset-chip:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--border-focus);
 }
 
 .preset-chip.active {
   background: rgba(250, 115, 20, 0.15);
   border-color: var(--accent-amber);
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .form-grid {
@@ -882,10 +960,10 @@ body {
 }
 
 .form-control {
-  background: rgba(8, 12, 22, 0.8);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  color: #ffffff;
+  color: var(--text-main);
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 8px 12px;
@@ -922,8 +1000,8 @@ body {
 
 .advanced-fields-box {
   grid-column: 1 / -1;
-  background: rgba(8, 12, 22, 0.6);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
   padding: 16px;
   margin-top: 8px;
@@ -985,7 +1063,7 @@ body {
 }
 
 .model-card {
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 14px;
@@ -995,8 +1073,8 @@ body {
 }
 
 .model-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--bg-subtle);
+  border-color: var(--border-focus);
 }
 
 .model-card.active {
@@ -1015,7 +1093,7 @@ body {
 .model-name {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .model-badge {
@@ -1049,7 +1127,7 @@ body {
 }
 
 .reasoning-effort-wrapper {
-  background: rgba(8, 12, 22, 0.6);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 14px;
@@ -1091,14 +1169,14 @@ body {
 }
 
 .reasoning-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-subtle);
   color: var(--text-main);
 }
 
 .reasoning-pill.active {
   background: rgba(6, 182, 212, 0.15);
   border-color: var(--accent-cyan);
-  color: #ffffff;
+  color: var(--text-main);
   box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
 }
 
@@ -1129,17 +1207,17 @@ body {
    ========================================================================== */
 
 .code-preview-card {
-  background: #04060a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--code-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 20px;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .code-header {
-  background: rgba(13, 19, 33, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
   padding: 8px 14px;
   display: flex;
   justify-content: space-between;
@@ -1179,7 +1257,7 @@ body {
 }
 
 .badge-outline {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border-color);
   color: var(--text-muted);
 }
 
@@ -1201,7 +1279,7 @@ body {
   display: flex;
   min-height: 220px;
   max-height: 380px;
-  background: #04060a;
+  background: var(--code-bg);
   position: relative;
 }
 
@@ -1248,7 +1326,7 @@ body {
 }
 
 .assurance-card {
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -1275,7 +1353,7 @@ body {
 .assurance-title {
   font-size: 12px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 2px;
 }
 
@@ -1291,7 +1369,7 @@ body {
 }
 
 .execution-params-box {
-  background: rgba(8, 12, 22, 0.6);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 18px;
@@ -1301,7 +1379,7 @@ body {
 .section-heading {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 14px;
   letter-spacing: 0.02em;
 }
@@ -1371,7 +1449,7 @@ input:checked + .slider:before {
    ========================================================================== */
 
 .tracker-card {
-  background: rgba(8, 12, 22, 0.75);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 14px;
@@ -1410,7 +1488,7 @@ input:checked + .slider:before {
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   color: var(--text-subtle);
   white-space: nowrap;
 }
@@ -1418,7 +1496,7 @@ input:checked + .slider:before {
 .state-node.active {
   background: rgba(250, 115, 20, 0.15);
   border-color: var(--accent-amber);
-  color: #ffffff;
+  color: var(--text-main);
   box-shadow: 0 0 10px rgba(250, 115, 20, 0.3);
 }
 
@@ -1440,7 +1518,7 @@ input:checked + .slider:before {
 .alert-danger {
   background: rgba(244, 63, 94, 0.12);
   border: 1px solid rgba(244, 63, 94, 0.35);
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .alert-icon {
@@ -1456,22 +1534,22 @@ input:checked + .slider:before {
 
 .alert-message {
   font-size: 12px;
-  color: #fecdd3;
+  color: var(--accent-rose);
   font-family: var(--font-mono);
 }
 
 .telemetry-chart-card {
-  background: #030509;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--chart-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 20px;
 }
 
 .chart-header {
-  background: rgba(13, 19, 33, 0.85);
+  background: var(--bg-surface);
   padding: 12px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1482,7 +1560,7 @@ input:checked + .slider:before {
 .chart-title {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .chart-subtitle {
@@ -1499,7 +1577,7 @@ input:checked + .slider:before {
   position: relative;
   width: 100%;
   height: 280px;
-  background: #030509;
+  background: var(--chart-bg);
 }
 
 .altitude-svg-chart {
@@ -1526,8 +1604,8 @@ input:checked + .slider:before {
 .telemetry-metrics-bar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  background: rgba(13, 19, 33, 0.85);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
   padding: 10px 16px;
   gap: 12px;
 }
@@ -1548,7 +1626,7 @@ input:checked + .slider:before {
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 /* ==========================================================================
@@ -1556,7 +1634,7 @@ input:checked + .slider:before {
    ========================================================================== */
 
 .adjudication-card {
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
@@ -1575,7 +1653,7 @@ input:checked + .slider:before {
 .adjudication-title {
   font-size: 14px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .adjudication-subtitle {
@@ -1612,7 +1690,7 @@ input:checked + .slider:before {
 }
 
 .verdict-box {
-  background: rgba(13, 19, 33, 0.65);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -1652,7 +1730,7 @@ input:checked + .slider:before {
 
 .verdict-unknown {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-color);
   color: var(--text-muted);
 }
 
@@ -1707,7 +1785,7 @@ input:checked + .slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 14px 18px;
@@ -1724,7 +1802,7 @@ input:checked + .slider:before {
 .export-title {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .export-desc {
@@ -1740,6 +1818,131 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
+   Workspace Quick Knowledge Oracle Drawer
+   ========================================================================== */
+
+.workspace-oracle-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--glass-border);
+  border-top: 1px solid rgba(250, 115, 20, 0.3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  margin-top: 28px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ws-oracle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ws-oracle-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-oracle-icon {
+  color: var(--accent-amber);
+  flex-shrink: 0;
+}
+
+.ws-oracle-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ws-oracle-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ws-oracle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-oracle-body.collapsed {
+  display: none;
+}
+
+.ws-oracle-search-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ws-oracle-search-row .form-control {
+  flex: 1;
+  min-width: 240px;
+}
+
+.ws-oracle-chips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ws-oracle-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.ws-oracle-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-oracle-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ws-oracle-topic {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-amber);
+  background: rgba(250, 115, 20, 0.1);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.ws-oracle-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.ws-oracle-card-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+/* ==========================================================================
    Tab 2: Court Record Verifier
    ========================================================================== */
 
@@ -1749,13 +1952,13 @@ input:checked + .slider:before {
 }
 
 .drop-zone {
-  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border: 2px dashed var(--border-color);
   border-radius: var(--radius-md);
   padding: 36px 20px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: rgba(8, 12, 22, 0.4);
+  background: var(--bg-surface);
 }
 
 .drop-zone:hover,
@@ -1809,7 +2012,7 @@ input:checked + .slider:before {
 .verifier-textarea {
   width: 100%;
   height: 140px;
-  background: #04060a;
+  background: var(--code-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: #e2e8f0;
@@ -1829,7 +2032,7 @@ input:checked + .slider:before {
 
 .verify-results-card {
   margin-top: 24px;
-  background: rgba(8, 12, 22, 0.85);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
@@ -1862,7 +2065,7 @@ input:checked + .slider:before {
 .verify-title {
   font-size: 14px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .verify-desc {
@@ -1884,7 +2087,7 @@ input:checked + .slider:before {
 .verify-table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .verify-table th {
@@ -1911,7 +2114,7 @@ input:checked + .slider:before {
 .errors-list {
   padding-left: 20px;
   font-size: 11px;
-  color: #fecdd3;
+  color: var(--accent-rose);
   font-family: var(--font-mono);
 }
 
@@ -1974,8 +2177,8 @@ input:checked + .slider:before {
 }
 
 .badge-default {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   color: var(--text-main);
 }
 
@@ -2002,7 +2205,7 @@ input:checked + .slider:before {
 .meta-val {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #ffffff;
+  color: var(--text-main);
   margin-top: 2px;
 }
 
@@ -2044,7 +2247,7 @@ input:checked + .slider:before {
 .fixture-title {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 6px;
 }
 
@@ -2056,8 +2259,8 @@ input:checked + .slider:before {
 }
 
 .fixture-details-box {
-  background: rgba(8, 12, 22, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 10px;
   display: flex;
@@ -2078,7 +2281,7 @@ input:checked + .slider:before {
 }
 
 .row-val {
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .containment-bottom-grid {
@@ -2105,7 +2308,7 @@ input:checked + .slider:before {
 }
 
 .log-val {
-  color: #ffffff;
+  color: var(--text-main);
   word-break: break-all;
 }
 
@@ -2130,19 +2333,19 @@ input:checked + .slider:before {
 
 /* Ragnarok Knowledge Oracle UI */
 .oracle-search-box {
-  background: rgba(8, 12, 22, 0.75);
+  background: var(--bg-surface);
   border: 1px solid rgba(250, 115, 20, 0.25);
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 28px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .oracle-input-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #04060a;
+  background: var(--code-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 10px 14px;
@@ -2189,14 +2392,14 @@ input:checked + .slider:before {
 }
 
 .topic-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-subtle);
   color: var(--text-main);
 }
 
 .topic-pill.active {
   background: rgba(250, 115, 20, 0.15);
   border-color: var(--accent-amber);
-  color: #ffffff;
+  color: var(--text-main);
 }
 
 .oracle-results-grid {
@@ -2207,7 +2410,7 @@ input:checked + .slider:before {
 }
 
 .oracle-card {
-  background: rgba(8, 12, 22, 0.7);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-top: 1px solid rgba(250, 115, 20, 0.25);
   border-radius: var(--radius-md);
@@ -2237,7 +2440,7 @@ input:checked + .slider:before {
 .oracle-card-title {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
@@ -2249,8 +2452,8 @@ input:checked + .slider:before {
 }
 
 .oracle-snippet-box {
-  background: #04060a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--code-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 10px;
   position: relative;
@@ -2288,7 +2491,7 @@ input:checked + .slider:before {
 }
 
 .principle-card {
-  background: rgba(8, 12, 22, 0.6);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 18px;
@@ -2307,7 +2510,7 @@ input:checked + .slider:before {
 .principle-title {
   font-size: 13px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 6px;
 }
 
@@ -2336,7 +2539,7 @@ input:checked + .slider:before {
 .catalog-table td {
   padding: 12px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .catalog-table th {
@@ -2344,7 +2547,7 @@ input:checked + .slider:before {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(8, 12, 22, 0.5);
+  background: var(--bg-surface);
 }
 
 .catalog-table td code {
@@ -2357,7 +2560,7 @@ input:checked + .slider:before {
    ========================================================================== */
 
 .app-footer {
-  background: rgba(8, 12, 22, 0.9);
+  background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
   padding: 1rem 1.75rem;
   font-size: 11px;
@@ -2413,7 +2616,7 @@ input:checked + .slider:before {
   padding: 24px;
   max-width: 480px;
   width: 100%;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   position: relative;
 }
 
@@ -2446,7 +2649,7 @@ input:checked + .slider:before {
 .tour-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
@@ -2480,14 +2683,14 @@ input:checked + .slider:before {
 }
 
 .toast {
-  background: rgba(8, 12, 22, 0.92);
+  background: var(--bg-surface);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 10px 16px;
-  color: #ffffff;
+  color: var(--text-main);
   font-size: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
   animation: slideIn 0.25s ease;
   max-width: 360px;
@@ -2515,7 +2718,7 @@ input:checked + .slider:before {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #ffffff;
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

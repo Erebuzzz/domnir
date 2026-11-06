@@ -82,6 +82,20 @@
     controllerSource: document.getElementById("controllerSource"),
     // Code canvas
     codeLineNumbers: document.getElementById("codeLineNumbers"),
+    // Theme Toggle (Rune Dusk / Rune Dawn)
+    themeToggleBtn: document.getElementById("themeToggleBtn"),
+    themeToggleLabel: document.getElementById("themeToggleLabel"),
+
+    // Workspace Quick Oracle Drawer
+    workspaceOraclePanel: document.getElementById("workspaceOraclePanel"),
+    toggleWsOracleBtn: document.getElementById("toggleWsOracleBtn"),
+    wsOracleToggleIcon: document.getElementById("wsOracleToggleIcon"),
+    wsOracleBody: document.getElementById("wsOracleBody"),
+    wsOracleSearchInput: document.getElementById("wsOracleSearchInput"),
+    wsOracleChips: document.querySelectorAll("[data-ws-topic]"),
+    wsOracleResultsGrid: document.getElementById("wsOracleResultsGrid"),
+    wsOracleJumpArchitectureBtn: document.getElementById("wsOracleJumpArchitectureBtn"),
+
 
     // Ragnarok Knowledge Oracle
     openOracleHeaderBtn: document.getElementById("openOracleHeaderBtn"),
@@ -1510,6 +1524,146 @@
     });
   }
 
+  
+  // ==========================================================================
+  // Rune Dawn & Rune Dusk Theme Controller
+  // ==========================================================================
+
+  function applyTheme(theme) {
+    const isDawn = (theme === "dawn");
+    document.documentElement.classList.remove("rune-dusk", "rune-dawn");
+    document.documentElement.classList.add(isDawn ? "rune-dawn" : "rune-dusk");
+
+    if (elements.themeToggleLabel) {
+      elements.themeToggleLabel.textContent = isDawn ? "Rune Dawn" : "Rune Dusk";
+    }
+
+    const heroImg = document.querySelector(".crazyflie-hero-img");
+    if (heroImg) {
+      heroImg.src = isDawn ? "/assets/crazyflie_ragnarok_dawn.png" : "/assets/crazyflie_ragnarok_dusk.png";
+    }
+
+    try {
+      localStorage.setItem("domnir-theme", isDawn ? "dawn" : "dusk");
+    } catch (_) {}
+  }
+
+  function setupTheme() {
+    let saved = "dusk";
+    try {
+      saved = localStorage.getItem("domnir-theme") || "dusk";
+    } catch (_) {}
+    applyTheme(saved);
+
+    if (elements.themeToggleBtn) {
+      elements.themeToggleBtn.addEventListener("click", () => {
+        const isCurrentDawn = document.documentElement.classList.contains("rune-dawn");
+        const next = isCurrentDawn ? "dusk" : "dawn";
+        applyTheme(next);
+        toast(`Activated ${next === "dawn" ? "Rune Dawn (Intense Warm)" : "Rune Dusk (Intense Night)"} theme.`, "info");
+      });
+    }
+  }
+
+  // ==========================================================================
+  // Workspace Quick Oracle Drawer
+  // ==========================================================================
+
+  function renderWsOracleResults(topic = "all", query = "") {
+    if (!elements.wsOracleResultsGrid) return;
+    const q = query.trim().toLowerCase();
+
+    const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
+      const matchTopic = (topic === "all" || item.topic === topic);
+      if (!matchTopic) return false;
+      if (!q) return true;
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        item.snippet.toLowerCase().includes(q)
+      );
+    }).slice(0, 4); // Quick Drawer highlights top 4
+
+    if (matches.length === 0) {
+      elements.wsOracleResultsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 12px; font-size: 11px; color: var(--text-subtle);">
+          No quick matches found. Click 'Full Codex' above to search the comprehensive architecture ledger.
+        </div>
+      `;
+      return;
+    }
+
+    elements.wsOracleResultsGrid.innerHTML = matches.map(item => `
+      <div class="ws-oracle-card">
+        <div class="ws-oracle-card-header">
+          <span class="ws-oracle-topic">${escapeHtml(item.topicLabel)}</span>
+          <button type="button" class="btn btn-sm btn-ghost ws-copy-btn" data-snippet="${encodeURIComponent(item.snippet)}" title="Copy verified snippet">Copy</button>
+        </div>
+        <h4 class="ws-oracle-card-title">${escapeHtml(item.title)}</h4>
+        <p class="ws-oracle-card-summary">${escapeHtml(item.summary.substring(0, 160))}...</p>
+      </div>
+    `).join("");
+
+    elements.wsOracleResultsGrid.querySelectorAll(".ws-copy-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const code = decodeURIComponent(btn.getAttribute("data-snippet") || "");
+        if (!code) return;
+        navigator.clipboard.writeText(code).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = "Copied!";
+          toast("Oracle code copied to clipboard.", "info");
+          setTimeout(() => (btn.textContent = orig), 1500);
+        });
+      });
+    });
+  }
+
+  function setupWorkspaceOracle() {
+    renderWsOracleResults("all", "");
+
+    if (elements.toggleWsOracleBtn && elements.wsOracleBody) {
+      elements.toggleWsOracleBtn.addEventListener("click", () => {
+        const isCollapsed = elements.wsOracleBody.classList.toggle("collapsed");
+        if (elements.wsOracleToggleIcon) {
+          elements.wsOracleToggleIcon.textContent = isCollapsed ? "+" : "-";
+        }
+        elements.toggleWsOracleBtn.innerHTML = isCollapsed
+          ? `<span id="wsOracleToggleIcon">+</span> Show Drawer`
+          : `<span id="wsOracleToggleIcon">-</span> Hide Drawer`;
+      });
+    }
+
+    if (elements.wsOracleSearchInput) {
+      elements.wsOracleSearchInput.addEventListener("input", (e) => {
+        const activeChip = document.querySelector("[data-ws-topic].active")?.getAttribute("data-ws-topic") || "all";
+        renderWsOracleResults(activeChip, e.target.value);
+      });
+    }
+
+    if (elements.wsOracleChips) {
+      elements.wsOracleChips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          elements.wsOracleChips.forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          const topic = chip.getAttribute("data-ws-topic") || "all";
+          const q = elements.wsOracleSearchInput ? elements.wsOracleSearchInput.value : "";
+          renderWsOracleResults(topic, q);
+        });
+      });
+    }
+
+    if (elements.wsOracleJumpArchitectureBtn) {
+      elements.wsOracleJumpArchitectureBtn.addEventListener("click", () => {
+        const archTab = document.querySelector('[data-tab="tab-architecture"]');
+        if (archTab) archTab.click();
+        if (elements.oracleSearchInput) {
+          elements.oracleSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => elements.oracleSearchInput.focus(), 300);
+        }
+      });
+    }
+  }
+
   function setupOracle() {
     renderOracleResults("all", "");
 
@@ -1936,6 +2090,8 @@
     setupVerifier();
     setupCodeCopy();
     setupOracle();
+    setupTheme();
+    setupWorkspaceOracle();
     setupInitialModelCards();
     setupReasoningEffort();
 
