@@ -1570,6 +1570,54 @@
     }
   ];
 
+    const ORACLE_STOP_WORDS = new Set(["how", "is", "the", "are", "what", "why", "who", "when", "where", "can", "does", "with", "from", "and", "for", "that", "this", "about", "tell"]);
+
+  function searchKnowledgeCorpus(topic = "all", searchQuery = "", maxResults = null) {
+    const rawQuery = (searchQuery || "").trim().toLowerCase();
+    if (!rawQuery) {
+      const filtered = RAGNAROK_KNOWLEDGE_BASE.filter(item => topic === "all" || item.topic === topic);
+      return maxResults ? filtered.slice(0, maxResults) : filtered;
+    }
+
+    const tokens = rawQuery
+      .replace(/[^a-z0-9_ -]/g, " ")
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !ORACLE_STOP_WORDS.has(w));
+
+    const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
+      const topicMatches = (topic === "all" || item.topic === topic);
+      if (!topicMatches) return false;
+      if (tokens.length === 0) {
+        return (
+          item.title.toLowerCase().includes(rawQuery) ||
+          item.summary.toLowerCase().includes(rawQuery)
+        );
+      }
+      const haystack = (
+        item.title + " " +
+        item.summary + " " +
+        item.snippet + " " +
+        item.topicLabel + " " +
+        (item.citation || "")
+      ).toLowerCase();
+      return tokens.some(token => haystack.includes(token)) || haystack.includes(rawQuery);
+    }).map(item => {
+      const haystack = (item.title + " " + item.summary + " " + item.snippet + " " + (item.citation || "")).toLowerCase();
+      let score = 0;
+      if (item.title.toLowerCase().includes(rawQuery)) score += 10;
+      if (item.summary.toLowerCase().includes(rawQuery)) score += 5;
+      for (const t of tokens) {
+        if (item.title.toLowerCase().includes(t)) score += 4;
+        if (item.summary.toLowerCase().includes(t)) score += 2;
+        if ((item.citation || "").toLowerCase().includes(t)) score += 2;
+        if (haystack.includes(t)) score += 1;
+      }
+      return { item, score };
+    }).sort((a, b) => b.score - a.score).map(x => x.item);
+
+    return maxResults ? matches.slice(0, maxResults) : matches;
+  }
+
   function renderOracleResults(filterTopic = "all", searchQuery = "") {
     if (!elements.oracleResultsContainer) return;
     const query = searchQuery.trim().toLowerCase();
@@ -1585,18 +1633,7 @@
       return;
     }
 
-    const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
-      const topicMatches = (filterTopic === "all" || item.topic === filterTopic);
-      if (!topicMatches) return false;
-      if (!query) return true;
-      return (
-        item.title.toLowerCase().includes(query) ||
-        item.summary.toLowerCase().includes(query) ||
-        item.snippet.toLowerCase().includes(query) ||
-        item.topicLabel.toLowerCase().includes(query) ||
-        (item.citation && item.citation.toLowerCase().includes(query))
-      );
-    });
+    const matches = searchKnowledgeCorpus(filterTopic, searchQuery);
 
     if (matches.length === 0) {
       elements.oracleResultsContainer.innerHTML = `
@@ -1704,17 +1741,7 @@
       return;
     }
 
-    const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
-      const matchTopic = (topic === "all" || item.topic === topic);
-      if (!matchTopic) return false;
-      if (!q) return true;
-      return (
-        item.title.toLowerCase().includes(q) ||
-        item.summary.toLowerCase().includes(q) ||
-        item.snippet.toLowerCase().includes(q) ||
-        (item.citation && item.citation.toLowerCase().includes(q))
-      );
-    }).slice(0, 4); // Quick Drawer highlights top 4
+    const matches = searchKnowledgeCorpus(topic, q, 4);
 
     if (matches.length === 0) {
       elements.wsOracleResultsGrid.innerHTML = `
