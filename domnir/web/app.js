@@ -80,6 +80,15 @@
     genSpinner: document.getElementById("genSpinner"),
     loadBaselineBtn: document.getElementById("loadBaselineBtn"),
     controllerSource: document.getElementById("controllerSource"),
+    // Code canvas
+    codeLineNumbers: document.getElementById("codeLineNumbers"),
+
+    // Ragnarok Knowledge Oracle
+    openOracleHeaderBtn: document.getElementById("openOracleHeaderBtn"),
+    oracleSearchInput: document.getElementById("oracleSearchInput"),
+    oracleResultsContainer: document.getElementById("oracleResultsContainer"),
+    oracleTopicPills: document.querySelectorAll(".topic-pill"),
+
     controllerHash: document.getElementById("controllerHash"),
     controllerAstBadge: document.getElementById("controllerAstBadge"),
     controllerContractBadge: document.getElementById("controllerContractBadge"),
@@ -785,6 +794,7 @@
 
   function loadBaselineController() {
     elements.controllerSource.value = BASELINE_CONTROLLER_SOURCE;
+    updateCodeLineNumbers(BASELINE_CONTROLLER_SOURCE);
     updateCodeMetadata(BASELINE_CONTROLLER_SOURCE);
     state.activeController = {
       source_code: BASELINE_CONTROLLER_SOURCE,
@@ -1362,6 +1372,178 @@
   // Independent Court Record Verifier
   // ==========================================================================
 
+  
+  // ==========================================================================
+  // Ragnarok Knowledge Oracle (Memory RAG Engine)
+  // ==========================================================================
+
+  const RAGNAROK_KNOWLEDGE_BASE = [
+    {
+      id: "oracle-bounds",
+      topic: "bounds",
+      topicLabel: "Physical Bounds",
+      title: "Bitcraze Crazyflie 2 Dynamic Envelopes & Closed-Loop Rate",
+      summary: "Physical flight boundary rules for the Bitcraze Crazyflie 2.0 quadrotor under MuJoCo 3.3.7 simulation. Gravity equilibrium hover thrust is calibrated at 0.26487 N for the 27.0 gram airframe. Actuators saturate strictly at 0.35 N per arm. Control loops advance at 500 Hz (dt = 0.002s). Any breach below the safety floor (0.05m) or above the ceiling (1.00m) triggers instant FALSIFIED physical adjudication.",
+      snippet: "# Crazyflie 2 Physics Invariants\nPLANT_MASS_KG = 0.027\nGRAVITY_THRUST_EQUILIBRIUM_N = 0.26487\nACTUATOR_MAX_THRUST_N = 0.35\nSIMULATION_TIMESTEP_S = 0.002  # 500 Hz closed loop\nFLOOR_BOUNDARY_M = 0.05\nCEILING_BOUNDARY_M = 1.00",
+      lang: "python"
+    },
+    {
+      id: "oracle-vultr",
+      topic: "vultr",
+      topicLabel: "Vultr Serverless",
+      title: "Vultr Serverless Inference & Zero Host Credential Bleed",
+      summary: "All flight controller synthesis queries are routed through Vultr Serverless Inference at https://api.vultrinference.com/v1. Supported pinned models include GLM 5.3 Flash (rapid token synthesis), Qwen 3.8 Flash Next (aerodynamic reasoning), and DeepSeek V4.1 Flash (compact logic). API keys exist exclusively in backend environment memory and are never transmitted to the browser or guest microVM.",
+      snippet: "# Serverless Inference Request Contract\nPOST https://api.vultrinference.com/v1/chat/completions\n{\n  \"model\": \"glm-5.3-flash\",\n  \"messages\": [{\"role\": \"system\", \"content\": \"observe(obs) contract\"}],\n  \"temperature\": 0.2,\n  \"max_tokens\": 1024\n}",
+      lang: "http"
+    },
+    {
+      id: "oracle-microvm",
+      topic: "microvm",
+      topicLabel: "MicroVM Isolation",
+      title: "Blast Radius Zero: Hardware MicroVM Containment",
+      summary: "Guest code execution occurs strictly inside dedicated Microsandbox microVMs backed by AMD EPYC nested KVM (/dev/kvm). The guest environment operates under default-deny network policy (zero ingress, zero egress, zero published ports), zero host mounts, and a hard 0.50s monotonic wall-clock watchdog ceiling. The host simulator (Forseti) alone owns the MuJoCo model and MjData.",
+      snippet: "# MicroVM Containment Invariants\n/dev/kvm: Nested Hardware Virtualization\nNetwork: Default-Deny (Egress & Ingress Dropped)\nHost Mounts: None (Zero Shared FS)\nWatchdog Ceiling: 0.50s monotonic timeout\nCleanup: Mandatory context manager teardown (100% reclamation)",
+      lang: "yaml"
+    },
+    {
+      id: "oracle-replay",
+      topic: "replay",
+      topicLabel: "Deterministic Replay",
+      title: "Bit-for-Bit Deterministic Physical Replay (<= 1.00e-12 m)",
+      summary: "During simulation, control action vectors emitted by the caged guest are recorded step-by-step. To verify the absence of host state tampering or stochastic divergence, the entire action sequence is independently replayed on a fresh, pristine MuJoCo simulation instance. Trajectory difference must not exceed 1.00e-12 meters (exact IEEE 754 double-precision limit).",
+      snippet: "# Deterministic Replay Mathematical Verification\nmax_diff = max(abs(traj_original[t].z - traj_replay[t].z) for t in steps)\nassert max_diff <= 1.00e-12, f'Replay diverged: {max_diff:.3e} m'\nverdict = 'MATCHED (Deterministic physical reproducibility verified)'",
+      lang: "python"
+    },
+    {
+      id: "oracle-court",
+      topic: "court",
+      topicLabel: "Court Record Proof",
+      title: "Cryptographic Court Record Ledger (Schema v1.0)",
+      summary: "Every experiment generates an immutable, self-contained Court Record JSON artifact. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
+      snippet: "{\n  \"schema_version\": \"1.0\",\n  \"record_id\": \"cr-a7f49c01b2\",\n  \"controller_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"event_log_hash_head\": \"67ff6282bf5943982cc0674c980170240571e52f8ec8f425ddcd6cec53101c80\",\n  \"replay_max_abs_difference\": 0.0\n}",
+      lang: "json"
+    },
+    {
+      id: "oracle-adjudication",
+      topic: "adjudication",
+      topicLabel: "Adjudication Ethics",
+      title: "Mandatory Adjudication Ethics & Limitations Disclosure",
+      summary: "Dómnir enforces strict truthfulness in qualification reporting. A verdict of NOT_FALSIFIED confirms that no safety constraints were breached under the specific tested disturbances, but remains INCONCLUSIVE regarding universal safety or physical airworthiness. Real-world Crazyflie 2 flight dynamics involve unmodeled aerodynamic turbulence and battery drop that simulation does not fully capture.",
+      snippet: "# Mandatory Falsification Disclosure\nVerdict: NOT_FALSIFIED\nClaim Limit: Synthetic qualification under tested perturbation.\nDisclaimer: INCONCLUSIVE regarding universal safety.\nActuator Dynamics: Uncalibrated research approximation.",
+      lang: "text"
+    },
+    {
+      id: "oracle-ast",
+      topic: "bounds",
+      topicLabel: "Physical Bounds",
+      title: "Host AST Safety Filter & Forbidden Operation Ban",
+      summary: "Before any generated Python flight controller is dispatched to a microVM cage, it is parsed into an Abstract Syntax Tree on the host. The AST filter strictly forbids dangerous Python built-ins and modules: eval, exec, __import__, open, socket, subprocess, os, and sys. Unbounded loops are rejected prior to execution.",
+      snippet: "# Prohibited Python AST Nodes\nFORBIDDEN_CALLS = {'eval', 'exec', '__import__', 'open', 'compile'}\nFORBIDDEN_MODULES = {'os', 'sys', 'socket', 'subprocess', 'requests'}\nFORBIDDEN_NODES = {ast.AsyncFor, ast.AsyncWith}\n# Permitted: pure numerical math, min, max, float, abs, dict return",
+      lang: "python"
+    },
+    {
+      id: "oracle-reasoning",
+      topic: "vultr",
+      topicLabel: "Vultr Serverless",
+      title: "Vultr Serverless Reasoning Effort Calibration",
+      summary: "Reasoning effort can be set to Minimal, Low, Medium, or High. Minimal provides the lowest token latency (~1.8s) for direct PD hover loops. Higher reasoning efforts allow LLM models to analyze multi-variable state spaces and plan counter-force thrust vectors for high-turbulence mission scenarios.",
+      snippet: "# Reasoning Effort Parameter Mapping\neffort_map = {\n    'minimal': {'temp': 0.15, 'reasoning_tokens': 0},\n    'low':     {'temp': 0.20, 'reasoning_tokens': 256},\n    'medium':  {'temp': 0.25, 'reasoning_tokens': 512},\n    'high':    {'temp': 0.30, 'reasoning_tokens': 1024}\n}",
+      lang: "python"
+    }
+  ];
+
+  function renderOracleResults(filterTopic = "all", searchQuery = "") {
+    if (!elements.oracleResultsContainer) return;
+    const query = searchQuery.trim().toLowerCase();
+
+    const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
+      const topicMatches = (filterTopic === "all" || item.topic === filterTopic);
+      if (!topicMatches) return false;
+      if (!query) return true;
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.summary.toLowerCase().includes(query) ||
+        item.snippet.toLowerCase().includes(query) ||
+        item.topicLabel.toLowerCase().includes(query)
+      );
+    });
+
+    if (matches.length === 0) {
+      elements.oracleResultsContainer.innerHTML = `
+        <div class="card" style="grid-column: 1 / -1; padding: 24px; text-align: center;">
+          <h4 style="color: var(--text-muted); font-size: 13px;">No matching Oracle knowledge records found for "${escapeHtml(searchQuery)}"</h4>
+          <p style="font-size: 11px; color: var(--text-subtle); margin-top: 6px;">Try querying 'bounds', 'vultr', 'replay', 'kvm', or select 'All Topics'.</p>
+        </div>
+      `;
+      return;
+    }
+
+    elements.oracleResultsContainer.innerHTML = matches.map(item => `
+      <div class="oracle-card" id="${item.id}">
+        <div class="oracle-card-header">
+          <span class="oracle-card-topic">${escapeHtml(item.topicLabel)}</span>
+          <button type="button" class="btn btn-sm btn-ghost oracle-copy-btn" data-snippet="${encodeURIComponent(item.snippet)}" title="Copy verified code snippet">Copy Block</button>
+        </div>
+        <h4 class="oracle-card-title">${escapeHtml(item.title)}</h4>
+        <p class="oracle-card-body">${escapeHtml(item.summary)}</p>
+        <div class="oracle-snippet-box">
+          <div class="oracle-snippet-header">
+            <span class="oracle-snippet-lang">${escapeHtml(item.lang.toUpperCase())}</span>
+          </div>
+          <pre class="oracle-snippet-code"><code>${escapeHtml(item.snippet)}</code></pre>
+        </div>
+      </div>
+    `).join("");
+
+    // Wire up copy block buttons inside oracle cards
+    elements.oracleResultsContainer.querySelectorAll(".oracle-copy-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const rawCode = decodeURIComponent(btn.getAttribute("data-snippet") || "");
+        if (!rawCode) return;
+        navigator.clipboard.writeText(rawCode).then(() => {
+          const originalText = btn.textContent;
+          btn.textContent = "Copied!";
+          toast("Oracle code block copied to clipboard.", "info");
+          setTimeout(() => (btn.textContent = originalText), 2000);
+        });
+      });
+    });
+  }
+
+  function setupOracle() {
+    renderOracleResults("all", "");
+
+    if (elements.oracleSearchInput) {
+      elements.oracleSearchInput.addEventListener("input", (e) => {
+        const activeTopic = document.querySelector(".topic-pill.active")?.getAttribute("data-topic") || "all";
+        renderOracleResults(activeTopic, e.target.value);
+      });
+    }
+
+    if (elements.oracleTopicPills) {
+      elements.oracleTopicPills.forEach(pill => {
+        pill.addEventListener("click", () => {
+          elements.oracleTopicPills.forEach(p => p.classList.remove("active"));
+          pill.classList.add("active");
+          const topic = pill.getAttribute("data-topic") || "all";
+          const query = elements.oracleSearchInput ? elements.oracleSearchInput.value : "";
+          renderOracleResults(topic, query);
+        });
+      });
+    }
+
+    if (elements.openOracleHeaderBtn) {
+      elements.openOracleHeaderBtn.addEventListener("click", () => {
+        const archTab = document.querySelector('[data-tab="tab-architecture"]');
+        if (archTab) archTab.click();
+        if (elements.oracleSearchInput) {
+          elements.oracleSearchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => elements.oracleSearchInput.focus(), 300);
+        }
+      });
+    }
+  }
+
   function setupVerifier() {
     elements.dropZone.addEventListener("click", () => {
       elements.courtFileInput.value = "";
@@ -1538,16 +1720,29 @@
   // ==========================================================================
 
   function setupCodeCopy() {
-    elements.copyCodeBtn.addEventListener("click", () => {
-      const text = elements.controllerSource.value;
-      if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        const orig = elements.copyCodeBtn.textContent;
-        elements.copyCodeBtn.textContent = "Copied!";
-        toast("Controller code copied to clipboard.", "info");
-        setTimeout(() => (elements.copyCodeBtn.textContent = orig), 1500);
+    if (elements.copyCodeBtn) {
+      elements.copyCodeBtn.addEventListener("click", () => {
+        const text = elements.controllerSource.value;
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+          const label = document.getElementById("copyCodeLabel");
+          if (label) label.textContent = "Copied!";
+          toast("Controller code copied to clipboard.", "info");
+          setTimeout(() => {
+            if (label) label.textContent = "Copy";
+          }, 2000);
+        });
       });
-    });
+    }
+
+    if (elements.controllerSource && elements.codeLineNumbers) {
+      elements.controllerSource.addEventListener("scroll", () => {
+        elements.codeLineNumbers.scrollTop = elements.controllerSource.scrollTop;
+      });
+      elements.controllerSource.addEventListener("input", (e) => {
+        updateCodeLineNumbers(e.target.value);
+      });
+    }
   }
 
   function escapeHtml(str) {
@@ -1740,6 +1935,7 @@
     setupPresets();
     setupVerifier();
     setupCodeCopy();
+    setupOracle();
     setupInitialModelCards();
     setupReasoningEffort();
 
