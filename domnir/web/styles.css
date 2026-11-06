@@ -717,51 +717,43 @@ html.rune-dusk .nav-tab.active .tab-icon {
 
 .workspace-grid {
   display: block;
+  position: relative;
 }
 
-.workspace-grid.expanded-mode,
-.master-observatory-grid {
+.stepper-panel {
+  display: none;
+}
+
+.stepper-panel.active {
+  display: block;
+  animation: stepFadeIn 0.25s ease-out;
+}
+
+@keyframes stepFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step1-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 28px;
   align-items: stretch;
 }
 
-.column-synthesis,
-.column-adjudication {
+@media (max-width: 1024px) {
+  .step1-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-nav-bar {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.workspace-grid.expanded-mode .stepper-panel {
-  display: block !important;
-  margin-bottom: 0;
-}
-
-.workspace-grid.expanded-mode .card-stepper {
-  margin-bottom: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.workspace-grid.expanded-mode .card-body {
-  flex: 1;
-}
-
-/* Single Step Mode */
-.workspace-grid:not(.expanded-mode) .column-synthesis,
-.workspace-grid:not(.expanded-mode) .column-adjudication {
-  display: contents;
-}
-
-.workspace-grid:not(.expanded-mode) .stepper-panel {
-  display: none;
-}
-
-.workspace-grid:not(.expanded-mode) .stepper-panel.active {
-  display: block;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
 }
 
 /* ==========================================================================
@@ -2818,13 +2810,15 @@ input:checked + .slider:before {
 
 .toast-container {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  z-index: 2000;
+  gap: 10px;
+  z-index: 9999;
   pointer-events: none;
+  max-width: 380px;
 }
 
 .toast {
@@ -2870,6 +2864,381 @@ input:checked + .slider:before {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Simulation View Mode Toggle (Pills)
+   ========================================================================== */
+
+.view-pill-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-pill {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.view-pill:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-pill.active {
+  color: #0b1120;
+  background: var(--accent-cyan);
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+
+html.rune-dawn .view-pill.active {
+  color: #ffffff;
+  background: var(--accent-amber);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.4);
+}
+
+/* ==========================================================================
+   Simulation Arena Stage (3D / 2D / Split View)
+   ========================================================================== */
+
+.simulation-arena-stage {
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.arena-3d-wrapper {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+}
+
+/* 3D Only View */
+.simulation-arena-stage.view-mode-3d #arena3DWrapper {
+  display: block;
+  width: 100%;
+  height: 480px;
+}
+
+.simulation-arena-stage.view-mode-3d #arena3DWrapper .plant-visual-stage {
+  height: 480px;
+}
+
+.simulation-arena-stage.view-mode-3d #telemetryChartCard {
+  display: none !important;
+}
+
+/* 2D Only View */
+.simulation-arena-stage.view-mode-2d #arena3DWrapper {
+  display: none !important;
+}
+
+.simulation-arena-stage.view-mode-2d #telemetryChartCard {
+  display: block !important;
+  width: 100%;
+}
+
+/* Split View */
+.simulation-arena-stage.view-mode-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.simulation-arena-stage.view-mode-split #arena3DWrapper {
+  display: block;
+  height: 440px;
+}
+
+.simulation-arena-stage.view-mode-split #arena3DWrapper .plant-visual-stage {
+  height: 440px;
+}
+
+.simulation-arena-stage.view-mode-split #telemetryChartCard {
+  display: block !important;
+  margin-bottom: 0;
+  height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .simulation-arena-stage.view-mode-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Step 2: AI Synthesis Loading Feedback & Dial
+   ========================================================================== */
+
+.synthesis-loading-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--glass-shadow);
+  animation: stepFadeIn 0.3s ease;
+}
+
+.synthesis-loading-box.hidden {
+  display: none !important;
+}
+
+.synthesis-dial-ring {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.dial-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(6, 182, 212, 0.15);
+  border-top-color: var(--accent-cyan);
+  border-right-color: var(--accent-cyan);
+  animation: spin 0.9s linear infinite;
+}
+
+html.rune-dawn .dial-spinner {
+  border-color: rgba(249, 115, 22, 0.2);
+  border-top-color: var(--accent-amber);
+  border-right-color: var(--accent-amber);
+}
+
+.dial-center-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+}
+
+html.rune-dawn .dial-center-icon {
+  color: var(--accent-amber);
+}
+
+.synthesis-loading-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.synthesis-loading-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.synthesis-status-text {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+html.rune-dawn .synthesis-status-text {
+  color: var(--accent-amber);
+}
+
+.synthesis-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.synthesis-progress-bar {
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-amber));
+  border-radius: 2px;
+  animation: progressIndeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes progressIndeterminate {
+  0% { transform: translateX(-100%); width: 25%; }
+  50% { width: 65%; }
+  100% { transform: translateX(350%); width: 25%; }
+}
+
+/* ==========================================================================
+   Header Tutorial Button & Interactive Walkthrough Modal
+   ========================================================================== */
+
+.btn-tutorial {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.35);
+  color: var(--accent-cyan);
+}
+
+.btn-tutorial:hover {
+  background: rgba(6, 182, 212, 0.22);
+  border-color: var(--accent-cyan);
+  color: var(--text-main);
+}
+
+html.rune-dawn .btn-tutorial {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: var(--accent-amber);
+}
+
+html.rune-dawn .btn-tutorial:hover {
+  background: rgba(249, 115, 22, 0.22);
+  border-color: var(--accent-amber);
+}
+
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.tutorial-backdrop.hidden {
+  display: none !important;
+}
+
+.tutorial-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  max-width: 820px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+  padding: 28px;
+  position: relative;
+}
+
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tutorial-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 4px;
+}
+
+.tutorial-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tutorial-close-btn:hover {
+  color: var(--text-main);
+}
+
+.tutorial-intro {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.tutorial-scenarios-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .tutorial-scenarios-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.scenario-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.scenario-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus);
+}
+
+.scenario-badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.3); }
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-danger { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+.scenario-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.scenario-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.scenario-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 /* ==========================================================================

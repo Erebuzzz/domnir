@@ -222,8 +222,24 @@
     backToStep1Btn: document.getElementById("backToStep1Btn"),
     goToStep3Btn: document.getElementById("goToStep3Btn"),
     backToStep2Btn: document.getElementById("backToStep2Btn"),
+    goToStep4Btn: document.getElementById("goToStep4Btn"),
     backToStep3Btn: document.getElementById("backToStep3Btn"),
     restartExperimentBtn: document.getElementById("restartExperimentBtn"),
+
+    // Step segregation and Simulation Arena Stage
+    simulationArenaStage: document.getElementById("simulationArenaStage"),
+    arena3DWrapper: document.getElementById("arena3DWrapper"),
+    plantStageWrapper: document.getElementById("plantStageWrapper"),
+
+    // Synthesis loading
+    synthesisLoadingBox: document.getElementById("synthesisLoadingBox"),
+    synthesisStatusText: document.getElementById("synthesisStatusText"),
+    synthesisProgressBar: document.getElementById("synthesisProgressBar"),
+
+    // Interactive Tutorial Sandbox
+    startTutorialBtn: document.getElementById("startTutorialBtn"),
+    tutorialBackdrop: document.getElementById("tutorialBackdrop"),
+    closeTutorialBtn: document.getElementById("closeTutorialBtn"),
 
     // Advanced envelope toggle
     toggleAdvancedEnvelopeBtn: document.getElementById("toggleAdvancedEnvelopeBtn"),
@@ -275,9 +291,22 @@
     toastContainer: document.getElementById("toastContainer"),
   };
 
-  // Toast Notification System
+  // Toast Notification System with Deduplication and Throttling
   function toast(message, type = "info") {
     if (!elements.toastContainer) return;
+
+    // Deduplicate: if identical message is already displayed, do not flood
+    const existing = Array.from(elements.toastContainer.querySelectorAll(".toast span"));
+    if (existing.some(s => s.textContent === message)) {
+      return;
+    }
+
+    // Cap to max 2 concurrent toasts to prevent UI obstruction
+    const currentToasts = elements.toastContainer.querySelectorAll(".toast");
+    if (currentToasts.length >= 2) {
+      currentToasts[0].remove();
+    }
+
     const toastEl = document.createElement("div");
     toastEl.className = "toast toast-" + type;
     toastEl.innerHTML = `
@@ -291,7 +320,7 @@
     elements.toastContainer.appendChild(toastEl);
     setTimeout(() => {
       if (toastEl.parentNode) toastEl.remove();
-    }, 4500);
+    }, 3800);
   }
 
   // SHA-256 in browser
@@ -499,6 +528,27 @@
         line.classList.add("completed");
       }
     });
+
+    // Plant Visual Stage DOM Reparenting between Step 1 and Step 4
+    if (elements.plantVisualStage) {
+      if (stepNum === 4 && elements.arena3DWrapper) {
+        if (elements.plantVisualStage.parentElement !== elements.arena3DWrapper) {
+          elements.arena3DWrapper.appendChild(elements.plantVisualStage);
+        }
+      } else if (stepNum === 1 && elements.plantStageWrapper) {
+        if (elements.plantVisualStage.parentElement !== elements.plantStageWrapper) {
+          elements.plantStageWrapper.appendChild(elements.plantVisualStage);
+        }
+      }
+      if (droneViewer && droneViewer.resize) {
+        setTimeout(() => droneViewer.resize(), 50);
+      }
+    }
+
+    // Smooth scroll to top of workspace
+    if (elements.workspaceGrid) {
+      elements.workspaceGrid.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   function setupStepper() {
@@ -518,6 +568,9 @@
     }
     if (elements.backToStep2Btn) {
       elements.backToStep2Btn.addEventListener("click", () => switchStep(2));
+    }
+    if (elements.goToStep4Btn) {
+      elements.goToStep4Btn.addEventListener("click", () => switchStep(4));
     }
     if (elements.backToStep3Btn) {
       elements.backToStep3Btn.addEventListener("click", () => switchStep(3));
@@ -688,7 +741,7 @@
     elements.calcStepBudget.textContent = steps + " steps";
   }
 
-  async function validateMissionSpec() {
+  async function validateMissionSpec(silent = false) {
     const spec = getSpecFromForm();
     elements.specFeedback.style.display = "none";
     elements.specFeedback.className = "feedback-badge";
@@ -707,7 +760,12 @@
       elements.specFeedback.classList.add("success");
       elements.specFeedback.style.display = "inline-block";
       state.activeSpec = spec;
-      toast("Mission envelope validated successfully (" + data.step_budget + " steps).", "success");
+      if (!silent) {
+        toast("Mission envelope validated successfully (" + data.step_budget + " steps).", "success");
+      }
+      if (droneViewer && droneViewer.setTargetAltitude) {
+        droneViewer.setTargetAltitude(spec.target_altitude_m);
+      }
     } catch (err) {
       elements.specFeedback.textContent = "INVALID: " + err.message;
       elements.specFeedback.classList.add("error");
@@ -716,44 +774,78 @@
     }
   }
 
+  function setActivePreset(activeEl) {
+    [elements.presetNominal, elements.presetHigh, elements.presetTurbulent].forEach(el => {
+      if (el) el.classList.remove("active");
+    });
+    if (activeEl) activeEl.classList.add("active");
+  }
+
   function setupPresets() {
-    elements.presetNominal.addEventListener("click", () => {
-      setSpecToForm({
-        target_altitude_m: 0.10,
-        altitude_tolerance_m: 0.05,
-        min_allowed_altitude_m: 0.05,
-        max_allowed_altitude_m: 1.00,
-        mission_duration_s: 0.40,
-        disturbance_force_z_min: -0.05,
-        disturbance_force_z_max: 0.05,
+    if (elements.presetNominal) {
+      elements.presetNominal.addEventListener("click", () => {
+        setActivePreset(elements.presetNominal);
+        setSpecToForm({
+          target_altitude_m: 0.10,
+          altitude_tolerance_m: 0.05,
+          min_allowed_altitude_m: 0.05,
+          max_allowed_altitude_m: 1.00,
+          mission_duration_s: 0.40,
+          disturbance_force_z_min: -0.05,
+          disturbance_force_z_max: 0.05,
+        });
+        validateMissionSpec(true);
       });
-      validateMissionSpec();
-    });
+    }
 
-    elements.presetHigh.addEventListener("click", () => {
-      setSpecToForm({
-        target_altitude_m: 1.50,
-        altitude_tolerance_m: 0.10,
-        min_allowed_altitude_m: 0.10,
-        max_allowed_altitude_m: 3.00,
-        mission_duration_s: 0.80,
-        disturbance_force_z_min: -0.10,
-        disturbance_force_z_max: 0.10,
+    if (elements.presetHigh) {
+      elements.presetHigh.addEventListener("click", () => {
+        setActivePreset(elements.presetHigh);
+        setSpecToForm({
+          target_altitude_m: 1.50,
+          altitude_tolerance_m: 0.10,
+          min_allowed_altitude_m: 0.10,
+          max_allowed_altitude_m: 3.00,
+          mission_duration_s: 0.80,
+          disturbance_force_z_min: -0.10,
+          disturbance_force_z_max: 0.10,
+        });
+        validateMissionSpec(true);
       });
-      validateMissionSpec();
-    });
+    }
 
-    elements.presetTurbulent.addEventListener("click", () => {
-      setSpecToForm({
-        target_altitude_m: 0.10,
-        altitude_tolerance_m: 0.05,
-        min_allowed_altitude_m: 0.05,
-        max_allowed_altitude_m: 1.00,
-        mission_duration_s: 0.40,
-        disturbance_force_z_min: -0.20,
-        disturbance_force_z_max: 0.20,
+    if (elements.presetTurbulent) {
+      elements.presetTurbulent.addEventListener("click", () => {
+        setActivePreset(elements.presetTurbulent);
+        setSpecToForm({
+          target_altitude_m: 0.10,
+          altitude_tolerance_m: 0.05,
+          min_allowed_altitude_m: 0.05,
+          max_allowed_altitude_m: 1.00,
+          mission_duration_s: 0.40,
+          disturbance_force_z_min: -0.20,
+          disturbance_force_z_max: 0.20,
+        });
+        validateMissionSpec(true);
       });
-      validateMissionSpec();
+    }
+
+    // Clear active preset state if user manually edits parameters
+    const formInputs = [
+      elements.targetAltitude,
+      elements.altitudeTolerance,
+      elements.minAltitude,
+      elements.maxAltitude,
+      elements.missionDuration,
+      elements.distZMin,
+      elements.distZMax,
+    ];
+    formInputs.forEach(input => {
+      if (input) {
+        input.addEventListener("input", () => {
+          setActivePreset(null);
+        });
+      }
     });
   }
 
@@ -797,7 +889,20 @@
     const model = state.selectedModel || "glm-5.3-flash";
 
     elements.generateControllerBtn.disabled = true;
-    elements.genSpinner.style.display = "inline-block";
+    if (elements.genSpinner) elements.genSpinner.style.display = "inline-block";
+
+    if (elements.synthesisLoadingBox) {
+      elements.synthesisLoadingBox.classList.remove("hidden");
+      if (elements.synthesisStatusText) {
+        elements.synthesisStatusText.textContent = "Connecting to Vultr Serverless Inference (" + model + ")...";
+      }
+    }
+
+    const statusTimer = setTimeout(() => {
+      if (elements.synthesisStatusText) {
+        elements.synthesisStatusText.textContent = "Synthesizing 500 Hz Crazyflie 2 control law...";
+      }
+    }, 600);
 
     try {
       const res = await fetch("/controllers/generate", {
@@ -812,6 +917,11 @@
         }),
       });
 
+      clearTimeout(statusTimer);
+      if (elements.synthesisStatusText) {
+        elements.synthesisStatusText.textContent = "Validating AST, observe() signature and bound limits...";
+      }
+
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : "Generation failed");
@@ -821,12 +931,27 @@
       elements.controllerSource.value = controller.source_code;
       await updateCodeMetadata(controller.source_code);
       state.activeController = controller;
+
+      if (elements.synthesisStatusText) {
+        elements.synthesisStatusText.textContent = "Controller synthesis validated successfully.";
+      }
+      setTimeout(() => {
+        if (elements.synthesisLoadingBox) elements.synthesisLoadingBox.classList.add("hidden");
+      }, 700);
+
       toast("Controller generated via " + model + " (" + (state.selectedReasoningEffort || "minimal") + " reasoning) and validated.", "success");
     } catch (err) {
+      clearTimeout(statusTimer);
+      if (elements.synthesisStatusText) {
+        elements.synthesisStatusText.textContent = "Notice: " + err.message;
+      }
+      setTimeout(() => {
+        if (elements.synthesisLoadingBox) elements.synthesisLoadingBox.classList.add("hidden");
+      }, 2200);
       toast("Generation Notice: " + err.message + ". You can test with the baseline controller immediately.", "warning");
     } finally {
       elements.generateControllerBtn.disabled = false;
-      elements.genSpinner.style.display = "none";
+      if (elements.genSpinner) elements.genSpinner.style.display = "none";
     }
   }
 
@@ -2382,6 +2507,28 @@
       shadowMesh.position.y = -0.015;
       scene.add(shadowMesh);
 
+      // 3D Ground Metric Grid and XYZ Spatial Axes
+      const gridHelper = new THREE.GridHelper(2.4, 24, 0xf97316, 0x334155);
+      gridHelper.position.y = -0.015;
+      scene.add(gridHelper);
+
+      const axesHelper = new THREE.AxesHelper(0.12);
+      axesHelper.position.set(0, -0.014, 0);
+      scene.add(axesHelper);
+
+      // Dynamic Target Altitude Indicator Ring
+      const targetRingGeo = new THREE.RingGeometry(0.08, 0.09, 32);
+      targetRingGeo.rotateX(-Math.PI / 2);
+      const targetRingMat = new THREE.MeshBasicMaterial({
+        color: 0x06b6d4,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75
+      });
+      const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
+      targetRing.position.y = 0.0;
+      scene.add(targetRing);
+
       function updateThemeLights(isDawn) {
         if (isDawn) {
           ambientLight.color.setHex(0xffe8c6);
@@ -2529,8 +2676,14 @@
 
         const altM = pt.position_m ? pt.position_m[2] : (pt.altitude_m || 0.1);
         const timeS = pt.sim_time_s || (idx * 0.002);
+        const sceneY = (altM - 0.10) * 0.8;
 
-        droneModel.position.y = (altM - 0.10) * 0.8;
+        droneModel.position.y = sceneY;
+
+        // Dynamic 3D Follow-Camera tracking keeps Crazyflie in view at all altitudes
+        controls.target.y = sceneY;
+        camera.position.y = defaultCamPos.y + sceneY;
+        controls.update();
 
         const shadowScale = Math.max(0.4, 1.0 - (altM - 0.05) * 1.5);
         shadowMesh.scale.set(shadowScale, shadowScale, shadowScale);
@@ -2612,9 +2765,26 @@
       droneViewer = {
         updateTheme: isDawn => updateThemeLights(isDawn),
         resetView: () => {
-          camera.position.copy(defaultCamPos);
           controls.target.copy(defaultTarget);
+          camera.position.copy(defaultCamPos);
           controls.update();
+          if (droneModel && !isReplaying) {
+            droneModel.rotation.set(0, 0, 0);
+            droneModel.position.set(0, 0, 0);
+          }
+        },
+        resize: () => {
+          const w = canvas.clientWidth || 340;
+          const h = canvas.clientHeight || 240;
+          if (w > 0 && h > 0) {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+          }
+        },
+        setTargetAltitude: (targetAltM) => {
+          const sceneY = (targetAltM - 0.10) * 0.8;
+          targetRing.position.y = sceneY;
         },
         loadReplay: trajectory => {
           if (!trajectory || trajectory.length === 0) return;
@@ -2658,6 +2828,9 @@
             droneModel.position.set(0, 0, 0);
             droneModel.rotation.set(0, 0, 0);
           }
+          controls.target.copy(defaultTarget);
+          camera.position.copy(defaultCamPos);
+          controls.update();
           shadowMesh.scale.set(1, 1, 1);
           shadowMat.opacity = 0.35;
         },
@@ -2676,6 +2849,80 @@
     }
   }
 
+  function setupViewPills() {
+    const arenaStage = elements.simulationArenaStage;
+    if (!arenaStage) return;
+
+    const pills = document.querySelectorAll(".view-pill");
+    pills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        const viewMode = pill.dataset.view;
+        pills.forEach(p => {
+          p.classList.remove("active");
+          p.setAttribute("aria-checked", "false");
+        });
+        pill.classList.add("active");
+        pill.setAttribute("aria-checked", "true");
+
+        arenaStage.classList.remove("view-mode-3d", "view-mode-2d", "view-mode-split");
+        arenaStage.classList.add("view-mode-" + viewMode);
+
+        if (droneViewer && droneViewer.resize) {
+          setTimeout(() => droneViewer.resize(), 50);
+        }
+      });
+    });
+  }
+
+  function setupTutorialModal() {
+    const openBtn = elements.startTutorialBtn;
+    const modal = elements.tutorialBackdrop;
+    const closeBtn = elements.closeTutorialBtn;
+    if (!openBtn || !modal) return;
+
+    openBtn.addEventListener("click", () => {
+      modal.classList.remove("hidden");
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        modal.classList.add("hidden");
+      });
+    }
+
+    modal.addEventListener("click", e => {
+      if (e.target === modal) {
+        modal.classList.add("hidden");
+      }
+    });
+
+    const scenarioBtns = modal.querySelectorAll(".run-scenario-btn");
+    scenarioBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const scenario = btn.dataset.scenario;
+        modal.classList.add("hidden");
+
+        if (scenario === "nominal") {
+          if (elements.presetNominal) elements.presetNominal.click();
+          switchStep(1);
+          toast("Tutorial: Loaded Nominal Hover (0.10m). Click 'Continue to AI Synthesis' to generate controller.", "info");
+        } else if (scenario === "high") {
+          if (elements.presetHigh) elements.presetHigh.click();
+          switchStep(1);
+          toast("Tutorial: Loaded 1.50m High Altitude Climb. Watch the 3D follow-cam track the ascent in Step 4!", "info");
+        } else if (scenario === "turbulent") {
+          if (elements.presetTurbulent) elements.presetTurbulent.click();
+          switchStep(1);
+          toast("Tutorial: Loaded Turbulent Stress (+-0.20 N). Tests falsification boundary corridor.", "warning");
+        } else if (scenario === "timeout") {
+          switchStep(2);
+          elements.controllerSource.value = "def observe(state):\n    # Malicious or runaway controller infinite loop\n    while True:\n        pass\n    return [0.26]";
+          toast("Tutorial: Injected Watchdog Timeout payload. Step 3/4 execution will trigger 0.50s hard termination without host lockup.", "error");
+        }
+      });
+    });
+  }
+
   // ==========================================================================
   // Initialization
   // ==========================================================================
@@ -2685,6 +2932,8 @@
     setupStepper();
     setupTour();
     setupPresets();
+    setupViewPills();
+    setupTutorialModal();
     setupVerifier();
     setupCodeCopy();
     setupOracle();

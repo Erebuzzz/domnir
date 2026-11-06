@@ -181,6 +181,11 @@
           Oracle
         </button>
 
+        <button type="button" class="btn btn-sm btn-tutorial" id="startTutorialBtn" title="Interactive Tutorial and Sandbox Testing Scenarios">
+          <svg class="btn-icon" width="14" height="14"><use href="#icon-mission" /></svg>
+          Interactive Tutorial
+        </button>
+
         <button type="button" class="btn btn-sm btn-tour" id="startTourBtn" title="Start guided onboarding walkthrough">
           <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           Quick Tour
@@ -279,14 +284,12 @@
         </div>
       </div>
 
-      <!-- SYMMETRIC DUAL-OBSERVATORY WORKSPACE GRID -->
-      <div class="workspace-grid expanded-mode" id="workspaceGrid">
+      <!-- SEGREGATED DEDICATED STEP PAGES WORKSPACE -->
+      <div class="workspace-grid" id="workspaceGrid">
         
-        <!-- LEFT COLUMN: SPECIFICATION & SYNTHESIS OBSERVATORY -->
-        <div class="column-synthesis">
-          
-          <!-- STEP 1: MISSION CONFIGURATION & ENVELOPE -->
-          <div class="stepper-panel active" data-step-panel="1" id="stepPanel1">
+        <!-- STEP 1: MISSION CONFIGURATION & PHYSICAL PLANT -->
+        <div class="stepper-panel active" data-step-panel="1" id="stepPanel1">
+          <div class="step1-grid">
             <div class="card card-stepper">
               <div class="card-header">
                 <div class="card-header-icon">
@@ -331,8 +334,8 @@
                       Mission Duration
                       <span class="unit-tag">s</span>
                     </label>
-                    <input type="number" id="missionDuration" name="mission_duration_s" step="0.05" min="0.1" max="5.0" value="0.40" class="form-control" required>
-                    <span class="form-hint">Time budget for flight trial</span>
+                    <input type="number" id="missionDuration" name="mission_duration_s" step="0.05" min="0.02" max="10.0" value="0.40" class="form-control" required>
+                    <span class="form-hint">Time budget for flight trial (0.02s to 10.00s max)</span>
                   </div>
 
                   <div class="form-group">
@@ -401,7 +404,72 @@
                 <div id="specFeedback" class="form-feedback hidden" role="alert"></div>
               </div>
             </div>
+
+            <!-- CRAZYFLIE 2 MUJOCO PLANT 3D VISUAL HERO CARD IN STEP 1 -->
+            <div class="plant-hero-card" id="plantHeroCard">
+              <div class="plant-hero-header">
+                <div class="plant-hero-title-group">
+                  <span class="badge-step">PHYSICAL PLANT</span>
+                  <h3 class="plant-hero-title">Bitcraze Crazyflie 2.0 Plant</h3>
+                  <p class="plant-hero-desc">MuJoCo 3.3.7 Physics Engine &bull; 500 Hz Closed Loop Dynamics</p>
+                </div>
+                <div class="plant-status-pill">
+                  <span class="pulse-indicator"></span>
+                  <span>READY</span>
+                </div>
+              </div>
+
+              <div class="plant-stage-wrapper" id="plantStageWrapper">
+                <div class="plant-visual-stage" id="plantVisualStage">
+                  <div class="runic-halo-ring" aria-hidden="true"></div>
+                  <canvas id="droneCanvas" class="drone-webgl-canvas"></canvas>
+                  <div class="stage-fallback-still hidden" id="droneFallbackStill">
+                    <img src="/assets/crazyflie_ragnarok_dusk.png" alt="Bitcraze Crazyflie 2.0 Physical Model" class="crazyflie-hero-img" id="droneStillImg" width="340" height="280" loading="eager">
+                  </div>
+
+                  <div class="stage-controls-overlay">
+                    <div class="stage-mode-badge" id="viewerModeBadge">ILLUSTRATIVE MODEL</div>
+                    <div class="stage-btn-group">
+                      <button type="button" class="stage-ctrl-btn" id="stagePauseBtn" title="Pause or Resume Turntable" aria-label="Pause or Resume Turntable">
+                        <svg width="14" height="14" id="stagePauseIcon"><use href="#icon-pause" /></svg>
+                      </button>
+                      <button type="button" class="stage-ctrl-btn" id="stageResetBtn" title="Reset 3D Camera View" aria-label="Reset 3D Camera View">
+                        <svg width="14" height="14"><use href="#icon-reset" /></svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Replay scrub bar for Stage 4 (shown during replay) -->
+                  <div class="stage-replay-bar hidden" id="stageReplayBar">
+                    <button type="button" class="btn btn-xs btn-primary" id="replayPlayBtn" aria-label="Play Replay">Play</button>
+                    <input type="range" id="replayTimelineScrub" min="0" max="100" value="0" class="replay-scrubber" aria-label="Replay Timeline Scrubber">
+                    <span class="replay-time-text font-mono" id="replayTimeText">t = 0.000s</span>
+                  </div>
+                  
+                  <div class="telemetry-hud-overlay">
+                    <div class="hud-tag tag-top-left">
+                      <span class="hud-label">MASS</span>
+                      <span class="hud-val">27.0 g</span>
+                    </div>
+                    <div class="hud-tag tag-top-right">
+                      <span class="hud-label">ARM SPAN</span>
+                      <span class="hud-val">92 mm</span>
+                    </div>
+                    <div class="hud-tag tag-bottom-left">
+                      <span class="hud-label">THRUST CEIL</span>
+                      <span class="hud-val">0.35 N</span>
+                    </div>
+                    <div class="hud-tag tag-bottom-right">
+                      <span class="hud-label">TIME STEP</span>
+                      <span class="hud-val">dt = 0.002s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
+        </div>
 
           <!-- STEP 2: AI CONTROLLER SYNTHESIS & CANVAS CODE CONSOLE -->
           <div class="stepper-panel" data-step-panel="2" id="stepPanel2">
@@ -492,6 +560,17 @@
                   <p class="cta-hint">All controller synthesis requests are processed via Vultr Serverless Inference at <code>api.vultrinference.com/v1</code>. Zero credentials are sent to the client.</p>
                 </div>
 
+                <!-- RUNIC SYNTHESIS LOADING COMPONENT -->
+                <div class="synthesis-loading-box hidden" id="synthesisLoadingBox">
+                  <div class="synthesis-dial-ring">
+                    <div class="dial-spinner"></div>
+                    <div class="dial-center-glyph">V</div>
+                  </div>
+                  <div class="synthesis-status-text font-mono" id="synthesisStatusText">
+                    Contacting Vultr Serverless Inference Gateway...
+                  </div>
+                </div>
+
                 <!-- CANVAS-STYLED CODE PREVIEW & DISCLOSURE -->
                 <div class="code-preview-card">
                   <div class="code-header">
@@ -517,72 +596,6 @@
                 <div class="form-actions-split">
                   <button type="button" class="btn btn-ghost" id="backToStep1Btn">&larr; Back to Envelope</button>
                   <button type="button" class="btn btn-primary" id="goToStep3Btn">Continue to Sandbox Setup &rarr;</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- RIGHT COLUMN: PHYSICAL ADJUDICATION & FLIGHT TELEMETRY OBSERVATORY -->
-        <div class="column-adjudication">
-
-          <!-- CRAZYFLIE 2 MUJOCO PLANT 3D VISUAL HERO ACCENT -->
-          <div class="plant-hero-card">
-            <div class="plant-hero-header">
-              <div class="plant-hero-title-group">
-                <span class="badge-step">PHYSICAL PLANT</span>
-                <h3 class="plant-hero-title">Bitcraze Crazyflie 2.0 Plant</h3>
-                <p class="plant-hero-desc">MuJoCo 3.3.7 Physics Engine &bull; 500 Hz Closed Loop Dynamics</p>
-              </div>
-              <div class="plant-status-pill">
-                <span class="pulse-indicator"></span>
-                <span>READY</span>
-              </div>
-            </div>
-
-            <div class="plant-visual-stage" id="plantVisualStage">
-              <div class="runic-halo-ring" aria-hidden="true"></div>
-              <canvas id="droneCanvas" class="drone-webgl-canvas"></canvas>
-              <div class="stage-fallback-still hidden" id="droneFallbackStill">
-                <img src="/assets/crazyflie_ragnarok_dusk.png" alt="Bitcraze Crazyflie 2.0 Physical Model" class="crazyflie-hero-img" id="droneStillImg" width="340" height="280" loading="eager">
-              </div>
-
-              <div class="stage-controls-overlay">
-                <div class="stage-mode-badge" id="viewerModeBadge">ILLUSTRATIVE MODEL</div>
-                <div class="stage-btn-group">
-                  <button type="button" class="stage-ctrl-btn" id="stagePauseBtn" title="Pause or Resume Turntable" aria-label="Pause or Resume Turntable">
-                    <svg width="14" height="14" id="stagePauseIcon"><use href="#icon-pause" /></svg>
-                  </button>
-                  <button type="button" class="stage-ctrl-btn" id="stageResetBtn" title="Reset 3D Camera View" aria-label="Reset 3D Camera View">
-                    <svg width="14" height="14"><use href="#icon-reset" /></svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Replay scrub bar for Stage 4 (shown during replay) -->
-              <div class="stage-replay-bar hidden" id="stageReplayBar">
-                <button type="button" class="btn btn-xs btn-primary" id="replayPlayBtn" aria-label="Play Replay">Play</button>
-                <input type="range" id="replayTimelineScrub" min="0" max="100" value="0" class="replay-scrubber" aria-label="Replay Timeline Scrubber">
-                <span class="replay-time-text font-mono" id="replayTimeText">t = 0.000s</span>
-              </div>
-              
-              <div class="telemetry-hud-overlay">
-                <div class="hud-tag tag-top-left">
-                  <span class="hud-label">MASS</span>
-                  <span class="hud-val">27.0 g</span>
-                </div>
-                <div class="hud-tag tag-top-right">
-                  <span class="hud-label">ARM SPAN</span>
-                  <span class="hud-val">92 mm</span>
-                </div>
-                <div class="hud-tag tag-bottom-left">
-                  <span class="hud-label">THRUST CEIL</span>
-                  <span class="hud-val">0.35 N</span>
-                </div>
-                <div class="hud-tag tag-bottom-right">
-                  <span class="hud-label">TIME STEP</span>
-                  <span class="hud-val">dt = 0.002s</span>
                 </div>
               </div>
             </div>
@@ -713,12 +726,13 @@
 
                 <div class="form-actions-split">
                   <button type="button" class="btn btn-ghost" id="backToStep2Btn">&larr; Back to Controller</button>
+                  <button type="button" class="btn btn-primary" id="goToStep4Btn">Inspect Flight Arena &rarr;</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- STEP 4: FLIGHT SIMULATION, TELEMETRY & ADJUDICATION -->
+          <!-- STEP 4: FLIGHT SIMULATION ARENA & DETERMINISTIC ADJUDICATION -->
           <div class="stepper-panel" data-step-panel="4" id="stepPanel4">
             <div class="card card-stepper">
               <div class="card-header">
@@ -729,6 +743,13 @@
                   <span class="badge-step">STEP 04 OF 04</span>
                   <h2 class="card-title">Live Flight Telemetry &amp; Deterministic Adjudication</h2>
                   <p class="card-subtitle">Real-time MuJoCo physics observations, tolerance-bounded replay verification, and hash-linked Court Record</p>
+                </div>
+                <div class="header-view-controls">
+                  <div class="view-pill-group" role="radiogroup" aria-label="Simulation View Mode">
+                    <button type="button" class="view-pill active" id="viewPill3D" data-view="3d">3D Digital Twin</button>
+                    <button type="button" class="view-pill" id="viewPill2D" data-view="2d">2D Trajectory</button>
+                    <button type="button" class="view-pill" id="viewPillSplit" data-view="split">Split View</button>
+                  </div>
                 </div>
               </div>
 
@@ -744,8 +765,13 @@
                   </div>
                 </div>
 
-                <!-- 2D SVG ALTITUDE TRACE CHART -->
-                <div class="telemetry-chart-card">
+                <!-- SIMULATION ARENA STAGE: Hosts 3D Stage and/or 2D Chart -->
+                <div class="simulation-arena-stage view-mode-3d" id="simulationArenaStage">
+                  <!-- Arena 3D Container (where plantVisualStage mounts in Step 4) -->
+                  <div class="arena-3d-wrapper" id="arena3DWrapper"></div>
+
+                  <!-- 2D SVG ALTITUDE TRACE CHART -->
+                  <div class="telemetry-chart-card" id="telemetryChartCard">
                   <div class="chart-header">
                     <div>
                       <h3 class="chart-title">Altitude Trajectory (z) vs. Time (t)</h3>
@@ -796,8 +822,9 @@
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- ADJUDICATION & DETERMINISTIC REPLAY CARD -->
+              <!-- ADJUDICATION & DETERMINISTIC REPLAY CARD -->
                 <div class="adjudication-card">
                   <div class="adjudication-header">
                     <div>
@@ -875,8 +902,6 @@
           </div>
 
         </div>
-
-      </div>
 
       <!-- WORKSPACE QUICK KNOWLEDGE ORACLE DRAWER -->
       <div class="workspace-oracle-panel" id="workspaceOraclePanel">
@@ -1399,6 +1424,57 @@
         <div class="tour-nav-buttons">
           <button type="button" class="btn btn-sm btn-outline" id="prevTourBtn">Back</button>
           <button type="button" class="btn btn-sm btn-primary" id="nextTourBtn">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERACTIVE TUTORIAL & SANDBOX MODAL -->
+  <div class="tutorial-backdrop hidden" id="tutorialBackdrop" role="dialog" aria-modal="true" aria-labelledby="tutorialModalTitle">
+    <div class="tutorial-card" id="tutorialCard">
+      <div class="tutorial-header">
+        <div class="tutorial-header-left">
+          <span class="badge-step">INTERACTIVE TUTORIAL</span>
+          <h2 class="tutorial-title" id="tutorialModalTitle">Dómnir Flight Testing Sandbox</h2>
+        </div>
+        <button type="button" class="tutorial-close-btn" id="closeTutorialBtn" aria-label="Close Tutorial">&times;</button>
+      </div>
+      <div class="tutorial-body">
+        <p class="tutorial-intro">
+          Select a pre-configured testing scenario to explore the Bitcraze Crazyflie 2.0 flight plant, Vultr Serverless Inference synthesis, and hardware microVM containment:
+        </p>
+        <div class="tutorial-scenarios-grid">
+          <div class="scenario-card">
+            <div class="scenario-badge badge-success">NOMINAL HOVER</div>
+            <h4 class="scenario-title">Stable 0.10m Hover Flight</h4>
+            <p class="scenario-desc">Tests nominal hover control within a &plusmn;0.05m tolerance corridor. Demonstrates 500 Hz telemetry and exact replay match (&le; 1.00e-12 m).</p>
+            <div class="scenario-meta font-mono">Target: 0.10m | 0.40s (200 steps) | Disturbance: 0.00 N</div>
+            <button type="button" class="btn btn-sm btn-primary run-scenario-btn" data-scenario="nominal">Run Nominal Hover &rarr;</button>
+          </div>
+
+          <div class="scenario-card">
+            <div class="scenario-badge badge-cyan">HIGH ALTITUDE</div>
+            <h4 class="scenario-title">1.50m High Climb &amp; Follow-Cam</h4>
+            <p class="scenario-desc">Commands the Crazyflie to climb to 1.50m. Tests the 3D follow-camera vertical tracking, ground metric grid, and high altitude setpoint ring.</p>
+            <div class="scenario-meta font-mono">Target: 1.50m | 1.50s (750 steps) | Disturbance: 0.00 N</div>
+            <button type="button" class="btn btn-sm btn-primary run-scenario-btn" data-scenario="high">Run High Climb &rarr;</button>
+          </div>
+
+          <div class="scenario-card">
+            <div class="scenario-badge badge-warning">TURBULENCE STRESS</div>
+            <h4 class="scenario-title">Aerodynamic Disturbance Shear</h4>
+            <p class="scenario-desc">Injects &plusmn;0.20 N vertical gusts to evaluate controller robustness and boundary falsification under turbulent flight envelopes.</p>
+            <div class="scenario-meta font-mono">Target: 0.10m | 0.80s (400 steps) | Disturbance: &plusmn;0.20 N</div>
+            <button type="button" class="btn btn-sm btn-primary run-scenario-btn" data-scenario="turbulent">Run Turbulence Stress &rarr;</button>
+          </div>
+
+          <div class="scenario-card">
+            <div class="scenario-badge badge-danger">CONTAINMENT PROOF</div>
+            <h4 class="scenario-title">Watchdog Hard Timeout (0.50s)</h4>
+            <p class="scenario-desc">Submits a CPU-locking infinite loop to demonstrate host containment: the 0.50s monotonic watchdog terminates the runaway guest without host freeze.</p>
+            <div class="scenario-meta font-mono">Payload: Infinite Loop | Limit: 0.50s | Outcome: Contained</div>
+            <button type="button" class="btn btn-sm btn-danger run-scenario-btn" data-scenario="timeout">Test Watchdog Timeout &rarr;</button>
+          </div>
         </div>
       </div>
     </div>

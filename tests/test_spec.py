@@ -28,6 +28,12 @@ class SpecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             FlightSpec(disturbance_force_z_min=0.1, disturbance_force_z_max=-0.1)
 
+    def test_flight_duration_up_to_10s_accepted(self):
+        spec = FlightSpec(mission_duration_s=10.0)
+        self.assertEqual(spec.step_budget, 5000)
+        with self.assertRaises(ValueError):
+            FlightSpec(mission_duration_s=10.01)
+
     def test_valid_controller_is_accepted_and_matches_sandbox_validator(self):
         source = (
             "def observe(observation):\n"

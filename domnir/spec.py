@@ -14,7 +14,7 @@ class FlightSpec(BaseModel):
     altitude_tolerance_m: float = Field(default=0.05, gt=0.0, le=1.0)
     min_allowed_altitude_m: float = Field(default=0.05, ge=0.0, le=2.0)
     max_allowed_altitude_m: float = Field(default=1.0, gt=0.05, le=10.0)
-    mission_duration_s: float = Field(default=0.4, ge=0.02, le=2.0)
+    mission_duration_s: float = Field(default=0.4, ge=0.02, le=10.0)
     dt_s: float = Field(default=0.002, frozen=True)
     disturbance_force_z_min: float = Field(default=-0.05, ge=-1.0, le=0.0)
     disturbance_force_z_max: float = Field(default=0.05, ge=0.0, le=1.0)
