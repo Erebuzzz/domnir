@@ -434,22 +434,26 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertIn("image/png", dawn_res.headers.get("content-type", ""))
 
     def test_threejs_vendor_assets_delivery(self):
-        three_res = self.client.get("/vendor/three.module.js")
+        three_res = self.client.get("/vendor-v2/three.module.js")
         self.assertEqual(three_res.status_code, 200)
         self.assertIn("three", three_res.text[:1000].lower())
 
-        gltf_res = self.client.get("/vendor/addons/loaders/GLTFLoader.js")
+        core_res = self.client.get("/vendor-v2/three.core.js")
+        self.assertEqual(core_res.status_code, 200)
+        self.assertGreater(len(core_res.content), 500000)
+
+        gltf_res = self.client.get("/vendor-v2/addons/loaders/GLTFLoader.js")
         self.assertEqual(gltf_res.status_code, 200)
         self.assertIn("GLTFLoader", gltf_res.text)
 
-        orbit_res = self.client.get("/vendor/addons/controls/OrbitControls.js")
+        orbit_res = self.client.get("/vendor-v2/addons/controls/OrbitControls.js")
         self.assertEqual(orbit_res.status_code, 200)
         self.assertIn("OrbitControls", orbit_res.text)
 
-        bg_res = self.client.get("/vendor/addons/utils/BufferGeometryUtils.js")
+        bg_res = self.client.get("/vendor-v2/addons/utils/BufferGeometryUtils.js")
         self.assertEqual(bg_res.status_code, 200)
 
-        skel_res = self.client.get("/vendor/addons/utils/SkeletonUtils.js")
+        skel_res = self.client.get("/vendor-v2/addons/utils/SkeletonUtils.js")
         self.assertEqual(skel_res.status_code, 200)
 
     def test_svg_symbol_viewbox_fix(self):

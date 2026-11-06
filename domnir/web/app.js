@@ -761,6 +761,16 @@
   // Controller Generation & Code Handling
   // ==========================================================================
 
+  function updateCodeLineNumbers(code) {
+    if (!elements.codeLineNumbers) return;
+    const lineCount = (code || "").split("\n").length;
+    let numbers = "";
+    for (let i = 1; i <= lineCount; i++) {
+      numbers += i + "\n";
+    }
+    elements.codeLineNumbers.textContent = numbers;
+  }
+
   async function updateCodeMetadata(code) {
     if (!code || !code.trim()) {
       elements.controllerHash.textContent = "None";

@@ -13,6 +13,7 @@ addons_dir = dst_base / "addons"
 
 files = [
     (src_base / "build" / "three.module.js", dst_base / "three.module.js"),
+    (src_base / "build" / "three.core.js", dst_base / "three.core.js"),
     (src_base / "examples" / "jsm" / "loaders" / "GLTFLoader.js", addons_dir / "loaders" / "GLTFLoader.js"),
     (src_base / "examples" / "jsm" / "controls" / "OrbitControls.js", addons_dir / "controls" / "OrbitControls.js"),
     (src_base / "examples" / "jsm" / "utils" / "BufferGeometryUtils.js", addons_dir / "utils" / "BufferGeometryUtils.js"),
