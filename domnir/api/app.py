@@ -169,12 +169,14 @@ def generate_controller(request: GenerateControllerRequest) -> GenerateControlle
             request.spec,
             model=model_id,
             prompt_version=request.prompt_version,
+            reasoning_effort=request.reasoning_effort,
             max_tokens=request.max_tokens,
         )
         return GenerateControllerResponse(
             controller=controller,
             model_id=controller.model_id,
             source_sha256=controller.source_sha256,
+            reasoning_effort=request.reasoning_effort,
             message="Controller generated and statically validated",
         )
     except Exception as error:

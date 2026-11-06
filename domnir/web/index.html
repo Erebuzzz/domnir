@@ -349,6 +349,27 @@
                 </div>
               </div>
 
+              <div class="reasoning-effort-wrapper">
+                <div class="reasoning-effort-header">
+                  <label class="form-label">Vultr Serverless Reasoning Effort:</label>
+                  <span class="reasoning-hint" id="reasoningHint">Minimal (fastest token generation, minimal reasoning depth)</span>
+                </div>
+                <div class="reasoning-pill-group" id="reasoningEffortGroup" role="radiogroup" aria-label="Reasoning Effort">
+                  <button type="button" class="reasoning-pill active" data-effort="minimal" role="radio" aria-checked="true">
+                    Minimal
+                  </button>
+                  <button type="button" class="reasoning-pill" data-effort="low" role="radio" aria-checked="false">
+                    Low
+                  </button>
+                  <button type="button" class="reasoning-pill" data-effort="medium" role="radio" aria-checked="false">
+                    Medium
+                  </button>
+                  <button type="button" class="reasoning-pill" data-effort="high" role="radio" aria-checked="false">
+                    High
+                  </button>
+                </div>
+              </div>
+
               <div class="generation-cta-box">
                 <div class="cta-actions">
                   <button type="button" class="btn btn-primary btn-lg" id="generateControllerBtn">
@@ -1082,19 +1103,19 @@
                       <td><code>glm-5.3-flash</code></td>
                       <td>GLM</td>
                       <td>Default model. Rapid inference and structured flight controller generation.</td>
-                      <td>Minimal</td>
+                      <td>Configurable (Minimal, Low, Medium, High)</td>
                     </tr>
                     <tr>
                       <td><code>qwen3.8-flash-next</code></td>
                       <td>Qwen</td>
                       <td>Deep mathematical reasoning and complex multi-variable state analysis.</td>
-                      <td>Minimal</td>
+                      <td>Configurable (Minimal, Low, Medium, High)</td>
                     </tr>
                     <tr>
                       <td><code>deepseek-v4.1-flash-1017</code></td>
                       <td>DeepSeek</td>
                       <td>Specialized code synthesis and compact Python logic generation.</td>
-                      <td>Minimal</td>
+                      <td>Configurable (Minimal, Low, Medium, High)</td>
                     </tr>
                   </tbody>
                 </table>

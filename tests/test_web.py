@@ -125,10 +125,12 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertIn("disturbance_force_z_max", content)
         self.assertIn("validateSpecBtn", content)
 
-        # Feature 2: Multi-Model Selection
+        # Feature 2: Multi-Model Selection & Reasoning Effort
         self.assertIn("glm-5.3-flash", content)
         self.assertIn("qwen3.8-flash-next", content)
         self.assertIn("deepseek-v4.1-flash-1017", content)
+        self.assertIn("reasoningEffortGroup", content)
+        self.assertIn("reasoning-pill", content)
 
         # Feature 3: Controller Generation & Preview
         self.assertIn("generateControllerBtn", content)

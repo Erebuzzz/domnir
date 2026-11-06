@@ -8,7 +8,7 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](pyproject.toml)
 [![MuJoCo 3.3.7](https://img.shields.io/badge/MuJoCo-3.3.7-green.svg)](https://github.com/google-deepmind/mujoco)
 [![Vultr Serverless Inference](https://img.shields.io/badge/Vultr-Serverless%20Inference-007bfc.svg)](https://www.vultr.com/)
-[![Tests: 135 Passed](https://img.shields.io/badge/Tests-135%20Passed-success.svg)](tests/)
+[![Tests: 137 Passed](https://img.shields.io/badge/Tests-137%20Passed-success.svg)](tests/)
 
 ---
 
@@ -86,6 +86,8 @@ Dómnir exposes three distinct Vultr-hosted model families. Users can toggle bet
 | **`glm-5.3-flash`** (Default) | Vultr Serverless Inference | ~2.1 s | Schema adherence & rapid code generation | Standard hover missions, step response evaluation, rapid sweeps |
 | **`qwen3.8-flash-next`** | Vultr Serverless Inference | ~2.4 s | Mathematical and state reasoning | Turbulent flight envelopes, disturbance recovery, non-linear targets |
 | **`deepseek-v4.1-flash-1017`** | Vultr Serverless Inference | ~1.8 s | Compact logic & tight variable scoping | Highly constrained step budgets, deterministic PD gain tuning |
+
+**Configurable Reasoning Effort**: Each model supports selectable reasoning effort levels (`minimal`, `low`, `medium`, and `high`) configurable directly in the web UI or via the `/controllers/generate` API payload, allowing users to tune between instant code emission and deep mathematical derivation.
 
 Every model response is sanitized, checked for fenced Markdown blocks, parsed via Python AST, fingerprinted with SHA-256, and validated against the 32 KiB code limit before entering the microVM cage.
 
@@ -342,9 +344,9 @@ echo "VULTR_INFERENCE_API_KEY=your_key_here" > .env
 uv run pytest -v
 ```
 
-All 135 tests run deterministically:
-- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, and containment verification tests pass (124 passed, 11 skipped, 0 failed).
-- On live KVM-enabled Vultr hosts: all 135 tests pass (135 passed, 0 failed).
+All 137 tests run deterministically:
+- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, and containment verification tests pass (126 passed, 11 skipped, 0 failed).
+- On live KVM-enabled Vultr hosts: all 137 tests pass (137 passed, 0 failed).
 
 ### 3. Launch the Web Application
 

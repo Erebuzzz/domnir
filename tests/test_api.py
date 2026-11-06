@@ -182,6 +182,41 @@ class ControllerGenerationEndpointTests(unittest.TestCase):
             self.assertEqual(data["model_id"], expected_model)
             self.assertIn("observe", data["controller"]["source_code"])
 
+    @patch("domnir.inference.vultr.VultrInferenceClient.chat_completion")
+    def test_generate_controller_with_reasoning_effort_levels(self, mock_chat):
+        spec = FlightSpec(target_altitude_m=0.1, mission_duration_s=0.4)
+        mock_chat.return_value = InferenceResponse(
+            content=f"```python\n{SAMPLE_CONTROLLER_SOURCE}\n```",
+            model="glm-5.3-flash",
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            finish_reason="stop",
+        )
+        for level in ("minimal", "low", "medium", "high"):
+            payload = {
+                "spec": spec.model_dump(),
+                "model": "glm-5.3-flash",
+                "reasoning_effort": level,
+            }
+            response = self.client.post("/controllers/generate", json=payload)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["reasoning_effort"], level)
+            self.assertIn("observe", data["controller"]["source_code"])
+            # Verify chat_completion was invoked with reasoning_effort
+            self.assertEqual(mock_chat.call_args.kwargs.get("reasoning_effort"), level)
+
+    def test_generate_controller_with_invalid_reasoning_effort_rejected(self):
+        spec = FlightSpec(target_altitude_m=0.1, mission_duration_s=0.4)
+        payload = {
+            "spec": spec.model_dump(),
+            "model": "glm-5.3-flash",
+            "reasoning_effort": "extreme",
+        }
+        response = self.client.post("/controllers/generate", json=payload)
+        self.assertEqual(response.status_code, 422)
+
 
 class ExperimentWorkflowTests(unittest.TestCase):
     def setUp(self):

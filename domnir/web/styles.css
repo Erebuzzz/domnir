@@ -453,6 +453,63 @@ body {
   color: var(--text-muted);
 }
 
+.reasoning-effort-wrapper {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reasoning-effort-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reasoning-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.reasoning-pill-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.reasoning-pill {
+  flex: 1;
+  min-width: 70px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.reasoning-pill:hover {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+.reasoning-pill.active {
+  background-color: rgba(6, 182, 212, 0.12);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
 /* ==========================================================================
    Controller Source Editor & Meta
    ========================================================================== */

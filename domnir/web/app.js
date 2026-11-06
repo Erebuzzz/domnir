@@ -8,6 +8,7 @@
 
   const state = {
     selectedModel: "glm-5.3-flash",
+    selectedReasoningEffort: "minimal",
     models: [],
     activeSpec: null,
     activeController: null,
@@ -73,6 +74,8 @@
 
     // Models & Generation
     modelCardsContainer: document.getElementById("modelCardsContainer"),
+    reasoningPills: document.querySelectorAll(".reasoning-pill"),
+    reasoningHint: document.getElementById("reasoningHint"),
     generateControllerBtn: document.getElementById("generateControllerBtn"),
     genSpinner: document.getElementById("genSpinner"),
     loadBaselineBtn: document.getElementById("loadBaselineBtn"),
@@ -365,6 +368,34 @@
       });
 
       elements.modelCardsContainer.appendChild(card);
+    });
+  }
+
+  const REASONING_HINTS = {
+    minimal: "Minimal (fastest token generation, minimal reasoning depth)",
+    low: "Low (light step-by-step reasoning)",
+    medium: "Medium (standard analytical reasoning depth)",
+    high: "High (deep mathematical reasoning for complex control laws)",
+  };
+
+  function setupReasoningEffort() {
+    if (!elements.reasoningPills) return;
+    elements.reasoningPills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        const effort = pill.dataset.effort || "minimal";
+        state.selectedReasoningEffort = effort;
+
+        elements.reasoningPills.forEach(p => {
+          p.classList.remove("active");
+          p.setAttribute("aria-checked", "false");
+        });
+        pill.classList.add("active");
+        pill.setAttribute("aria-checked", "true");
+
+        if (elements.reasoningHint) {
+          elements.reasoningHint.textContent = REASONING_HINTS[effort] || effort;
+        }
+      });
     });
   }
 
@@ -728,6 +759,7 @@
         body: JSON.stringify({
           spec: spec,
           model: model,
+          reasoning_effort: state.selectedReasoningEffort || "minimal",
           prompt_version: "v1",
           max_tokens: 4096,
         }),
@@ -742,7 +774,7 @@
       elements.controllerSource.value = controller.source_code;
       await updateCodeMetadata(controller.source_code);
       state.activeController = controller;
-      toast("Controller generated via " + model + " and validated.", "success");
+      toast("Controller generated via " + model + " (" + (state.selectedReasoningEffort || "minimal") + " reasoning) and validated.", "success");
     } catch (err) {
       toast("Generation Notice: " + err.message + ". You can test with the baseline controller immediately.", "warning");
     } finally {
@@ -1709,6 +1741,7 @@
     setupVerifier();
     setupCodeCopy();
     setupInitialModelCards();
+    setupReasoningEffort();
 
     // Inputs listeners
     elements.missionDuration.addEventListener("input", updateStepBudget);

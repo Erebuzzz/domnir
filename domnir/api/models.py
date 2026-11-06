@@ -71,12 +71,14 @@ class GenerateControllerRequest(BaseModel):
     model: str = "glm-5.3-flash"
     prompt_version: str = "v1"
     max_tokens: int = 4096
+    reasoning_effort: str = Field(default="minimal", pattern="^(minimal|low|medium|high)$")
 
 
 class GenerateControllerResponse(BaseModel):
     controller: GeneratedController
     model_id: str
     source_sha256: str
+    reasoning_effort: str = "minimal"
     message: str = "Controller generated successfully"
 
 
@@ -85,6 +87,7 @@ class RunExperimentRequest(BaseModel):
     controller: GeneratedController | None = None
     controller_source: str | None = None
     model: str | None = None
+    reasoning_effort: str | None = Field(default=None, pattern="^(minimal|low|medium|high)$")
     steps: int | None = Field(default=None, ge=1, le=5000)
     initial_altitude_m: float = Field(default=0.15, ge=0.01, le=5.0)
     vertical_disturbance_n: float = Field(default=0.0, ge=-1.0, le=1.0)

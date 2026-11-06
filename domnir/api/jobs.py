@@ -255,6 +255,7 @@ class ExperimentJob:
         controller: GeneratedController | None = None,
         controller_source: str | None = None,
         model_id: str | None = None,
+        reasoning_effort: str | None = None,
         steps: int | None = None,
         initial_altitude_m: float = 0.15,
         vertical_disturbance_n: float = 0.0,
@@ -265,6 +266,7 @@ class ExperimentJob:
         self.controller = controller
         self.controller_source = controller_source
         self.model_id = model_id or (controller.model_id if controller else DEFAULT_MODEL)
+        self.reasoning_effort = reasoning_effort
         self.steps = steps or spec.step_budget
         self.initial_altitude_m = initial_altitude_m
         self.vertical_disturbance_n = vertical_disturbance_n
@@ -419,6 +421,7 @@ class JobOrchestrator:
                 controller=request.controller,
                 controller_source=request.controller_source,
                 model_id=resolved_model,
+                reasoning_effort=request.reasoning_effort,
                 steps=request.steps,
                 initial_altitude_m=request.initial_altitude_m,
                 vertical_disturbance_n=request.vertical_disturbance_n,
@@ -444,6 +447,7 @@ class JobOrchestrator:
                     job.controller = self.inference_client.generate_controller(
                         job.spec,
                         model=target_model,
+                        reasoning_effort=job.reasoning_effort or "minimal",
                     )
             job.transition_to(ExperimentState.CONTROLLER_VALIDATED, reason="Controller code validated")
 
