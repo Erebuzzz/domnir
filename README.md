@@ -354,11 +354,16 @@ All 137 tests run deterministically:
 uv run uvicorn domnir.api.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://localhost:8000` in any modern web browser to access the Dómnir Qualification Observatory:
-- **Qualification Workspace**: Live 2D SVG altitude telemetry chart with crosshair tooltips.
-- **Court Record Verifier**: In-browser drag-and-drop verification of exported Court Records.
-- **Containment Audit Tab**: Live and certified microVM isolation proofs.
-- **Trust Architecture**: Interactive architecture and boundary reference.
+Open `http://localhost:8000` in any modern web browser to access the Dómnir platform:
+
+- **Guided Experiment Workflow**: 4-step mission pipeline guiding the user through envelope configuration, Vultr serverless AI synthesis, hardware-isolated microVM setup, and live 500 Hz MuJoCo telemetry execution.
+- **Rune Dawn and Rune Dusk Theme System**: Mode-aware UI aesthetic featuring warm sandstone and burnt copper in Rune Dawn, and midnight obsidian with Bifrost cyan in Rune Dusk. Both modes incorporate 4-tier elevation shadow tokens and WCAG AA contrast.
+- **Authentic 3D Drone Digital Twin**: WebGL Three.js interactive physical plant viewer derived from MuJoCo Menagerie CAD meshes via Blender 5.2.3 LTS. Features turntable rotation, orbital camera controls, concentric rotor spin axes, and high-resolution Cycles PBR stills for zero-latency fallback.
+- **Synchronized Simulation Replay**: Dual-view playback synchronizing the 2D altitude SVG trajectory with the 3D quadrotor spatial orientation, complete with interactive scrubber and timestep hover inspection.
+- **Ragnarok Knowledge Oracle**: Grounded technical retrieval engine citing platform architecture and containment proofs, accessible via both the Docs tab and a collapsible Workspace quick drawer.
+- **Court Record Verifier**: In-browser drag-and-drop verification of signed Court Record packages against an independent pristine MuJoCo engine.
+- **Containment Audit Tab**: Live and certified microVM isolation proofs across all five containment pillars.
+- **Trust Architecture**: Interactive security boundary documentation with clear non-negotiable trust rules.
 
 ---
 
