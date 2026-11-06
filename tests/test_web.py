@@ -420,6 +420,54 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertFalse(result["trajectory_hash_matched"])
         self.assertGreater(len(result["errors"]), 0)
 
+    def test_crazyflie_3d_assets_delivery(self):
+        glb_res = self.client.get("/assets/crazyflie_2.glb")
+        self.assertEqual(glb_res.status_code, 200)
+        self.assertGreater(len(glb_res.content), 100000)
+
+        dusk_res = self.client.get("/assets/crazyflie_ragnarok_dusk.png")
+        self.assertEqual(dusk_res.status_code, 200)
+        self.assertIn("image/png", dusk_res.headers.get("content-type", ""))
+
+        dawn_res = self.client.get("/assets/crazyflie_ragnarok_dawn.png")
+        self.assertEqual(dawn_res.status_code, 200)
+        self.assertIn("image/png", dawn_res.headers.get("content-type", ""))
+
+    def test_threejs_vendor_assets_delivery(self):
+        three_res = self.client.get("/vendor/three.module.js")
+        self.assertEqual(three_res.status_code, 200)
+        self.assertIn("three", three_res.text[:1000].lower())
+
+        gltf_res = self.client.get("/vendor/addons/loaders/GLTFLoader.js")
+        self.assertEqual(gltf_res.status_code, 200)
+        self.assertIn("GLTFLoader", gltf_res.text)
+
+        orbit_res = self.client.get("/vendor/addons/controls/OrbitControls.js")
+        self.assertEqual(orbit_res.status_code, 200)
+        self.assertIn("OrbitControls", orbit_res.text)
+
+        bg_res = self.client.get("/vendor/addons/utils/BufferGeometryUtils.js")
+        self.assertEqual(bg_res.status_code, 200)
+
+        skel_res = self.client.get("/vendor/addons/utils/SkeletonUtils.js")
+        self.assertEqual(skel_res.status_code, 200)
+
+    def test_svg_symbol_viewbox_fix(self):
+        index_res = self.client.get("/index.html")
+        self.assertEqual(index_res.status_code, 200)
+        html = index_res.text
+        self.assertIn('<symbol id="icon-mission" viewBox="-1 -1 26 26"', html)
+        self.assertNotIn('<g id="icon-mission" viewBox=', html)
+        self.assertIn('<symbol id="icon-grid" viewBox="-1 -1 26 26"', html)
+        self.assertIn('<symbol id="icon-chevron-right" viewBox="-1 -1 26 26"', html)
+
+    def test_scientific_claims_audit(self):
+        index_res = self.client.get("/index.html")
+        self.assertEqual(index_res.status_code, 200)
+        html = index_res.text
+        self.assertNotIn("Bit-for-Bit Deterministic Qualification Court", html)
+        self.assertIn("Dómnir &bull; Crazyflie 2.0 MuJoCo Simulation &bull; Evidence-Based Adjudication", html)
+
 
 if __name__ == "__main__":
     unittest.main()

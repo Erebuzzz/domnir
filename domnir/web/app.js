@@ -18,6 +18,8 @@
     pollTimer: null,
   };
 
+  let droneViewer = null;
+
   const BASELINE_CONTROLLER_SOURCE = `def observe(observation):
     z = observation['position_m'][2]
     vz = observation['velocity_mps'][2]
@@ -146,15 +148,27 @@
 
     // Verifier Tab
     dropZone: document.getElementById("dropZone"),
-    courtFileInput: document.getElementById("courtFileInput"),
-    browseFileBtn: document.getElementById("browseFileBtn"),
+    courtFileInput: document.getElementById("courtFileInput") || document.getElementById("recordFileInput"),
+    browseFileBtn: document.getElementById("browseFileBtn") || document.getElementById("selectFileBtn"),
     pasteSampleBtn: document.getElementById("pasteSampleBtn"),
-    courtJsonInput: document.getElementById("courtJsonInput"),
+    courtJsonInput: document.getElementById("courtJsonInput") || document.getElementById("rawRecordInput"),
     submitVerifyBtn: document.getElementById("submitVerifyBtn"),
     verifySpinner: document.getElementById("verifySpinner"),
     verifyResultsCard: document.getElementById("verifyResultsCard"),
-    verifyOverallBadge: document.getElementById("verifyOverallBadge"),
+    verifyOverallBadge: document.getElementById("verifyOverallBadge") || document.getElementById("overallVerifyBadge"),
     verifyMetaDetails: document.getElementById("verifyMetaDetails"),
+
+    // 3D Visual Stage & Replay
+    plantVisualStage: document.getElementById("plantVisualStage"),
+    droneCanvas: document.getElementById("droneCanvas"),
+    droneFallbackStill: document.getElementById("droneFallbackStill"),
+    viewerModeBadge: document.getElementById("viewerModeBadge"),
+    stagePauseBtn: document.getElementById("stagePauseBtn"),
+    stageResetBtn: document.getElementById("stageResetBtn"),
+    stageReplayBar: document.getElementById("stageReplayBar"),
+    replayPlayBtn: document.getElementById("replayPlayBtn"),
+    replayTimelineScrub: document.getElementById("replayTimelineScrub"),
+    replayTimeText: document.getElementById("replayTimeText"),
     checkControllerHash: document.getElementById("checkControllerHash"),
     iconControllerHash: document.getElementById("iconControllerHash"),
     detailControllerHash: document.getElementById("detailControllerHash"),
@@ -1008,6 +1022,11 @@
       // Render 2D Altitude Chart
       renderAltitudeChart(state.activeTrajectory, spec);
 
+      // Load 3D Simulation Replay into Three.js Viewer
+      if (droneViewer && state.activeTrajectory && state.activeTrajectory.length > 0) {
+        droneViewer.loadReplay(state.activeTrajectory);
+      }
+
       // Replay determinism display
       displayReplayAndVerdicts(detail, artifacts.court_record);
 
@@ -1032,6 +1051,9 @@
   function resetRunDisplay() {
     if (elements.executionErrorBanner) {
       elements.executionErrorBanner.style.display = "none";
+    }
+    if (droneViewer && droneViewer.resetToIdle) {
+      droneViewer.resetToIdle();
     }
     elements.replayDiffValue.textContent = "0.00e+00 m";
     elements.replayBadge.textContent = "WAITING FOR TRIAL";
@@ -1318,6 +1340,10 @@
         crosshairDot.style.display = "block";
       }
 
+      if (droneViewer && droneViewer.setStep) {
+        droneViewer.setStep(sampleIndex, trajectory);
+      }
+
       tooltip.innerHTML = `
         <div><strong>t:</strong> ${t.toFixed(4)}s (step ${pt.step_index || sampleIndex})</div>
         <div><strong>z:</strong> ${z.toFixed(4)}m</div>
@@ -1397,6 +1423,7 @@
       topic: "bounds",
       topicLabel: "Physical Bounds",
       title: "Bitcraze Crazyflie 2 Dynamic Envelopes & Closed-Loop Rate",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 3",
       summary: "Physical flight boundary rules for the Bitcraze Crazyflie 2.0 quadrotor under MuJoCo 3.3.7 simulation. Gravity equilibrium hover thrust is calibrated at 0.26487 N for the 27.0 gram airframe. Actuators saturate strictly at 0.35 N per arm. Control loops advance at 500 Hz (dt = 0.002s). Any breach below the safety floor (0.05m) or above the ceiling (1.00m) triggers instant FALSIFIED physical adjudication.",
       snippet: "# Crazyflie 2 Physics Invariants\nPLANT_MASS_KG = 0.027\nGRAVITY_THRUST_EQUILIBRIUM_N = 0.26487\nACTUATOR_MAX_THRUST_N = 0.35\nSIMULATION_TIMESTEP_S = 0.002  # 500 Hz closed loop\nFLOOR_BOUNDARY_M = 0.05\nCEILING_BOUNDARY_M = 1.00",
       lang: "python"
@@ -1406,6 +1433,7 @@
       topic: "vultr",
       topicLabel: "Vultr Serverless",
       title: "Vultr Serverless Inference & Zero Host Credential Bleed",
+      citation: "docs/ADR/ADR-001-sandboxing.md Section 2",
       summary: "All flight controller synthesis queries are routed through Vultr Serverless Inference at https://api.vultrinference.com/v1. Supported pinned models include GLM 5.3 Flash (rapid token synthesis), Qwen 3.8 Flash Next (aerodynamic reasoning), and DeepSeek V4.1 Flash (compact logic). API keys exist exclusively in backend environment memory and are never transmitted to the browser or guest microVM.",
       snippet: "# Serverless Inference Request Contract\nPOST https://api.vultrinference.com/v1/chat/completions\n{\n  \"model\": \"glm-5.3-flash\",\n  \"messages\": [{\"role\": \"system\", \"content\": \"observe(obs) contract\"}],\n  \"temperature\": 0.2,\n  \"max_tokens\": 1024\n}",
       lang: "http"
@@ -1415,15 +1443,57 @@
       topic: "microvm",
       topicLabel: "MicroVM Isolation",
       title: "Blast Radius Zero: Hardware MicroVM Containment",
+      citation: "docs/ADR/ADR-001-sandboxing.md Section 3",
       summary: "Guest code execution occurs strictly inside dedicated Microsandbox microVMs backed by AMD EPYC nested KVM (/dev/kvm). The guest environment operates under default-deny network policy (zero ingress, zero egress, zero published ports), zero host mounts, and a hard 0.50s monotonic wall-clock watchdog ceiling. The host simulator (Forseti) alone owns the MuJoCo model and MjData.",
       snippet: "# MicroVM Containment Invariants\n/dev/kvm: Nested Hardware Virtualization\nNetwork: Default-Deny (Egress & Ingress Dropped)\nHost Mounts: None (Zero Shared FS)\nWatchdog Ceiling: 0.50s monotonic timeout\nCleanup: Mandatory context manager teardown (100% reclamation)",
       lang: "yaml"
     },
     {
+      id: "oracle-cap-host",
+      topic: "microvm",
+      topicLabel: "Host Isolation Proof",
+      title: "CAP-HOST-001: Strict Hardware Isolation & Capability Containment",
+      citation: "docs/evidence/baseline_audit.md Section CAP-HOST-001",
+      summary: "Documents that Microsandbox microVMs under Linux KVM (/dev/kvm) are strictly isolated with zero host mounts, default-deny network, and CPU/memory limits. Proof records in docs/evidence/ show the guest is incapable of accessing host files or sockets. Finite simulation does not constitute universal hardware airworthiness certification.",
+      snippet: "# CAP-HOST-001 Verification Rule\nassert guest_cannot_access_host_files()\nassert guest_cannot_reach_network()\nassert host_simulator_owns_state()",
+      lang: "python"
+    },
+    {
+      id: "oracle-net-egress",
+      topic: "microvm",
+      topicLabel: "Network Invariant",
+      title: "NET-EGRESS-001: Default-Deny Network Egress Invariant",
+      citation: "docs/evidence/baseline_audit.md Section NET-EGRESS-001",
+      summary: "All inbound and outbound guest network traffic is blocked by the host virtualization filter. Zero listening ports are exposed to untrusted code.",
+      snippet: "# NET-EGRESS-001 Invariant\npolicy: default_egress = 'deny'\npolicy: default_ingress = 'deny'\nports_exposed = 0",
+      lang: "yaml"
+    },
+    {
+      id: "oracle-res-limits",
+      topic: "microvm",
+      topicLabel: "Resource Quotas",
+      title: "RES-TIME-001 & RES-MEM-001: Wall-Clock Watchdog & Memory Quotas",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 2",
+      summary: "Host enforces a strict 0.50s monotonic watchdog ceiling and 256MB memory cap. Unbounded loops or memory floods are terminated and cleaned up deterministically.",
+      snippet: "# Resource Limits\nWATCHDOG_WALLCLOCK_CEILING_S = 0.50\nMEMORY_LIMIT_MB = 256\nTERMINATION_ACTION = 'SIGKILL_AND_RECLAIM'",
+      lang: "python"
+    },
+    {
+      id: "oracle-cleanup",
+      topic: "microvm",
+      topicLabel: "Teardown Guarantee",
+      title: "CLEANUP-POST-001: Ephemeral MicroVM Teardown & Reclamation",
+      citation: "domnir/sandbox/microsandbox.py & docs/evidence/baseline_audit.md",
+      summary: "Teardown is executed in host context manager finally blocks. Sandbox instances and temporary IPC FIFOs are unconditionally unlinked and destroyed upon trial termination.",
+      snippet: "# CLEANUP-POST-001 Context Manager\nwith SandboxLease(msb_path) as lease:\n    yield lease\n# __exit__ guarantees lease.destroy() and IPC unlinking",
+      lang: "python"
+    },
+    {
       id: "oracle-replay",
       topic: "replay",
       topicLabel: "Deterministic Replay",
-      title: "Bit-for-Bit Deterministic Physical Replay (<= 1.00e-12 m)",
+      title: "Deterministic Physical Replay (Tolerance <= 1.00e-12 m)",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 4",
       summary: "During simulation, control action vectors emitted by the caged guest are recorded step-by-step. To verify the absence of host state tampering or stochastic divergence, the entire action sequence is independently replayed on a fresh, pristine MuJoCo simulation instance. Trajectory difference must not exceed 1.00e-12 meters (exact IEEE 754 double-precision limit).",
       snippet: "# Deterministic Replay Mathematical Verification\nmax_diff = max(abs(traj_original[t].z - traj_replay[t].z) for t in steps)\nassert max_diff <= 1.00e-12, f'Replay diverged: {max_diff:.3e} m'\nverdict = 'MATCHED (Deterministic physical reproducibility verified)'",
       lang: "python"
@@ -1432,8 +1502,9 @@
       id: "oracle-court",
       topic: "court",
       topicLabel: "Court Record Proof",
-      title: "Cryptographic Court Record Ledger (Schema v1.0)",
-      summary: "Every experiment generates an immutable, self-contained Court Record JSON artifact. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
+      title: "Hash-Linked Court Record Ledger (Schema v1.0)",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 5",
+      summary: "Every experiment generates a hash-linked, self-contained Court Record JSON artifact. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
       snippet: "{\n  \"schema_version\": \"1.0\",\n  \"record_id\": \"cr-a7f49c01b2\",\n  \"controller_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"event_log_hash_head\": \"67ff6282bf5943982cc0674c980170240571e52f8ec8f425ddcd6cec53101c80\",\n  \"replay_max_abs_difference\": 0.0\n}",
       lang: "json"
     },
@@ -1442,6 +1513,7 @@
       topic: "adjudication",
       topicLabel: "Adjudication Ethics",
       title: "Mandatory Adjudication Ethics & Limitations Disclosure",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 6",
       summary: "Dómnir enforces strict truthfulness in qualification reporting. A verdict of NOT_FALSIFIED confirms that no safety constraints were breached under the specific tested disturbances, but remains INCONCLUSIVE regarding universal safety or physical airworthiness. Real-world Crazyflie 2 flight dynamics involve unmodeled aerodynamic turbulence and battery drop that simulation does not fully capture.",
       snippet: "# Mandatory Falsification Disclosure\nVerdict: NOT_FALSIFIED\nClaim Limit: Synthetic qualification under tested perturbation.\nDisclaimer: INCONCLUSIVE regarding universal safety.\nActuator Dynamics: Uncalibrated research approximation.",
       lang: "text"
@@ -1451,6 +1523,7 @@
       topic: "bounds",
       topicLabel: "Physical Bounds",
       title: "Host AST Safety Filter & Forbidden Operation Ban",
+      citation: "domnir/synthesis/validator.py",
       summary: "Before any generated Python flight controller is dispatched to a microVM cage, it is parsed into an Abstract Syntax Tree on the host. The AST filter strictly forbids dangerous Python built-ins and modules: eval, exec, __import__, open, socket, subprocess, os, and sys. Unbounded loops are rejected prior to execution.",
       snippet: "# Prohibited Python AST Nodes\nFORBIDDEN_CALLS = {'eval', 'exec', '__import__', 'open', 'compile'}\nFORBIDDEN_MODULES = {'os', 'sys', 'socket', 'subprocess', 'requests'}\nFORBIDDEN_NODES = {ast.AsyncFor, ast.AsyncWith}\n# Permitted: pure numerical math, min, max, float, abs, dict return",
       lang: "python"
@@ -1460,8 +1533,29 @@
       topic: "vultr",
       topicLabel: "Vultr Serverless",
       title: "Vultr Serverless Reasoning Effort Calibration",
+      citation: "domnir/synthesis/generator.py",
       summary: "Reasoning effort can be set to Minimal, Low, Medium, or High. Minimal provides the lowest token latency (~1.8s) for direct PD hover loops. Higher reasoning efforts allow LLM models to analyze multi-variable state spaces and plan counter-force thrust vectors for high-turbulence mission scenarios.",
       snippet: "# Reasoning Effort Parameter Mapping\neffort_map = {\n    'minimal': {'temp': 0.15, 'reasoning_tokens': 0},\n    'low':     {'temp': 0.20, 'reasoning_tokens': 256},\n    'medium':  {'temp': 0.25, 'reasoning_tokens': 512},\n    'high':    {'temp': 0.30, 'reasoning_tokens': 1024}\n}",
+      lang: "python"
+    },
+    {
+      id: "oracle-quick-start",
+      topic: "bounds",
+      topicLabel: "Guided Flow",
+      title: "Quick Start: Guided Four-Stage Falsification Workflow",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 1",
+      summary: "Stage 1: Define physical flight envelope and presets. Stage 2: Synthesize or review Python controller code via Vultr Serverless. Stage 3: Confirm hardware microVM containment readiness. Stage 4: Run 500 Hz MuJoCo physical trial, inspect trajectory and replay verification.",
+      snippet: "# Guided Workflow Steps\n1. Envelope -> 2. Controller -> 3. MicroVM Cage -> 4. Flight & Replay",
+      lang: "text"
+    },
+    {
+      id: "oracle-troubleshooting",
+      topic: "adjudication",
+      topicLabel: "Troubleshooting",
+      title: "Troubleshooting: KVM Readiness, Quotas, and Fallbacks",
+      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 4 & AGENTS.md",
+      summary: "If KVM is unavailable, public execution strictly fails closed without host execution fallback. If WebGL fails, 2D fallback stills are displayed. If rate limit is reached, certified baseline evidence remains accessible.",
+      snippet: "# Fail-Closed Invariant\nif not is_microvm_available():\n    raise RuntimeError('BLOCKED: ISOLATION_UNAVAILABLE')\n# Fallback: display certified baseline court records",
       lang: "python"
     }
   ];
@@ -1469,6 +1563,17 @@
   function renderOracleResults(filterTopic = "all", searchQuery = "") {
     if (!elements.oracleResultsContainer) return;
     const query = searchQuery.trim().toLowerCase();
+
+    // Security check: Refuse prompt injections or instruction overrides
+    if (query.includes("ignore previous") || query.includes("system prompt") || query.includes("bypass") || query.includes("eval(") || query.includes("exec(")) {
+      elements.oracleResultsContainer.innerHTML = `
+        <div class="card" style="grid-column: 1 / -1; padding: 24px; text-align: center;">
+          <h4 style="color: var(--color-failure, #f43f5e); font-size: 13px;">Security Notice: Instruction Override Attempt Refused</h4>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">The Ragnarok Knowledge Oracle provides grounded documentation lookup only and does not execute instructions or bypass system constraints.</p>
+        </div>
+      `;
+      return;
+    }
 
     const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
       const topicMatches = (filterTopic === "all" || item.topic === filterTopic);
@@ -1478,7 +1583,8 @@
         item.title.toLowerCase().includes(query) ||
         item.summary.toLowerCase().includes(query) ||
         item.snippet.toLowerCase().includes(query) ||
-        item.topicLabel.toLowerCase().includes(query)
+        item.topicLabel.toLowerCase().includes(query) ||
+        (item.citation && item.citation.toLowerCase().includes(query))
       );
     });
 
@@ -1499,6 +1605,7 @@
           <button type="button" class="btn btn-sm btn-ghost oracle-copy-btn" data-snippet="${encodeURIComponent(item.snippet)}" title="Copy verified code snippet">Copy Block</button>
         </div>
         <h4 class="oracle-card-title">${escapeHtml(item.title)}</h4>
+        <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px; font-family: var(--font-mono);">Source: ${escapeHtml(item.citation || "Technical Specification")}</div>
         <p class="oracle-card-body">${escapeHtml(item.summary)}</p>
         <div class="oracle-snippet-box">
           <div class="oracle-snippet-header">
@@ -1543,6 +1650,10 @@
       heroImg.src = isDawn ? "/assets/crazyflie_ragnarok_dawn.png" : "/assets/crazyflie_ragnarok_dusk.png";
     }
 
+    if (droneViewer && droneViewer.updateTheme) {
+      droneViewer.updateTheme(isDawn);
+    }
+
     try {
       localStorage.setItem("domnir-theme", isDawn ? "dawn" : "dusk");
     } catch (_) {}
@@ -1573,6 +1684,16 @@
     if (!elements.wsOracleResultsGrid) return;
     const q = query.trim().toLowerCase();
 
+    // Security check: Refuse prompt injections
+    if (q.includes("ignore previous") || q.includes("system prompt") || q.includes("bypass") || q.includes("eval(") || q.includes("exec(")) {
+      elements.wsOracleResultsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 12px; font-size: 11px; color: var(--color-failure, #f43f5e);">
+          Security Notice: Instruction override attempt refused. Grounded documentation queries only.
+        </div>
+      `;
+      return;
+    }
+
     const matches = RAGNAROK_KNOWLEDGE_BASE.filter(item => {
       const matchTopic = (topic === "all" || item.topic === topic);
       if (!matchTopic) return false;
@@ -1580,7 +1701,8 @@
       return (
         item.title.toLowerCase().includes(q) ||
         item.summary.toLowerCase().includes(q) ||
-        item.snippet.toLowerCase().includes(q)
+        item.snippet.toLowerCase().includes(q) ||
+        (item.citation && item.citation.toLowerCase().includes(q))
       );
     }).slice(0, 4); // Quick Drawer highlights top 4
 
@@ -1600,7 +1722,8 @@
           <button type="button" class="btn btn-sm btn-ghost ws-copy-btn" data-snippet="${encodeURIComponent(item.snippet)}" title="Copy verified snippet">Copy</button>
         </div>
         <h4 class="ws-oracle-card-title">${escapeHtml(item.title)}</h4>
-        <p class="ws-oracle-card-summary">${escapeHtml(item.summary.substring(0, 160))}...</p>
+        <div style="font-size: 9px; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-mono);">Source: ${escapeHtml(item.citation || "Specification")}</div>
+        <p class="ws-oracle-card-summary">${escapeHtml(item.summary.substring(0, 150))}...</p>
       </div>
     `).join("");
 
@@ -1699,50 +1822,62 @@
   }
 
   function setupVerifier() {
-    elements.dropZone.addEventListener("click", () => {
-      elements.courtFileInput.value = "";
-      elements.courtFileInput.click();
-    });
+    if (elements.dropZone && elements.courtFileInput) {
+      elements.dropZone.addEventListener("click", () => {
+        elements.courtFileInput.value = "";
+        elements.courtFileInput.click();
+      });
+    }
 
-    elements.browseFileBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      elements.courtFileInput.value = "";
-      elements.courtFileInput.click();
-    });
+    if (elements.browseFileBtn && elements.courtFileInput) {
+      elements.browseFileBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        elements.courtFileInput.value = "";
+        elements.courtFileInput.click();
+      });
+    }
 
-    elements.dropZone.addEventListener("dragover", e => {
-      e.preventDefault();
-      elements.dropZone.classList.add("dragover");
-    });
+    if (elements.dropZone) {
+      elements.dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        elements.dropZone.classList.add("dragover");
+      });
 
-    elements.dropZone.addEventListener("dragleave", () => {
-      elements.dropZone.classList.remove("dragover");
-    });
+      elements.dropZone.addEventListener("dragleave", () => {
+        elements.dropZone.classList.remove("dragover");
+      });
 
-    elements.dropZone.addEventListener("drop", e => {
-      e.preventDefault();
-      elements.dropZone.classList.remove("dragover");
-      if (e.dataTransfer.files.length > 0) {
-        loadJsonFile(e.dataTransfer.files[0]);
-      }
-    });
+      elements.dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        elements.dropZone.classList.remove("dragover");
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          loadJsonFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
 
-    elements.courtFileInput.addEventListener("change", e => {
-      if (e.target.files.length > 0) {
-        loadJsonFile(e.target.files[0]);
-      }
-    });
+    if (elements.courtFileInput) {
+      elements.courtFileInput.addEventListener("change", e => {
+        if (e.target && e.target.files.length > 0) {
+          loadJsonFile(e.target.files[0]);
+        }
+      });
+    }
 
-    elements.pasteSampleBtn.addEventListener("click", () => {
-      if (state.activeCourtRecord) {
-        elements.courtJsonInput.value = JSON.stringify(state.activeCourtRecord, null, 2);
-        toast("Loaded active run court record into verifier.", "info");
-      } else {
-        toast("No active trial record yet. Run a trial in Tab 1 or upload a saved court record.", "warning");
-      }
-    });
+    if (elements.pasteSampleBtn) {
+      elements.pasteSampleBtn.addEventListener("click", () => {
+        if (state.activeCourtRecord && elements.courtJsonInput) {
+          elements.courtJsonInput.value = JSON.stringify(state.activeCourtRecord, null, 2);
+          toast("Loaded active run court record into verifier.", "info");
+        } else {
+          toast("No active trial record yet. Run a trial in Step 4 or upload a saved court record.", "warning");
+        }
+      });
+    }
 
-    elements.submitVerifyBtn.addEventListener("click", verifyCourtRecord);
+    if (elements.submitVerifyBtn) {
+      elements.submitVerifyBtn.addEventListener("click", verifyCourtRecord);
+    }
   }
 
   function loadJsonFile(file) {
@@ -1800,7 +1935,7 @@
 
       displayVerificationResult(data);
       if (data.verified) {
-        toast("Court record independently verified with zero divergence.", "success");
+        toast("Court record verified within tolerance (<= 1.00e-12 m).", "success");
       } else {
         toast("Court record verification rejected.", "error");
       }
@@ -2079,6 +2214,432 @@
   }
 
   // ==========================================================================
+  // Crazyflie 2.0 Interactive 3D Viewer & Simulation Replay Adapter
+  // ==========================================================================
+
+  function highlightChartTimestep(sampleIndex) {
+    const traj = state.activeTrajectory;
+    if (!traj || traj.length === 0 || !elements.altitudeSvgChart) return;
+    const idx = Math.min(traj.length - 1, Math.max(0, sampleIndex));
+    const pt = traj[idx];
+    if (!pt) return;
+
+    const width = 760;
+    const height = 320;
+    const padding = { top: 30, right: 30, bottom: 40, left: 60 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    const spec = getSpecFromForm ? getSpecFromForm() : { mission_duration_s: 0.4, target_altitude_m: 0.1, altitude_tolerance_m: 0.05, min_allowed_altitude_m: 0.05, max_allowed_altitude_m: 1.0 };
+    const maxTime = traj[traj.length - 1].sim_time_s || spec.mission_duration_s || 0.4;
+    const minTime = 0.0;
+    let minAlt = 0.0;
+    let maxAlt = Math.max(spec.max_allowed_altitude_m * 1.05, 0.3);
+
+    for (const p of traj) {
+      const z = p.position_m ? p.position_m[2] : p.altitude_m;
+      if (z !== undefined && Number.isFinite(z)) {
+        if (z < minAlt) minAlt = Math.min(minAlt, z * 1.15 - 0.02);
+        if (z * 1.15 > maxAlt) maxAlt = z * 1.15 + 0.02;
+      }
+    }
+
+    const t = pt.sim_time_s || 0.0;
+    const z = pt.position_m ? pt.position_m[2] : (pt.altitude_m || 0.0);
+    const ptX = padding.left + ((t - minTime) / (maxTime - minTime || 1)) * chartW;
+    const ptY = padding.top + chartH - ((z - minAlt) / (maxAlt - minAlt || 1)) * chartH;
+
+    const crosshairLine = elements.altitudeSvgChart.querySelector("#chartCrosshairLine");
+    const crosshairDot = elements.altitudeSvgChart.querySelector("#chartCrosshairDot");
+
+    if (crosshairLine) {
+      crosshairLine.setAttribute("x1", ptX);
+      crosshairLine.setAttribute("x2", ptX);
+      crosshairLine.style.display = "block";
+    }
+    if (crosshairDot) {
+      crosshairDot.setAttribute("cx", ptX);
+      crosshairDot.setAttribute("cy", ptY);
+      crosshairDot.style.display = "block";
+    }
+  }
+
+  async function setupDroneViewer() {
+    const canvas = elements.droneCanvas;
+    const fallback = elements.droneFallbackStill;
+    const badge = elements.viewerModeBadge;
+    const pauseBtn = elements.stagePauseBtn;
+    const resetBtn = elements.stageResetBtn;
+    const replayBar = elements.stageReplayBar;
+    const replayPlayBtn = elements.replayPlayBtn;
+    const replayScrubber = elements.replayTimelineScrub;
+    const replayTimeText = elements.replayTimeText;
+
+    if (!canvas) return;
+
+    let isWebGLAvailable = false;
+    try {
+      const glTest = document.createElement("canvas").getContext("webgl2") ||
+                     document.createElement("canvas").getContext("webgl");
+      isWebGLAvailable = !!glTest;
+    } catch (_) {
+      isWebGLAvailable = false;
+    }
+
+    if (!isWebGLAvailable) {
+      if (fallback) fallback.classList.remove("hidden");
+      if (canvas) canvas.style.display = "none";
+      if (badge) badge.textContent = "2D PREVIEW (WEBGL UNAVAILABLE)";
+      return;
+    }
+
+    try {
+      const THREE = await import("three");
+      const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+      const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+
+      const width = canvas.clientWidth || 340;
+      const height = canvas.clientHeight || 240;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, 50);
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: "high-performance"
+      });
+      renderer.setSize(width, height, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+
+      const controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 0.12;
+      controls.maxDistance = 1.5;
+      controls.maxPolarAngle = Math.PI / 2 + 0.15;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+      keyLight.position.set(1.5, 3.0, 2.0);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      fillLight.position.set(-2.0, 1.0, -1.5);
+      scene.add(fillLight);
+
+      const shadowGeo = new THREE.CircleGeometry(0.08, 32);
+      shadowGeo.rotateX(-Math.PI / 2);
+      const shadowMat = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false
+      });
+      const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      shadowMesh.position.y = -0.015;
+      scene.add(shadowMesh);
+
+      function updateThemeLights(isDawn) {
+        if (isDawn) {
+          ambientLight.color.setHex(0xffe8c6);
+          ambientLight.intensity = 1.2;
+          keyLight.color.setHex(0xfff3d6);
+          keyLight.intensity = 2.2;
+          keyLight.position.set(1.5, 3.0, 2.0);
+          fillLight.color.setHex(0xdfba96);
+          fillLight.intensity = 0.8;
+          shadowMat.color.setHex(0x422006);
+          shadowMat.opacity = 0.32;
+        } else {
+          ambientLight.color.setHex(0x162238);
+          ambientLight.intensity = 1.0;
+          keyLight.color.setHex(0xd4e8ff);
+          keyLight.intensity = 1.8;
+          keyLight.position.set(1.2, 2.8, 1.8);
+          fillLight.color.setHex(0x38bdf8);
+          fillLight.intensity = 1.6;
+          fillLight.position.set(-2.5, 1.5, -2.0);
+          shadowMat.color.setHex(0x020617);
+          shadowMat.opacity = 0.55;
+        }
+      }
+
+      const isInitialDawn = document.documentElement.classList.contains("rune-dawn");
+      updateThemeLights(isInitialDawn);
+
+      let droneModel = null;
+      let rotorFL = null;
+      let rotorFR = null;
+      let rotorRL = null;
+      let rotorRR = null;
+
+      let defaultCamPos = new THREE.Vector3(0.18, 0.15, 0.22);
+      let defaultTarget = new THREE.Vector3(0, 0, 0);
+
+      let isTurntablePaused = false;
+      let isReplaying = false;
+      let replayTrajectory = null;
+      let currentStep = 0;
+      let isReplayPlaying = false;
+      let replayInterval = null;
+
+      const loader = new GLTFLoader();
+      loader.load(
+        "/assets/crazyflie_2.glb",
+        gltf => {
+          droneModel = gltf.scene;
+          droneModel.name = "Crazyflie2";
+          scene.add(droneModel);
+
+          droneModel.traverse(child => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+            if (child.name === "RotorFL") rotorFL = child;
+            if (child.name === "RotorFR") rotorFR = child;
+            if (child.name === "RotorRL") rotorRL = child;
+            if (child.name === "RotorRR") rotorRR = child;
+          });
+
+          const box = new THREE.Box3().setFromObject(droneModel);
+          const sphere = new THREE.Sphere();
+          box.getBoundingSphere(sphere);
+
+          const fovRad = (camera.fov * Math.PI) / 180;
+          const aspect = width / height;
+          const radiusWithMargin = sphere.radius * 1.15;
+          let fitDistance = radiusWithMargin / Math.sin(fovRad / 2);
+          if (aspect < 1.0) {
+            fitDistance = fitDistance / aspect;
+          }
+
+          defaultCamPos = new THREE.Vector3(
+            sphere.center.x + fitDistance * 0.65,
+            sphere.center.y + fitDistance * 0.55,
+            sphere.center.z + fitDistance * 0.75
+          );
+          defaultTarget = sphere.center.clone();
+
+          camera.position.copy(defaultCamPos);
+          controls.target.copy(defaultTarget);
+          controls.update();
+
+          if (fallback) fallback.classList.add("hidden");
+          if (canvas) canvas.style.display = "block";
+        },
+        undefined,
+        err => {
+          console.warn("Failed to load /assets/crazyflie_2.glb, falling back to still:", err);
+          if (fallback) fallback.classList.remove("hidden");
+          if (canvas) canvas.style.display = "none";
+          if (badge) badge.textContent = "2D FALLBACK (ASSET RETRY)";
+        }
+      );
+
+      const resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const w = entry.contentRect.width;
+          const h = entry.contentRect.height;
+          if (w > 0 && h > 0) {
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+          }
+        }
+      });
+      resizeObserver.observe(canvas.parentElement || canvas);
+
+      if (pauseBtn) {
+        pauseBtn.addEventListener("click", () => {
+          isTurntablePaused = !isTurntablePaused;
+          pauseBtn.setAttribute("aria-label", isTurntablePaused ? "Resume Turntable" : "Pause Turntable");
+          pauseBtn.title = isTurntablePaused ? "Resume Turntable" : "Pause Turntable";
+          const icon = pauseBtn.querySelector("use");
+          if (icon) {
+            icon.setAttribute("href", isTurntablePaused ? "#icon-play" : "#icon-pause");
+          }
+        });
+      }
+
+      if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+          camera.position.copy(defaultCamPos);
+          controls.target.copy(defaultTarget);
+          controls.update();
+          if (droneModel && !isReplaying) {
+            droneModel.rotation.set(0, 0, 0);
+            droneModel.position.set(0, 0, 0);
+          }
+        });
+      }
+
+      function setStep(stepIdx, trajectoryData) {
+        const traj = trajectoryData || replayTrajectory;
+        if (!traj || traj.length === 0 || !droneModel) return;
+
+        const idx = Math.min(traj.length - 1, Math.max(0, stepIdx));
+        currentStep = idx;
+
+        const pt = traj[idx];
+        if (!pt) return;
+
+        const altM = pt.position_m ? pt.position_m[2] : (pt.altitude_m || 0.1);
+        const timeS = pt.sim_time_s || (idx * 0.002);
+
+        droneModel.position.y = (altM - 0.10) * 0.8;
+
+        const shadowScale = Math.max(0.4, 1.0 - (altM - 0.05) * 1.5);
+        shadowMesh.scale.set(shadowScale, shadowScale, shadowScale);
+        shadowMat.opacity = Math.max(0.1, 0.45 * shadowScale);
+
+        const thrust = pt.action && pt.action.length > 0 ? pt.action[0] : (pt.thrust || 0.26);
+        const spinDelta = (thrust / 0.26) * 0.35;
+        if (rotorFL) rotorFL.rotation.y += spinDelta;
+        if (rotorRR) rotorRR.rotation.y += spinDelta;
+        if (rotorFR) rotorFR.rotation.y -= spinDelta;
+        if (rotorRL) rotorRL.rotation.y -= spinDelta;
+
+        if (replayTimeText) replayTimeText.textContent = "t = " + timeS.toFixed(3) + "s (step " + (pt.step_index || idx) + ")";
+        if (replayScrubber && document.activeElement !== replayScrubber) {
+          replayScrubber.value = idx;
+        }
+      }
+
+      if (replayScrubber) {
+        replayScrubber.addEventListener("input", e => {
+          const val = parseInt(e.target.value, 10);
+          setStep(val, replayTrajectory);
+          highlightChartTimestep(val);
+        });
+      }
+
+      function toggleReplayPlay() {
+        if (!replayTrajectory || replayTrajectory.length === 0) return;
+        isReplayPlaying = !isReplayPlaying;
+        if (replayPlayBtn) replayPlayBtn.textContent = isReplayPlaying ? "Pause" : "Play";
+
+        if (isReplayPlaying) {
+          if (currentStep >= replayTrajectory.length - 1) {
+            currentStep = 0;
+          }
+          replayInterval = setInterval(() => {
+            if (!isReplayPlaying || !replayTrajectory) {
+              clearInterval(replayInterval);
+              return;
+            }
+            currentStep += 1;
+            if (currentStep >= replayTrajectory.length) {
+              currentStep = replayTrajectory.length - 1;
+              isReplayPlaying = false;
+              if (replayPlayBtn) replayPlayBtn.textContent = "Play";
+              clearInterval(replayInterval);
+            }
+            setStep(currentStep, replayTrajectory);
+            highlightChartTimestep(currentStep);
+          }, 20);
+        } else {
+          if (replayInterval) clearInterval(replayInterval);
+        }
+      }
+
+      if (replayPlayBtn) {
+        replayPlayBtn.addEventListener("click", toggleReplayPlay);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (droneModel && !isReplaying && !isTurntablePaused && !prefersReducedMotion) {
+          droneModel.rotation.y += 0.007;
+
+          if (rotorFL) rotorFL.rotation.y += 0.18;
+          if (rotorRR) rotorRR.rotation.y += 0.18;
+          if (rotorFR) rotorFR.rotation.y -= 0.18;
+          if (rotorRL) rotorRL.rotation.y -= 0.18;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      droneViewer = {
+        updateTheme: isDawn => updateThemeLights(isDawn),
+        resetView: () => {
+          camera.position.copy(defaultCamPos);
+          controls.target.copy(defaultTarget);
+          controls.update();
+        },
+        loadReplay: trajectory => {
+          if (!trajectory || trajectory.length === 0) return;
+          isReplaying = true;
+          replayTrajectory = trajectory;
+          currentStep = 0;
+          if (badge) {
+            badge.textContent = "RECORDED SIMULATION REPLAY";
+            badge.classList.add("mode-replay");
+          }
+          if (replayBar) {
+            replayBar.classList.remove("hidden");
+          }
+          if (replayScrubber) {
+            replayScrubber.min = 0;
+            replayScrubber.max = trajectory.length - 1;
+            replayScrubber.value = 0;
+          }
+          if (droneModel) {
+            droneModel.rotation.set(0, 0, 0);
+          }
+          setStep(0, trajectory);
+        },
+        resetToIdle: () => {
+          isReplaying = false;
+          replayTrajectory = null;
+          currentStep = 0;
+          if (isReplayPlaying) {
+            isReplayPlaying = false;
+            if (replayInterval) clearInterval(replayInterval);
+            if (replayPlayBtn) replayPlayBtn.textContent = "Play";
+          }
+          if (badge) {
+            badge.textContent = "ILLUSTRATIVE MODEL";
+            badge.classList.remove("mode-replay");
+          }
+          if (replayBar) {
+            replayBar.classList.add("hidden");
+          }
+          if (droneModel) {
+            droneModel.position.set(0, 0, 0);
+            droneModel.rotation.set(0, 0, 0);
+          }
+          shadowMesh.scale.set(1, 1, 1);
+          shadowMat.opacity = 0.35;
+        },
+        setStep: (idx, traj) => {
+          if (isReplaying) {
+            setStep(idx, traj || replayTrajectory);
+          }
+        }
+      };
+
+    } catch (err) {
+      console.warn("Three.js setup encountered an error, falling back to still:", err);
+      if (fallback) fallback.classList.remove("hidden");
+      if (canvas) canvas.style.display = "none";
+      if (badge) badge.textContent = "2D FALLBACK PREVIEW";
+    }
+  }
+
+  // ==========================================================================
   // Initialization
   // ==========================================================================
 
@@ -2092,6 +2653,7 @@
     setupOracle();
     setupTheme();
     setupWorkspaceOracle();
+    setupDroneViewer();
     setupInitialModelCards();
     setupReasoningEffort();
 
@@ -2126,5 +2688,9 @@
     renderAltitudeChart([], getSpecFromForm());
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

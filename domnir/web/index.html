@@ -7,6 +7,14 @@
   <title>Dómnir: Adversarial Falsification Platform</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three.module.js",
+      "three/addons/": "/vendor/addons/"
+    }
+  }
+  </script>
 </head>
 <body>
   <!-- Bayer Matrix Dither Texture Overlay -->
@@ -16,17 +24,17 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
     <defs>
       <!-- Faceted 8-Point Runic Crosshair Target -->
-      <g id="icon-mission" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-mission" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 19 6 22 12 19 18 12 22 5 18 2 12 5 6" />
         <circle cx="12" cy="12" r="3" fill="currentColor" fill-opacity="0.2" />
         <line x1="12" y1="5" x2="12" y2="8" stroke-width="1.5" />
         <line x1="12" y1="16" x2="12" y2="19" stroke-width="1.5" />
         <line x1="5" y1="12" x2="8" y2="12" stroke-width="1.5" />
         <line x1="16" y1="12" x2="19" y2="12" stroke-width="1.5" />
-      </g>
+      </symbol>
 
       <!-- Faceted Crystal Circuit / Runic Controller Matrix -->
-      <g id="icon-controller" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-controller" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" />
         <polygon points="12 6 17 9 17 15 12 18 7 15 7 9" />
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
@@ -34,64 +42,114 @@
         <line x1="12" y1="18" x2="12" y2="22" stroke-width="1.4" />
         <line x1="3" y1="7" x2="7" y2="9" stroke-width="1.4" />
         <line x1="17" y1="15" x2="21" y2="17" stroke-width="1.4" />
-      </g>
+      </symbol>
 
       <!-- Faceted Hexagonal MicroVM Cage -->
-      <g id="icon-sandbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-sandbox" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
         <line x1="12" y1="2" x2="12" y2="22" stroke-width="1.2" stroke-dasharray="2 2" />
         <line x1="2" y1="8.5" x2="22" y2="15.5" stroke-width="1.2" stroke-dasharray="2 2" />
         <line x1="2" y1="15.5" x2="22" y2="8.5" stroke-width="1.2" stroke-dasharray="2 2" />
         <circle cx="12" cy="12" r="2" fill="currentColor" />
-      </g>
+      </symbol>
 
       <!-- Faceted Runic Lightning / Simulation Launch -->
-      <g id="icon-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-run" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />
-      </g>
+      </symbol>
 
       <!-- Faceted Diamond Court Record Ledger with Checkmark -->
-      <g id="icon-verifier" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-verifier" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 21 7 21 17 12 22 3 17 3 7" />
         <polyline points="8 12 11 15 16 9" stroke-width="2.2" />
-      </g>
+      </symbol>
 
       <!-- Faceted Norse Aegis Shield -->
-      <g id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-shield" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 20 5 20 11 12 22 4 11 4 5" />
         <line x1="12" y1="2" x2="12" y2="22" stroke-width="1.2" opacity="0.5" />
         <path d="M8 8l4 3 4-3" stroke-width="1.2" opacity="0.6" />
-      </g>
+      </symbol>
 
       <!-- Faceted Living Codex / Trust Architecture -->
-      <g id="icon-docs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-docs" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="4 4 12 2 20 4 20 20 12 18 4 20" />
         <line x1="12" y1="2" x2="12" y2="18" />
         <path d="M6 8l4-1m-4 5l4-1m6-3l4 1m-4 4l4 1" stroke-width="1.2" opacity="0.5" />
-      </g>
+      </symbol>
 
       <!-- Faceted Search Oracle -->
-      <g id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-search" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="11 3 16 6 18 11 16 16 11 19 6 16 4 11 6 6" />
         <line x1="16" y1="16" x2="22" y2="22" stroke-width="2.2" />
         <circle cx="11" cy="11" r="2" fill="currentColor" fill-opacity="0.4" />
-      </g>
+      </symbol>
 
       <!-- Faceted Code Copy Icon -->
-      <g id="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-copy" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="8" y="8" width="13" height="13" rx="2" />
         <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-      </g>
+      </symbol>
 
       <!-- Faceted Checkmark -->
-      <g id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-check" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12" />
-      </g>
+      </symbol>
 
       <!-- Faceted Celestial Star / Theme Switcher -->
-      <g id="icon-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="icon-theme" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9" fill="currentColor" fill-opacity="0.25" />
-      </g>
+      </symbol>
+
+      <!-- Replay Loop Icon -->
+      <symbol id="icon-replay" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="2 5 2 11 8 11" />
+        <path d="M4.5 16a9 9 0 1 0 2.2-9.5L2 11" />
+      </symbol>
+
+      <!-- Download Artifact Icon -->
+      <symbol id="icon-download" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </symbol>
+
+      <!-- Alert Triangle Icon -->
+      <symbol id="icon-alert" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 3 22 21 2 21" />
+        <line x1="12" y1="9" x2="12" y2="14" />
+        <circle cx="12" cy="18" r="0.8" fill="currentColor" />
+      </symbol>
+
+      <!-- 3D Play Icon -->
+      <symbol id="icon-play" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" fill-opacity="0.3" />
+      </symbol>
+
+      <!-- 3D Pause Icon -->
+      <symbol id="icon-pause" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="4" width="4" height="16" rx="1" fill="currentColor" fill-opacity="0.3" />
+        <rect x="15" y="4" width="4" height="16" rx="1" fill="currentColor" fill-opacity="0.3" />
+      </symbol>
+
+      <!-- 3D Reset Camera Icon -->
+      <symbol id="icon-reset" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 2.6-6.4L2 9" />
+        <polyline points="2 3 2 9 8 9" />
+      </symbol>
+
+      <!-- Chevron Right for View Switcher -->
+      <symbol id="icon-chevron-right" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6" />
+      </symbol>
+
+      <!-- 4-Grid Matrix for All Steps View -->
+      <symbol id="icon-grid" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+      </symbol>
     </defs>
   </svg>
 
@@ -483,9 +541,31 @@
               </div>
             </div>
 
-            <div class="plant-visual-stage">
-              <div class="runic-halo-ring"></div>
-              <img src="/assets/crazyflie_ragnarok_dusk.png" alt="Bitcraze Crazyflie 2 with Runic Halo" class="crazyflie-hero-img" width="280" height="280" loading="eager">
+            <div class="plant-visual-stage" id="plantVisualStage">
+              <div class="runic-halo-ring" aria-hidden="true"></div>
+              <canvas id="droneCanvas" class="drone-webgl-canvas"></canvas>
+              <div class="stage-fallback-still hidden" id="droneFallbackStill">
+                <img src="/assets/crazyflie_ragnarok_dusk.png" alt="Bitcraze Crazyflie 2.0 Physical Model" class="crazyflie-hero-img" id="droneStillImg" width="340" height="280" loading="eager">
+              </div>
+
+              <div class="stage-controls-overlay">
+                <div class="stage-mode-badge" id="viewerModeBadge">ILLUSTRATIVE MODEL</div>
+                <div class="stage-btn-group">
+                  <button type="button" class="stage-ctrl-btn" id="stagePauseBtn" title="Pause or Resume Turntable" aria-label="Pause or Resume Turntable">
+                    <svg width="14" height="14" id="stagePauseIcon"><use href="#icon-pause" /></svg>
+                  </button>
+                  <button type="button" class="stage-ctrl-btn" id="stageResetBtn" title="Reset 3D Camera View" aria-label="Reset 3D Camera View">
+                    <svg width="14" height="14"><use href="#icon-reset" /></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Replay scrub bar for Stage 4 (shown during replay) -->
+              <div class="stage-replay-bar hidden" id="stageReplayBar">
+                <button type="button" class="btn btn-xs btn-primary" id="replayPlayBtn" aria-label="Play Replay">Play</button>
+                <input type="range" id="replayTimelineScrub" min="0" max="100" value="0" class="replay-scrubber" aria-label="Replay Timeline Scrubber">
+                <span class="replay-time-text font-mono" id="replayTimeText">t = 0.000s</span>
+              </div>
               
               <div class="telemetry-hud-overlay">
                 <div class="hud-tag tag-top-left">
@@ -648,7 +728,7 @@
                 <div>
                   <span class="badge-step">STEP 04 OF 04</span>
                   <h2 class="card-title">Live Flight Telemetry &amp; Deterministic Adjudication</h2>
-                  <p class="card-subtitle">Real-time MuJoCo physics observations, bit-for-bit replay verification, and cryptographic Court Record</p>
+                  <p class="card-subtitle">Real-time MuJoCo physics observations, tolerance-bounded replay verification, and hash-linked Court Record</p>
                 </div>
               </div>
 
@@ -813,12 +893,12 @@
               Full Codex &rarr;
             </button>
             <button type="button" class="btn btn-sm btn-outline" id="toggleWsOracleBtn">
-              <span id="wsOracleToggleIcon">-</span> Hide Drawer
+              <span id="wsOracleToggleIcon">+</span> Ask Oracle
             </button>
           </div>
         </div>
 
-        <div class="ws-oracle-body" id="wsOracleBody">
+        <div class="ws-oracle-body collapsed" id="wsOracleBody">
           <div class="ws-oracle-search-row">
             <input type="text" id="wsOracleSearchInput" class="form-control" placeholder="Quick query (e.g., 'hover thrust', 'ast forbidden', 'kvm isolation', 'court record')..." aria-label="Quick Query Oracle">
             <div class="ws-oracle-chips">
@@ -843,7 +923,7 @@
             </div>
             <div>
               <h2 class="card-title">Independent Court Record Verifier</h2>
-              <p class="card-subtitle">Verify cryptographic SHA-256 asset hashes, chained host events, and bit-for-bit physical replay without re-executing controller code</p>
+              <p class="card-subtitle">Verify cryptographic SHA-256 asset hashes, chained host events, and replay agreement within tolerance without re-executing controller code</p>
             </div>
           </div>
           <div class="card-body">
@@ -853,8 +933,9 @@
                 <svg width="40" height="40"><use href="#icon-verifier" /></svg>
               </div>
               <p class="drop-zone-text">Drag and drop a <code>court-record-*.json</code> file here, or click to browse</p>
-              <input type="file" id="recordFileInput" accept=".json,application/json" class="file-input-hidden">
-              <button type="button" class="btn btn-outline btn-sm" id="selectFileBtn">Select File</button>
+              <input type="file" id="courtFileInput" accept=".json,application/json" class="file-input-hidden">
+              <button type="button" class="btn btn-outline btn-sm" id="browseFileBtn">Select File</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="pasteSampleBtn">Load Active Run</button>
             </div>
 
             <div class="verifier-or-divider">
@@ -862,7 +943,7 @@
             </div>
 
             <div class="form-group">
-              <textarea id="rawRecordInput" class="verifier-textarea" placeholder="Paste full Court Record JSON structure here..."></textarea>
+              <textarea id="courtJsonInput" class="verifier-textarea" placeholder="Paste full Court Record JSON structure here..."></textarea>
             </div>
 
             <div class="verifier-actions">
@@ -1229,7 +1310,7 @@
               <div class="principle-card">
                 <div class="principle-num">04</div>
                 <div class="principle-title">Deterministic Replay Verification</div>
-                <p class="principle-text">Recorded action vectors are replayed on a pristine MuJoCo instance to prove bit-for-bit physical trajectory reproducibility (&lt;= 1.00e-12 m difference).</p>
+                <p class="principle-text">Recorded action vectors are replayed on a pristine MuJoCo instance to verify physical trajectory agreement within numerical tolerance (&lt;= 1.00e-12 m difference).</p>
               </div>
 
               <div class="principle-card">
@@ -1292,14 +1373,14 @@
   <footer class="app-footer">
     <div class="footer-container">
       <div class="footer-left">
-        <span>Dómnir Flight Observatory &bull; Bit-for-Bit Deterministic Qualification Court</span>
+        <span>Dómnir &bull; Crazyflie 2.0 MuJoCo Simulation &bull; Evidence-Based Adjudication</span>
       </div>
       <div class="footer-right">
         <span>MuJoCo 3.3.7 Physical Plant</span>
         <span>&bull;</span>
         <span>Hardware KVM Isolation</span>
         <span>&bull;</span>
-        <span>SHA-256 Ledger Provenance</span>
+        <span>SHA-256 Event Chain Provenance</span>
       </div>
     </div>
   </footer>
@@ -1325,6 +1406,6 @@
 
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-  <script src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>
