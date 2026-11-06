@@ -7,12 +7,12 @@
 :root,
 html.rune-dusk {
   --theme-mode: "dusk";
-  --bg-core: #04060a;
-  --bg-card: rgba(10, 16, 28, 0.72);
-  --bg-surface: rgba(14, 22, 38, 0.65);
-  --bg-subtle: rgba(20, 28, 48, 0.5);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-specular: rgba(255, 255, 255, 0.18);
+  --bg-core: #050811;
+  --bg-card: rgba(10, 15, 27, 0.78);
+  --bg-surface: rgba(14, 21, 38, 0.72);
+  --bg-subtle: rgba(20, 28, 48, 0.58);
+  --border-color: rgba(255, 255, 255, 0.10);
+  --border-specular: rgba(255, 255, 255, 0.22);
   --border-focus: #06b6d4;
 
   --text-main: #f8fafc;
@@ -22,15 +22,15 @@ html.rune-dusk {
   --accent-cyan: #06b6d4;
   --accent-blue: #38bdf8;
   --accent-emerald: #10b981;
-  --accent-amber: #fa7314;
+  --accent-amber: #f97316;
   --accent-ember: #ea580c;
   --accent-rose: #f43f5e;
 
-  --glass-bg: linear-gradient(135deg, rgba(10, 16, 28, 0.75) 0%, rgba(6, 10, 18, 0.85) 100%);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-specular: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7), 0 0 24px -6px rgba(6, 182, 212, 0.1);
-  --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(250, 115, 20, 0.12) 0%, transparent 70%);
+  --glass-bg: linear-gradient(135deg, rgba(10, 15, 27, 0.82) 0%, rgba(6, 9, 18, 0.90) 100%);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-border-specular: rgba(255, 255, 255, 0.24);
+  --glass-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 24px -6px rgba(6, 182, 212, 0.12);
+  --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
   --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 70%);
 
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
@@ -40,11 +40,11 @@ html.rune-dusk {
   --radius-md: 6px;
   --radius-lg: 10px;
 
-  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.60);
   --shadow-elevation-0: none;
-  --shadow-elevation-1: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(56, 189, 248, 0.05);
-  --shadow-elevation-2: 0 10px 28px -4px rgba(0, 0, 0, 0.75), 0 0 16px -2px rgba(6, 182, 212, 0.12);
-  --shadow-elevation-3: 0 20px 48px -8px rgba(0, 0, 0, 0.85), 0 0 28px -4px rgba(56, 189, 248, 0.16);
+  --shadow-elevation-1: 0 4px 16px -2px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(56, 189, 248, 0.05);
+  --shadow-elevation-2: 0 10px 28px -4px rgba(0, 0, 0, 0.80), 0 0 16px -2px rgba(6, 182, 212, 0.14);
+  --shadow-elevation-3: 0 20px 48px -8px rgba(0, 0, 0, 0.90), 0 0 28px -4px rgba(56, 189, 248, 0.18);
 
   --chart-bg: #030509;
   --code-bg: #04060a;
@@ -52,15 +52,15 @@ html.rune-dusk {
 
 html.rune-dawn {
   --theme-mode: "dawn";
-  --bg-core: #fbf7ee;
-  --bg-card: rgba(255, 252, 245, 0.85);
-  --bg-surface: rgba(254, 248, 237, 0.9);
-  --bg-subtle: rgba(246, 237, 222, 0.75);
-  --border-color: rgba(234, 88, 12, 0.16);
-  --border-specular: rgba(255, 255, 255, 0.9);
+  --bg-core: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-surface: rgba(248, 250, 252, 0.94);
+  --bg-subtle: rgba(241, 245, 249, 0.86);
+  --border-color: rgba(15, 23, 42, 0.12);
+  --border-specular: rgba(255, 255, 255, 0.98);
   --border-focus: #ea580c;
 
-  --text-main: #0f172a;
+  --text-main: #090d16;
   --text-muted: #334155;
   --text-subtle: #64748b;
 
@@ -71,18 +71,18 @@ html.rune-dawn {
   --accent-ember: #c2410c;
   --accent-rose: #e11d48;
 
-  --glass-bg: linear-gradient(135deg, rgba(255, 252, 245, 0.88) 0%, rgba(254, 246, 232, 0.94) 100%);
-  --glass-border: rgba(234, 88, 12, 0.18);
-  --glass-border-specular: rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 16px 36px -10px rgba(234, 88, 12, 0.12), 0 0 24px -6px rgba(249, 115, 22, 0.08);
-  --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 70%);
-  --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(2, 132, 199, 0.14) 0%, transparent 70%);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
+  --glass-border: rgba(15, 23, 42, 0.14);
+  --glass-border-specular: rgba(255, 255, 255, 0.98);
+  --glass-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.08), 0 0 24px -6px rgba(234, 88, 12, 0.06);
+  --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.12) 0%, transparent 70%);
+  --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(2, 132, 199, 0.10) 0%, transparent 70%);
 
-  --shadow-card: 0 8px 28px rgba(234, 88, 12, 0.1);
+  --shadow-card: 0 8px 28px rgba(15, 23, 42, 0.08);
   --shadow-elevation-0: none;
-  --shadow-elevation-1: 0 4px 16px -2px rgba(182, 78, 26, 0.08), 0 2px 4px rgba(43, 27, 22, 0.04);
-  --shadow-elevation-2: 0 10px 28px -4px rgba(182, 78, 26, 0.14), 0 4px 8px rgba(43, 27, 22, 0.06);
-  --shadow-elevation-3: 0 20px 48px -8px rgba(182, 78, 26, 0.18), 0 8px 16px rgba(43, 27, 22, 0.08);
+  --shadow-elevation-1: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.03);
+  --shadow-elevation-2: 0 10px 28px -4px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.05);
+  --shadow-elevation-3: 0 20px 48px -8px rgba(15, 23, 42, 0.14), 0 8px 16px rgba(15, 23, 42, 0.07);
 
   --chart-bg: #111827;
   --code-bg: #0f172a;
@@ -138,6 +138,36 @@ html.rune-dawn .dither-overlay {
   background-image: 
     radial-gradient(circle at 50% 50%, rgba(234, 88, 12, 0.06) 1px, transparent 1px),
     radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+}
+
+/* Procedural Dithered Atmospheric Canvas */
+.ragnarok-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+  transition: opacity 0.5s ease;
+}
+
+/* Full-Screen Norse Knotwork Watermark Layer (Mjolnir Geometric Interlace) */
+.norse-knotwork-watermark {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.038;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80 0 L160 80 L80 160 L0 80 Z' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.6'/%3E%3Cpath d='M80 20 L140 80 L80 140 L20 80 Z' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.4'/%3E%3Cpath d='M80 35 L125 80 L80 125 L35 80 Z' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.7'/%3E%3Ccircle cx='80' cy='80' r='24' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.5'/%3E%3Cpath d='M80 56 L80 104 M56 80 L104 80 M63 63 L97 97 M63 97 L97 63' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.4'/%3E%3Cpath d='M0 0 L40 40 M160 0 L120 40 M160 160 L120 120 M0 160 L40 120' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.5'/%3E%3Cpath d='M0 80 L40 40 L80 80 L40 120 Z' fill='none' stroke='%23ffffff' stroke-width='0.7' stroke-opacity='0.3'/%3E%3Cpath d='M160 80 L120 40 L80 80 L120 120 Z' fill='none' stroke='%23ffffff' stroke-width='0.7' stroke-opacity='0.3'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  background-repeat: repeat;
+  transition: opacity 0.5s ease;
+}
+
+html.rune-dawn .norse-knotwork-watermark {
+  opacity: 0.052;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath d='M80 0 L160 80 L80 160 L0 80 Z' fill='none' stroke='%230f172a' stroke-width='1.2' stroke-opacity='0.7'/%3E%3Cpath d='M80 20 L140 80 L80 140 L20 80 Z' fill='none' stroke='%230f172a' stroke-width='0.8' stroke-opacity='0.5'/%3E%3Cpath d='M80 35 L125 80 L80 125 L35 80 Z' fill='none' stroke='%230f172a' stroke-width='1.5' stroke-opacity='0.8'/%3E%3Ccircle cx='80' cy='80' r='24' fill='none' stroke='%230f172a' stroke-width='1.2' stroke-opacity='0.6'/%3E%3Cpath d='M80 56 L80 104 M56 80 L104 80 M63 63 L97 97 M63 97 L97 63' stroke='%230f172a' stroke-width='0.8' stroke-opacity='0.5'/%3E%3Cpath d='M0 0 L40 40 M160 0 L120 40 M160 160 L120 120 M0 160 L40 120' stroke='%230f172a' stroke-width='1.2' stroke-opacity='0.6'/%3E%3Cpath d='M0 80 L40 40 L80 80 L40 120 Z' fill='none' stroke='%230f172a' stroke-width='0.7' stroke-opacity='0.4'/%3E%3Cpath d='M160 80 L120 40 L80 80 L120 120 Z' fill='none' stroke='%230f172a' stroke-width='0.7' stroke-opacity='0.4'/%3E%3C/svg%3E");
 }
 
 /* ==========================================================================

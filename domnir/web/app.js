@@ -1805,6 +1805,273 @@
 
   
   // ==========================================================================
+  // Dithered Norse Atmospheric Canvas (Fjord Landscape & Embers/Mist)
+  // ==========================================================================
+
+  let atmosphericCanvas = null;
+
+  function setupAtmosphericCanvas() {
+    const canvas = document.getElementById("ragnarokCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    const offscreenBuffer = document.createElement("canvas");
+    const offscreenCtx = offscreenBuffer.getContext("2d");
+
+    let isDawn = document.documentElement.classList.contains("rune-dawn");
+
+    const particleCount = 32;
+    const particles = [];
+
+    function initParticles() {
+      particles.length = 0;
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * (width || 800),
+          y: Math.random() * (height || 600),
+          size: 1.0 + Math.random() * 2.2,
+          speed: 0.35 + Math.random() * 0.7,
+          drift: (Math.random() - 0.5) * 0.35,
+          opacity: 0.2 + Math.random() * 0.6,
+          pulseSpeed: 0.02 + Math.random() * 0.03,
+          pulsePhase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function renderLandscapeBuffer() {
+      if (width <= 0 || height <= 0) return;
+      offscreenBuffer.width = width;
+      offscreenBuffer.height = height;
+      if (!offscreenCtx) return;
+
+      const bg = offscreenCtx;
+      bg.clearRect(0, 0, width, height);
+
+      // Sky gradient
+      const skyGrad = bg.createLinearGradient(0, 0, 0, height);
+      if (isDawn) {
+        skyGrad.addColorStop(0, "#f8fafc");
+        skyGrad.addColorStop(0.55, "#e2e8f0");
+        skyGrad.addColorStop(0.72, "#cbd5e1");
+        skyGrad.addColorStop(1.0, "#94a3b8");
+      } else {
+        skyGrad.addColorStop(0, "#050811");
+        skyGrad.addColorStop(0.5, "#0b1220");
+        skyGrad.addColorStop(0.68, "#1e131d");
+        skyGrad.addColorStop(0.72, "#381710");
+        skyGrad.addColorStop(1.0, "#080c18");
+      }
+      bg.fillStyle = skyGrad;
+      bg.fillRect(0, 0, width, height);
+
+      // Horizon Vegvisir / Runic Compass Ring
+      const runeCenterX = width * 0.52;
+      const runeCenterY = height * 0.44;
+      const runeRadius = Math.min(width * 0.16, 120);
+
+      bg.save();
+      bg.strokeStyle = isDawn ? "rgba(234, 88, 12, 0.12)" : "rgba(6, 182, 212, 0.14)";
+      bg.lineWidth = 1.2;
+      bg.beginPath();
+      bg.arc(runeCenterX, runeCenterY, runeRadius, 0, Math.PI * 2);
+      bg.stroke();
+
+      bg.beginPath();
+      bg.arc(runeCenterX, runeCenterY, runeRadius * 0.65, 0, Math.PI * 2);
+      bg.stroke();
+
+      // Runic Compass 8 Spokes
+      for (let s = 0; s < 8; s++) {
+        const angle = (s * Math.PI) / 4;
+        const x1 = runeCenterX + Math.cos(angle) * (runeRadius * 0.3);
+        const y1 = runeCenterY + Math.sin(angle) * (runeRadius * 0.3);
+        const x2 = runeCenterX + Math.cos(angle) * (runeRadius * 1.08);
+        const y2 = runeCenterY + Math.sin(angle) * (runeRadius * 1.08);
+        bg.beginPath();
+        bg.moveTo(x1, y1);
+        bg.lineTo(x2, y2);
+        bg.stroke();
+      }
+      bg.restore();
+
+      // Distant Jagged Fjord Peaks (Layer 1)
+      const waterY = height * 0.74;
+      bg.save();
+      bg.fillStyle = isDawn ? "rgba(100, 116, 139, 0.25)" : "rgba(15, 23, 42, 0.55)";
+      bg.beginPath();
+      bg.moveTo(0, waterY);
+      const peaks1 = [
+        [0.0, waterY - height * 0.18],
+        [0.12, waterY - height * 0.28],
+        [0.22, waterY - height * 0.22],
+        [0.34, waterY - height * 0.36],
+        [0.48, waterY - height * 0.26],
+        [0.62, waterY - height * 0.38],
+        [0.76, waterY - height * 0.25],
+        [0.88, waterY - height * 0.32],
+        [1.0, waterY - height * 0.20],
+      ];
+      for (const pt of peaks1) {
+        bg.lineTo(pt[0] * width, pt[1]);
+      }
+      bg.lineTo(width, waterY);
+      bg.closePath();
+      bg.fill();
+
+      // Mid Fjord Mountain Ridge with Dither Stipple (Layer 2)
+      bg.fillStyle = isDawn ? "rgba(51, 65, 85, 0.45)" : "rgba(8, 14, 26, 0.82)";
+      bg.beginPath();
+      bg.moveTo(0, waterY);
+      const peaks2 = [
+        [0.0, waterY - height * 0.12],
+        [0.10, waterY - height * 0.22],
+        [0.25, waterY - height * 0.14],
+        [0.40, waterY - height * 0.26],
+        [0.55, waterY - height * 0.17],
+        [0.70, waterY - height * 0.24],
+        [0.85, waterY - height * 0.15],
+        [1.0, waterY - height * 0.20],
+      ];
+      for (const pt of peaks2) {
+        bg.lineTo(pt[0] * width, pt[1]);
+      }
+      bg.lineTo(width, waterY);
+      bg.closePath();
+      bg.fill();
+
+      // Procedural Dither Stippling along Mountain Slopes
+      bg.fillStyle = isDawn ? "rgba(15, 23, 42, 0.25)" : "rgba(6, 182, 212, 0.18)";
+      const ditherStep = 12;
+      for (let dx = 0; dx < width; dx += ditherStep) {
+        const normX = dx / width;
+        const mountainTopY = waterY - height * (0.16 + 0.12 * Math.sin(normX * 6.28));
+        const span = waterY - mountainTopY;
+        if (span > 10) {
+          for (let dy = mountainTopY; dy < waterY; dy += ditherStep) {
+            const density = (dy - mountainTopY) / span;
+            if (Math.sin(dx * 13.7 + dy * 27.3) > (1.0 - density * 1.5)) {
+              bg.fillRect(dx, dy, 1.5, 1.5);
+            }
+          }
+        }
+      }
+
+      // Fjord Water Line and Specular Reflection
+      const waterGrad = bg.createLinearGradient(0, waterY, 0, height);
+      if (isDawn) {
+        waterGrad.addColorStop(0, "#cbd5e1");
+        waterGrad.addColorStop(0.3, "#94a3b8");
+        waterGrad.addColorStop(1.0, "#64748b");
+      } else {
+        waterGrad.addColorStop(0, "#080d1a");
+        waterGrad.addColorStop(0.2, "#040710");
+        waterGrad.addColorStop(1.0, "#020408");
+      }
+      bg.fillStyle = waterGrad;
+      bg.fillRect(0, waterY, width, height - waterY);
+
+      // Water Surface Dither Ripples
+      bg.fillStyle = isDawn ? "rgba(255, 255, 255, 0.4)" : "rgba(249, 115, 22, 0.25)";
+      for (let wy = waterY + 6; wy < height; wy += 8) {
+        const waveSpan = width * 0.45;
+        const startX = width * 0.3 + (Math.sin(wy * 0.1) * 30);
+        for (let wx = startX; wx < startX + waveSpan; wx += 14) {
+          if (Math.sin(wx * 0.05 + wy * 0.3) > 0.3) {
+            bg.fillRect(wx, wy, 8, 1);
+          }
+        }
+      }
+
+      bg.restore();
+    }
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+      renderLandscapeBuffer();
+      initParticles();
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    let animationFrameId = null;
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw cached static dither landscape
+      if (offscreenBuffer.width > 0) {
+        ctx.drawImage(offscreenBuffer, 0, 0, width, height);
+      }
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReducedMotion) return;
+
+      // Update and Draw Particles (Embers in Dusk, Ash in Dawn)
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        if (isDawn) {
+          // Ash flakes drifting gently downward
+          p.y += p.speed * 0.6;
+          p.x += Math.sin(p.pulsePhase) * 0.35 + p.drift;
+          p.pulsePhase += p.pulseSpeed;
+
+          if (p.y > height + 10) {
+            p.y = -10;
+            p.x = Math.random() * width;
+          }
+          ctx.fillStyle = `rgba(100, 116, 139, ${p.opacity * (0.6 + 0.4 * Math.sin(p.pulsePhase))})`;
+        } else {
+          // Embers drifting slowly upward
+          p.y -= p.speed * 0.75;
+          p.x += Math.sin(p.pulsePhase) * 0.45 + p.drift;
+          p.pulsePhase += p.pulseSpeed;
+
+          if (p.y < -10) {
+            p.y = height + 10;
+            p.x = Math.random() * width;
+          }
+          const emberAlpha = p.opacity * (0.7 + 0.3 * Math.sin(p.pulsePhase));
+          ctx.fillStyle = i % 3 === 0
+            ? `rgba(251, 191, 36, ${emberAlpha})`
+            : `rgba(249, 115, 22, ${emberAlpha})`;
+        }
+
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+      }
+
+      animationFrameId = requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    atmosphericCanvas = {
+      updateTheme: (newIsDawn) => {
+        isDawn = newIsDawn;
+        renderLandscapeBuffer();
+      },
+      destroy: () => {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        window.removeEventListener("resize", resize);
+      }
+    };
+  }
+
+  // ==========================================================================
   // Rune Dawn & Rune Dusk Theme Controller
   // ==========================================================================
 
@@ -1824,6 +2091,10 @@
 
     if (droneViewer && droneViewer.updateTheme) {
       droneViewer.updateTheme(isDawn);
+    }
+
+    if (atmosphericCanvas && atmosphericCanvas.updateTheme) {
+      atmosphericCanvas.updateTheme(isDawn);
     }
 
     try {
@@ -2928,6 +3199,7 @@
   // ==========================================================================
 
   function init() {
+    setupAtmosphericCanvas();
     setupTabs();
     setupStepper();
     setupTour();
