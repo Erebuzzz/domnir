@@ -8,12 +8,13 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](pyproject.toml)
 [![MuJoCo 3.3.7](https://img.shields.io/badge/MuJoCo-3.3.7-green.svg)](https://github.com/google-deepmind/mujoco)
 [![Vultr Serverless Inference](https://img.shields.io/badge/Vultr-Serverless%20Inference-007bfc.svg)](https://www.vultr.com/)
-[![Tests: 202 Passed](https://img.shields.io/badge/Tests-202%20Passed-success.svg)](tests/)
+[![Tests: 257 Passed](https://img.shields.io/badge/Tests-257%20Passed-success.svg)](tests/)
 
 ---
 
 ### Quick Links
 - **Hackathon Submission Report**: [docs/HACKATHON_SUBMISSION_REPORT.md](docs/HACKATHON_SUBMISSION_REPORT.md)
+- **Four-Mission Contract ADR**: [docs/ADR/ADR-002-four-missions.md](docs/ADR/ADR-002-four-missions.md)
 - **Live Edge Observatory (HTTPS)**: [https://domnir.erebuzzz.tech](https://domnir.erebuzzz.tech)
 - **Live Direct Origin**: [http://45.76.48.77:8000/](http://45.76.48.77:8000/) (or [http://45.76.48.77/](http://45.76.48.77/))
 - **Live Readiness API**: [https://domnir.erebuzzz.tech/ready](https://domnir.erebuzzz.tech/ready)
@@ -34,12 +35,14 @@
 - [Part II: Platform Engineering & Technical Reference](#part-ii-platform-engineering--technical-reference)
   - [6. System Architecture & Trust Boundaries](#6-system-architecture--trust-boundaries)
   - [7. Physical Simulation & Deterministic Replay Engine](#7-physical-simulation--deterministic-replay-engine)
-  - [8. Cryptographic Court Records](#8-cryptographic-court-records)
-  - [9. REST API Reference](#9-rest-api-reference)
-  - [10. Setup and Verification Guide](#10-setup-and-verification-guide)
-  - [11. Production Deployment on Vultr Cloud Compute](#11-production-deployment-on-vultr-cloud-compute)
-  - [12. Truthful Disclosures & Physical Limitations](#12-truthful-disclosures--physical-limitations)
-  - [13. License, Security, and Privacy](#13-license-security-and-privacy)
+  - [8. Four-Mission Laboratory: 3D Flight & World Forge](#8-four-mission-laboratory-3d-flight--world-forge)
+  - [9. Blender 5.2 Visual Asset Pipeline & Digital Twin](#9-blender-52-visual-asset-pipeline--digital-twin)
+  - [10. Cryptographic Court Records](#10-cryptographic-court-records)
+  - [11. REST API Reference](#11-rest-api-reference)
+  - [12. Setup and Verification Guide](#12-setup-and-verification-guide)
+  - [13. Production Deployment on Vultr Cloud Compute](#13-production-deployment-on-vultr-cloud-compute)
+  - [14. Truthful Disclosures & Physical Limitations](#14-truthful-disclosures--physical-limitations)
+  - [15. License, Security, and Privacy](#15-license-security-and-privacy)
 
 ---
 
@@ -253,7 +256,91 @@ Dómnir utilizes MuJoCo 3.3.7 and the official Google DeepMind MuJoCo Menagerie 
 
 ---
 
-## 8. Cryptographic Court Records
+## 8. Four-Mission Laboratory: 3D Flight & World Forge
+
+To evaluate quadrotor flight beyond simple 1D vertical hover, Dómnir incorporates a full 6DOF mission execution laboratory governed by [docs/ADR/ADR-002-four-missions.md](docs/ADR/ADR-002-four-missions.md).
+
+```mermaid
+flowchart TD
+    subgraph Slices ["Four Vertical Mission Slices"]
+        CapA["Capability A: 3D Waypoint Navigation<br/>(SE(3) tracking, non-collinear waypoints, dwell timers)"]
+        CapB["Capability B: Obstacles & Gates<br/>(MJCF compilation, open aperture narrowphase collision)"]
+        CapC["Capability C: 3D Wind & Faults<br/>(3D xfrc_applied forces, sensor noise/dropout, actuator derating)"]
+        CapD["Capability D: Precision Landing & Recovery<br/>(Touchdown criteria, velocity limits, allowed pad contacts)"]
+    end
+
+    subgraph Integration ["Showcase: The Ragnarök Gauntlet"]
+        Gauntlet["Gauntlet-001 Integrated Course<br/>Takeoff -> Slalom Obstacle -> Gate Transit -> Wind Gust -> Precision Touchdown"]
+    end
+
+    CapA --> Gauntlet
+    CapB --> Gauntlet
+    CapC --> Gauntlet
+    CapD --> Gauntlet
+```
+
+### 8.1 Capability A: 3D Waypoint Navigation (`domnir/missions/`)
+- Multi-stage mission planner supporting `takeoff`, `waypoint`, `loiter`, and `landing` stages.
+- Target position, velocity, tolerance spheres ($r \le 0.08$ m), and dwell time validation ($t_{dwell} \ge 0.10$ s).
+- Reference SE(3) cascaded position and attitude controller ([`domnir/controls/baseline_3d.py`](domnir/controls/baseline_3d.py)) with tuned Crazyflie angular damping parameters.
+
+### 8.2 Capability B: Physical Obstacles and Transit Gates (`domnir/worlds/`)
+- Declarative `WorldSpec` schema supporting walls, pillars, landing pads, and transit gates.
+- Transit gates compile into 4 separate boundary box geoms in MuJoCo MJCF, keeping the central 0.45 x 0.45 m aperture completely open for collision-free drone transit.
+- Obstacle contact classifier tracks contact pairs and distinguishes unpermitted obstacle collisions from permitted floor or pad touchdowns.
+
+### 8.3 Capability C: Admissible 3D Environmental Wind & Fault Injections (`domnir/faults/`)
+- Continuous 3D aerodynamic forces injected directly into MuJoCo `data.xfrc_applied`.
+- Guest-side sensor fault injection: additive Gaussian noise, drift bias, packet latency delay queues, and sensor dropouts.
+- Actuator fault injection: motor derating factors ($[0.0, 1.0]$) and maximum thrust clipping.
+
+### 8.4 Capability D: Precision Landing & Emergency Recovery (`domnir/safety/`)
+- Touchdown monitoring evaluates position offset from pad center, vertical impact velocity ($|v_z| \le 0.35$ m/s), horizontal drift ($|v_{xy}| \le 0.20$ m/s), and tilt angle ($\theta \le 15^\circ$).
+- Distinguishes `COMPLETED` mission status from physical safety status (`NOT_FALSIFIED`, `FALSIFIED`, `INVALID`).
+
+### 8.5 Showcase: The Ragnarök Gauntlet
+- An integrated flight course combining all four capabilities in one continuous evaluation:
+  1. Takeoff from origin to $z = 0.40$ m.
+  2. Navigate around a 0.80 m slalom pillar obstacle.
+  3. Transit cleanly through the 0.45 x 0.45 m cyan gate at $z = 0.45$ m.
+  4. Withstand an admissible lateral wind gust ($F_y = 0.015$ N).
+  5. Execute controlled descent to a precision touchdown on the landing pad at $(1.10, 0.0, 0.03)$ m.
+
+---
+
+## 9. Blender 5.2 Visual Asset Pipeline & Digital Twin
+
+Dómnir incorporates an automated asset authoring pipeline bridging physical simulation and visual rendering:
+
+```mermaid
+flowchart LR
+    Blender["Blender 5.2.3 LTS (bpy)<br/>scripts/export_blender_assets.py"] --> Blend_Files[".blend Source Files<br/>(domnir/assets/worlds/sources/)"]
+    Blender --> GLB_Files["glTF 2.0 Binary (.glb)<br/>(domnir/web/assets/)"]
+    Blender --> Manifest["Asset Manifest (asset-manifest-v1)<br/>(SHA-256 Hashes)"]
+
+    GLB_Files --> WebApp["Three.js 3D Viewer<br/>(domnir/web/app.js)"]
+    Manifest --> CI["Pipeline Integrity Tests<br/>(tests/test_blender_assets_pipeline.py)"]
+```
+
+### 9.1 Asset Inventory & Hash Manifest
+All visual assets are tracked with SHA-256 checksums in [`domnir/assets/worlds/manifests/manifest.json`](domnir/assets/worlds/manifests/manifest.json):
+
+| Asset Name | Blender Source (`.blend`) | glTF Binary (`.glb`) | Coordinate Frame | Dimensions / Details |
+|---|---|---|---|---|
+| **Gate 01** | `gate_01.blend` (89.5 KB) | `gate_01.glb` (5.3 KB) | `world-z-up-right-handed` | Cyan PBR, 4 perimeter posts, 0.45x0.45 m hollow aperture |
+| **Landing Pad** | `landing_pad.blend` (92.8 KB) | `landing_pad.glb` (8.3 KB) | `world-z-up-right-handed` | Emerald PBR, 0.35x0.35 m base, bullseye target ring |
+| **Obstacle Pillar** | `obstacle_pillar.blend` (92.0 KB) | `obstacle_pillar.glb` (13.7 KB) | `world-z-up-right-handed` | Amber hazard PBR, r = 0.06 m, h = 0.80 m cylinder |
+| **Arena Assets** | `arena_assets.blend` (99.3 KB) | N/A | `world-z-up-right-handed` | Master Blender scene containing all world collections |
+| **Crazyflie 2** | `crazyflie_2.blend` (270.4 KB) | `crazyflie_2.glb` (437.1 KB) | `world-z-up-right-handed` | Bitcraze quadrotor with animated rotors (`RotorFL/FR/RL/RR`) |
+
+### 9.2 WebGL Three.js Rendering
+- Loaded via `THREE.GLTFLoader` with procedural mesh fallbacks if network loading fails.
+- Synchronized rotor spin animations responding to simulation telemetry.
+- Dynamic world object rendering for static obstacles, transit gates, and touchdown pads.
+
+---
+
+## 10. Cryptographic Court Records
 
 Every experiment outputs a verifiable Court Record (`domnir-court-record-v1`):
 
@@ -287,7 +374,7 @@ Every experiment outputs a verifiable Court Record (`domnir-court-record-v1`):
 
 ---
 
-## 9. REST API Reference
+## 11. REST API Reference
 
 The FastAPI service exposes structured, type-safe REST endpoints with Pydantic schema validation, sliding-window rate limiting, request size enforcement, and security headers:
 
@@ -306,6 +393,11 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
 - `GET /experiments/{experiment_id}/artifacts`: Retrieves complete simulation trajectory vectors, event logs, and Court Record.
 - `GET /experiments/{experiment_id}/court-record`: Exports standalone Court Record JSON package.
 
+### Four-Mission Laboratory & Worlds
+- `GET /worlds`: Lists available physical worlds (`arena-gate-v1`, `gauntlet-v1`) with entity counts and asset IDs.
+- `GET /worlds/{id}`: Retrieves detailed world configuration, colliders, aperture geometry, and asset manifest hashes.
+- `POST /missions/run`: Executes full 6DOF mission simulation across waypoints, obstacles, wind disturbances, and landing targets.
+
 ### Verification and Containment
 - `POST /court-records/verify`: Independent in-memory physical replay verifier. Replays recorded actions on a fresh MuJoCo instance, verifies SHA-256 hashes, and checks event log chaining.
 - `GET /containment/status`: Returns verified results for the 5 containment fixtures, host event log status, and limitations.
@@ -313,12 +405,13 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
 
 ---
 
-## 10. Setup and Verification Guide
+## 12. Setup and Verification Guide
 
 ### Prerequisites
 - Python 3.12 (`>=3.12,<3.13`)
 - `uv` package manager
 - Git
+- Optional: Blender 5.2.3 LTS for source `.blend` re-authoring
 
 ### 1. Local Development Setup
 
@@ -342,13 +435,13 @@ echo "VULTR_INFERENCE_API_KEY=your_key_here" > .env
 ### 2. Run the Full Test Suite
 
 ```bash
-# Run all unit, integration, and security tests
+# Run all unit, integration, mission, and asset pipeline tests
 uv run pytest -v
 ```
 
-All 202 tests run deterministically:
-- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, contracts, Ragnarok search, minimization, CEGIS repair, uncertainty, Guardian, and CI gate tests pass (202 passed, 11 skipped, 0 failed).
-- On live KVM-enabled Vultr hosts: all 202 tests pass (202 passed, 0 failed).
+All 257 tests run deterministically:
+- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, contracts, mission waypoints, obstacles, faults, precision landing, Ragnarök gauntlet, and Blender asset pipeline tests pass (257 passed, 11 skipped, 34 subtests passed, 0 failed).
+- On live KVM-enabled Vultr hosts: all tests pass.
 
 ### 3. Launch the Web Application
 
@@ -358,7 +451,7 @@ uv run uvicorn domnir.api.app:app --host 127.0.0.1 --port 8000 --reload
 
 Open `http://localhost:8000` in any modern web browser to access the Dómnir platform:
 
-- **Guided Experiment Workflow**: 4-step mission pipeline guiding the user through envelope configuration, Vultr serverless AI synthesis, hardware-isolated microVM setup, and live 500 Hz MuJoCo telemetry execution.
+- **Four-Mission Arena & Gauntlet**: 3D interactive waypoint, obstacle gate, and landing pad simulation with telemetry playback.
 - **Rune Dawn and Rune Dusk Theme System**: Mode-aware UI aesthetic featuring warm sandstone and burnt copper in Rune Dawn, and midnight obsidian with Bifrost cyan in Rune Dusk. Both modes incorporate 4-tier elevation shadow tokens and WCAG AA contrast.
 - **Authentic 3D Drone Digital Twin**: WebGL Three.js interactive physical plant viewer derived from MuJoCo Menagerie CAD meshes via Blender 5.2.3 LTS. Features turntable rotation, orbital camera controls, concentric rotor spin axes, and high-resolution Cycles PBR stills for zero-latency fallback.
 - **Synchronized Simulation Replay**: Dual-view playback synchronizing the 2D altitude SVG trajectory with the 3D quadrotor spatial orientation, complete with interactive scrubber and timestep hover inspection.
@@ -369,7 +462,7 @@ Open `http://localhost:8000` in any modern web browser to access the Dómnir pla
 
 ---
 
-## 11. Production Deployment on Vultr Cloud Compute
+## 13. Production Deployment on Vultr Cloud Compute
 
 For production deployment on a Vultr Cloud Compute instance running Ubuntu 24.04 LTS:
 
@@ -412,7 +505,7 @@ The worker terminates TLS at Cloudflare edge locations, forwards requests to the
 
 ---
 
-## 12. Truthful Disclosures & Physical Limitations
+## 14. Truthful Disclosures & Physical Limitations
 
 In accordance with the Blast Radius Zero engineering guidelines, Dómnir maintains absolute transparency regarding physical modeling assumptions:
 
@@ -422,7 +515,7 @@ In accordance with the Blast Radius Zero engineering guidelines, Dómnir maintai
 
 ---
 
-## 13. License, Security, and Privacy
+## 15. License, Security, and Privacy
 
 - **License**: Licensed under the [MIT License](LICENSE) (MIT-compliant open source license).
 - **Security Policy**: See [SECURITY.md](SECURITY.md) for vulnerability reporting and containment threat models.

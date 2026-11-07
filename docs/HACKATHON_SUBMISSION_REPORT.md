@@ -2,12 +2,12 @@
 
 **Vultr Agent Rush Hackathon**  
 **Challenge 1: Blast Radius Zero**  
-**Submission Date:** 7 November 2026  
+**Submission Date:** 8 November 2026  
 **Live Edge Observatory:** [https://domnir.erebuzzz.tech](https://domnir.erebuzzz.tech)  
 **Public Health Endpoint:** [https://domnir.erebuzzz.tech/health](https://domnir.erebuzzz.tech/health)  
 **Public Readiness Endpoint:** [https://domnir.erebuzzz.tech/ready](https://domnir.erebuzzz.tech/ready)  
 **GitHub Repository:** [https://github.com/Erebuzzz/domnir](https://github.com/Erebuzzz/domnir)  
-**Test Suite Status:** 202 Passed, 11 Skipped, 0 Failures (100% Green on Local and Production Linux VM)  
+**Test Suite Status:** 257 Passed, 11 Skipped, 34 Subtests Passed, 0 Failures (100% Green)  
 
 ---
 
@@ -128,6 +128,18 @@ Formal flight requirements are expressed in Signal Temporal Logic:
   - L3: Host containment and policy audit.
 - **CI Gate:** Evaluates candidate revisions across standardized suites, emitting `RELEASE_APPROVED`, `REGRESSION_FOUND`, `BLOCKED_INCOMPLETE`, or `AWAITING_REVIEW`. Strictly prohibits emitting unqualified `SAFE` or `PROVEN_SAFE`.
 
+### 3.9 Four-Mission Laboratory & 3D Flight Slices (ADR-002)
+- **Capability A (3D Waypoints):** Non-collinear waypoint planning with dwell-time checks and tuned SE(3) cascaded Crazyflie controller.
+- **Capability B (Obstacles & Gates):** Declarative WorldSpec compiling into collision-free open aperture gates (0.45 x 0.45 m) and contact classification separating obstacles from touchdown surfaces.
+- **Capability C (Environmental Wind & Faults):** 3D force injections into MuJoCo `data.xfrc_applied`, sensor noise/drift/latency/dropout, and actuator derating.
+- **Capability D (Precision Landing):** Pad touchdown criteria enforcing velocity boundaries ($|v_z| \le 0.35$ m/s, $|v_{xy}| \le 0.20$ m/s) and attitude limits ($\theta \le 15^\circ$).
+- **Showcase (The Ragnarök Gauntlet):** Fully integrated flight challenge combining takeoff, obstacle navigation, open gate transit, wind disturbance, and precision landing in a single verified mission.
+
+### 3.10 Blender 5.2 Visual Asset Authoring & Integrity Pipeline
+- **Blender 5.2.3 LTS Pipeline:** Automated authoring script (`scripts/export_blender_assets.py`) operating via native `bpy` or standalone fallback.
+- **Asset Sources & Binaries:** Tracks `.blend` source files (`arena_assets.blend`, `gate_01.blend`, `landing_pad.blend`, `obstacle_pillar.blend`) and exported glTF 2.0 binary (`.glb`) files.
+- **Asset Manifest:** Versioned SHA-256 manifest (`domnir/assets/worlds/manifests/manifest.json`) guaranteeing asset integrity across local, CI, and production web environments.
+
 ---
 
 ## 4. Empirical Benchmark Results
@@ -140,7 +152,7 @@ All empirical claims are backed by the executed benchmark report located at `doc
 | **Guardian Shielding Rate** | 100% floor breaches prevented on aggressive dive controller | Intervened across all 100 dive steps, boosting robustness from -0.1981 m to +0.0199 m without masking the original controller violation. |
 | **Model Uncertainty Sensitivity** | 6 parameterized plant variants evaluated | Identified heavy payload scaling as the dominant failure mode for standard proportional controllers. |
 | **Robotics CI Gate Status** | `AWAITING_REVIEW` (Truthful non-certification) | Rejected unproven assertions; verified against 5-condition regression suite. |
-| **Test Suite Coverage** | 202 passed, 11 skipped, 0 failed in 41.59s | 100% test pass rate on production Linux host with live MuJoCo and KVM. |
+| **Test Suite Coverage** | 257 passed, 11 skipped, 34 subtests passed, 0 failed in 20.68s | 100% test pass rate on production Linux host with live MuJoCo, KVM, and asset integrity verification. |
 
 ---
 
@@ -152,7 +164,7 @@ The public web application is deployed at [https://domnir.erebuzzz.tech](https:/
 - **Rune Dawn & Rune Dusk Themes:** Seamless toggle between warm copper sunlight and obsidian cyan night palettes.
 - **Interactive 2D Failure Atlas:** SVG scatter canvas mapping disturbance force versus initial altitude, color-coded by STL robustness margin with interactive witness inspection.
 - **Ragnarök Adversarial Arena:** Interactive controls for launching Differential Evolution search, counterexample minimization, and autonomous CEGIS repair directly from the browser.
-- **Blender / Three.js Drone Visualizer:** Interactive 3D Crazyflie 2 model with real-time pose and flight altitude playback.
+- **Blender / Three.js 3D Arena & Gauntlet Visualizer:** Full 3D digital twin loaded via Three.js `GLTFLoader` with procedural fallbacks, transit gates, slalom obstacles, landing pads, and synchronized Crazyflie rotor spin animations responding to simulation telemetry.
 
 ---
 
