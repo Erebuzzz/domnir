@@ -1,0 +1,61 @@
+{
+  "schema_version": "asset-manifest-v1",
+  "authoring_runtime": "Blender 5.2.3 LTS",
+  "timestamp": "2026-11-08T00:00:00Z",
+  "assets": {
+    "gate_01.blend": {
+      "sha256": "88c6c005506d90a164ffd79c87a624c1d4a2cc625ca4709603012ee53d2cf26f",
+      "byte_size": 89537,
+      "source_type": "Blender 5.2.3 LTS Source File"
+    },
+    "gate_01.glb": {
+      "sha256": "cb5b69cea3b5ee062d755672a1519f23911debd1bd2cc2ba20f7a26481a6212d",
+      "byte_size": 5392,
+      "units": "metres",
+      "coordinate_frame": "world-z-up-right-handed",
+      "format": "glTF 2.0 Binary (GLB)",
+      "generator": "Blender 5.2.3 LTS glTF Exporter"
+    },
+    "landing_pad.blend": {
+      "sha256": "734a3262f5b71d6d776cd2611c2e2df8ee99956cb9a435548795b9483d65299d",
+      "byte_size": 92864,
+      "source_type": "Blender 5.2.3 LTS Source File"
+    },
+    "landing_pad.glb": {
+      "sha256": "d8c0dab971aa3f638751801318978878ac22307323a40d6242ce71f9a6b80c6a",
+      "byte_size": 8392,
+      "units": "metres",
+      "coordinate_frame": "world-z-up-right-handed",
+      "format": "glTF 2.0 Binary (GLB)",
+      "generator": "Blender 5.2.3 LTS glTF Exporter"
+    },
+    "obstacle_pillar.blend": {
+      "sha256": "2510975ca3eb411e219cc606893e7374e9477f3d9cc25aebc1261532319ee6bf",
+      "byte_size": 92024,
+      "source_type": "Blender 5.2.3 LTS Source File"
+    },
+    "obstacle_pillar.glb": {
+      "sha256": "27da3fc77f9afb440efaf23db6228ae5dc010b209c8998e18949d26325ece311",
+      "byte_size": 13716,
+      "units": "metres",
+      "coordinate_frame": "world-z-up-right-handed",
+      "format": "glTF 2.0 Binary (GLB)",
+      "generator": "Blender 5.2.3 LTS glTF Exporter"
+    },
+    "arena_assets.blend": {
+      "sha256": "5c3a1ed17dafd6beabc696ebd422eb2298ec07e621a4bd5d5cefac2459fc3f9c",
+      "byte_size": 99389,
+      "source_type": "Blender 5.2.3 LTS Master Scene"
+    },
+    "crazyflie_2.blend": {
+      "sha256": "82176f9825028a7ae69f2fd807a0e8141dd6c694249add8a15176d2140fad129",
+      "byte_size": 270454,
+      "source_type": "Blender 4.x Source File"
+    },
+    "crazyflie_2.glb": {
+      "sha256": "f6752ccce6a2e0ccd8977f293d26727b9a860117b9b5040f33b2dc294f26f87c",
+      "byte_size": 437120,
+      "format": "glTF 2.0 Binary (GLB)"
+    }
+  }
+}

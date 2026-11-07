@@ -3391,13 +3391,8 @@
           if (worldEntities && worldEntities.length > 0) {
             worldObjectGroup = new THREE.Group();
             worldObjectGroup.name = "WorldObstacles";
-            for (const ent of worldEntities) {
-              const p = ent.position_m || [0, 0, 0];
-              const dims = ent.dimensions_m || [0.1, 0.1, 0.1];
-              const posX = -(p[1] || 0.0) * 0.8;
-              const posZ = -(p[0] || 0.0) * 0.8;
-              const posY = ((p[2] || 0.0) - 0.10) * 0.8;
 
+            function addProceduralMesh(parent, ent, dims, px = 0, py = 0, pz = 0) {
               if (ent.kind === "box_obstacle" || ent.kind === "wall") {
                 const geom = new THREE.BoxGeometry(dims[1] * 0.8, dims[2] * 0.8, dims[0] * 0.8);
                 const mat = new THREE.MeshStandardMaterial({
@@ -3408,8 +3403,8 @@
                   opacity: 0.85
                 });
                 const mesh = new THREE.Mesh(geom, mat);
-                mesh.position.set(posX, posY, posZ);
-                worldObjectGroup.add(mesh);
+                mesh.position.set(px, py, pz);
+                parent.add(mesh);
               } else if (ent.kind === "cylinder_obstacle") {
                 const r = (dims[0] / 2.0) * 0.8;
                 const h = (dims[1] || 1.0) * 0.8;
@@ -3421,8 +3416,8 @@
                   opacity: 0.85
                 });
                 const mesh = new THREE.Mesh(geom, mat);
-                mesh.position.set(posX, posY, posZ);
-                worldObjectGroup.add(mesh);
+                mesh.position.set(px, py, pz);
+                parent.add(mesh);
               } else if (ent.kind === "landing_pad") {
                 const padGeom = new THREE.CylinderGeometry(dims[0] * 0.4, dims[0] * 0.4, 0.02, 32);
                 const padMat = new THREE.MeshStandardMaterial({
@@ -3433,8 +3428,8 @@
                   emissiveIntensity: 0.4
                 });
                 const mesh = new THREE.Mesh(padGeom, padMat);
-                mesh.position.set(posX, -0.01, posZ);
-                worldObjectGroup.add(mesh);
+                mesh.position.set(px, -0.01, pz);
+                parent.add(mesh);
               } else if (ent.kind === "gate") {
                 const apW = (ent.aperture_m ? ent.aperture_m[0] : 0.45) * 0.8;
                 const apH = (ent.aperture_m ? ent.aperture_m[1] : 0.45) * 0.8;
@@ -3447,20 +3442,52 @@
                 });
 
                 const topBar = new THREE.Mesh(new THREE.BoxGeometry(apW + barThick * 2, barThick, barThick), gateMat);
-                topBar.position.set(posX, posY + apH / 2, posZ);
-                worldObjectGroup.add(topBar);
+                topBar.position.set(px, py + apH / 2, pz);
+                parent.add(topBar);
 
                 const botBar = new THREE.Mesh(new THREE.BoxGeometry(apW + barThick * 2, barThick, barThick), gateMat);
-                botBar.position.set(posX, posY - apH / 2, posZ);
-                worldObjectGroup.add(botBar);
+                botBar.position.set(px, py - apH / 2, pz);
+                parent.add(botBar);
 
                 const leftPost = new THREE.Mesh(new THREE.BoxGeometry(barThick, apH, barThick), gateMat);
-                leftPost.position.set(posX - apW / 2, posY, posZ);
-                worldObjectGroup.add(leftPost);
+                leftPost.position.set(px - apW / 2, py, pz);
+                parent.add(leftPost);
 
                 const rightPost = new THREE.Mesh(new THREE.BoxGeometry(barThick, apH, barThick), gateMat);
-                rightPost.position.set(posX + apW / 2, posY, posZ);
-                worldObjectGroup.add(rightPost);
+                rightPost.position.set(px + apW / 2, py, pz);
+                parent.add(rightPost);
+              }
+            }
+
+            for (const ent of worldEntities) {
+              const p = ent.position_m || [0, 0, 0];
+              const dims = ent.dimensions_m || [0.1, 0.1, 0.1];
+              const posX = -(p[1] || 0.0) * 0.8;
+              const posZ = -(p[0] || 0.0) * 0.8;
+              const posY = ((p[2] || 0.0) - 0.10) * 0.8;
+
+              const assetUrl = ent.visual_asset_id ? `/assets/${ent.visual_asset_id}` : (
+                ent.kind === "gate" ? "/assets/gate_01.glb" :
+                ent.kind === "landing_pad" ? "/assets/landing_pad.glb" :
+                ent.kind === "cylinder_obstacle" ? "/assets/obstacle_pillar.glb" : null
+              );
+
+              if (assetUrl) {
+                const proxyGroup = new THREE.Group();
+                proxyGroup.position.set(posX, ent.kind === "landing_pad" ? -0.01 : posY, posZ);
+                worldObjectGroup.add(proxyGroup);
+                loader.load(
+                  assetUrl,
+                  gltf => {
+                    proxyGroup.add(gltf.scene);
+                  },
+                  undefined,
+                  () => {
+                    addProceduralMesh(proxyGroup, ent, dims);
+                  }
+                );
+              } else {
+                addProceduralMesh(worldObjectGroup, ent, dims, posX, posY, posZ);
               }
             }
             scene.add(worldObjectGroup);
