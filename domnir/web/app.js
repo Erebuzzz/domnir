@@ -2496,7 +2496,8 @@
     }
 
     if (elements.pasteSampleBtn) {
-      elements.pasteSampleBtn.addEventListener("click", () => {
+      elements.pasteSampleBtn.addEventListener("click", e => {
+        e.stopPropagation();
         if (state.activeCourtRecord && elements.courtJsonInput) {
           elements.courtJsonInput.value = JSON.stringify(state.activeCourtRecord, null, 2);
           toast("Loaded active run court record into verifier.", "info");
