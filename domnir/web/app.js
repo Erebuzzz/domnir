@@ -229,6 +229,8 @@
     verifyErrorsList: document.getElementById("verifyErrorsList"),
     runArenaBtn: document.getElementById("runArenaBtn"),
     arenaSpinner: document.getElementById("arenaSpinner"),
+    runGauntletMissionBtn: document.getElementById("runGauntletMissionBtn"),
+    gauntletSpinner: document.getElementById("gauntletSpinner"),
 
     // 3D Visual Stage & Replay
     plantVisualStage: document.getElementById("plantVisualStage"),
@@ -3107,6 +3109,7 @@
       let rotorFR = null;
       let rotorRL = null;
       let rotorRR = null;
+      let worldObjectGroup = null;
 
       let defaultCamPos = new THREE.Vector3(0.18, 0.15, 0.22);
       let defaultTarget = new THREE.Vector3(0, 0, 0);
@@ -3359,7 +3362,7 @@
           const sceneY = (targetAltM - 0.10) * 0.8;
           targetRing.position.y = sceneY;
         },
-        loadReplay: trajectory => {
+        loadReplay: (trajectory, worldEntities) => {
           if (!trajectory || trajectory.length === 0) return;
           isReplaying = true;
           replayTrajectory = trajectory;
@@ -3379,6 +3382,90 @@
           if (droneModel) {
             droneModel.rotation.set(0, 0, 0);
           }
+
+          if (worldObjectGroup) {
+            scene.remove(worldObjectGroup);
+            worldObjectGroup = null;
+          }
+
+          if (worldEntities && worldEntities.length > 0) {
+            worldObjectGroup = new THREE.Group();
+            worldObjectGroup.name = "WorldObstacles";
+            for (const ent of worldEntities) {
+              const p = ent.position_m || [0, 0, 0];
+              const dims = ent.dimensions_m || [0.1, 0.1, 0.1];
+              const posX = -(p[1] || 0.0) * 0.8;
+              const posZ = -(p[0] || 0.0) * 0.8;
+              const posY = ((p[2] || 0.0) - 0.10) * 0.8;
+
+              if (ent.kind === "box_obstacle" || ent.kind === "wall") {
+                const geom = new THREE.BoxGeometry(dims[1] * 0.8, dims[2] * 0.8, dims[0] * 0.8);
+                const mat = new THREE.MeshStandardMaterial({
+                  color: ent.kind === "wall" ? 0x64748b : 0xe11d48,
+                  roughness: 0.4,
+                  metalness: 0.2,
+                  transparent: true,
+                  opacity: 0.85
+                });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.position.set(posX, posY, posZ);
+                worldObjectGroup.add(mesh);
+              } else if (ent.kind === "cylinder_obstacle") {
+                const r = (dims[0] / 2.0) * 0.8;
+                const h = (dims[1] || 1.0) * 0.8;
+                const geom = new THREE.CylinderGeometry(r, r, h, 24);
+                const mat = new THREE.MeshStandardMaterial({
+                  color: 0xf59e0b,
+                  roughness: 0.3,
+                  transparent: true,
+                  opacity: 0.85
+                });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.position.set(posX, posY, posZ);
+                worldObjectGroup.add(mesh);
+              } else if (ent.kind === "landing_pad") {
+                const padGeom = new THREE.CylinderGeometry(dims[0] * 0.4, dims[0] * 0.4, 0.02, 32);
+                const padMat = new THREE.MeshStandardMaterial({
+                  color: 0x10b981,
+                  roughness: 0.2,
+                  metalness: 0.3,
+                  emissive: 0x065f46,
+                  emissiveIntensity: 0.4
+                });
+                const mesh = new THREE.Mesh(padGeom, padMat);
+                mesh.position.set(posX, -0.01, posZ);
+                worldObjectGroup.add(mesh);
+              } else if (ent.kind === "gate") {
+                const apW = (ent.aperture_m ? ent.aperture_m[0] : 0.45) * 0.8;
+                const apH = (ent.aperture_m ? ent.aperture_m[1] : 0.45) * 0.8;
+                const barThick = 0.03;
+                const gateMat = new THREE.MeshStandardMaterial({
+                  color: 0x06b6d4,
+                  roughness: 0.3,
+                  emissive: 0x0891b2,
+                  emissiveIntensity: 0.5
+                });
+
+                const topBar = new THREE.Mesh(new THREE.BoxGeometry(apW + barThick * 2, barThick, barThick), gateMat);
+                topBar.position.set(posX, posY + apH / 2, posZ);
+                worldObjectGroup.add(topBar);
+
+                const botBar = new THREE.Mesh(new THREE.BoxGeometry(apW + barThick * 2, barThick, barThick), gateMat);
+                botBar.position.set(posX, posY - apH / 2, posZ);
+                worldObjectGroup.add(botBar);
+
+                const leftPost = new THREE.Mesh(new THREE.BoxGeometry(barThick, apH, barThick), gateMat);
+                leftPost.position.set(posX - apW / 2, posY, posZ);
+                worldObjectGroup.add(leftPost);
+
+                const rightPost = new THREE.Mesh(new THREE.BoxGeometry(barThick, apH, barThick), gateMat);
+                rightPost.position.set(posX + apW / 2, posY, posZ);
+                worldObjectGroup.add(rightPost);
+              }
+            }
+            scene.add(worldObjectGroup);
+          }
+
           setStep(0, trajectory);
         },
         resetToIdle: () => {
@@ -3396,6 +3483,10 @@
           }
           if (replayBar) {
             replayBar.classList.add("hidden");
+          }
+          if (worldObjectGroup) {
+            scene.remove(worldObjectGroup);
+            worldObjectGroup = null;
           }
           if (droneModel) {
             droneModel.position.set(0, 0, 0);
@@ -4093,6 +4184,73 @@
     }
   }
 
+  async function runGauntletMission() {
+    if (elements.runGauntletMissionBtn) elements.runGauntletMissionBtn.disabled = true;
+    if (elements.gauntletSpinner) elements.gauntletSpinner.classList.remove("hidden");
+
+    try {
+      toast("Launching Ragnarök Gauntlet mission laboratory...", "info");
+      const [wResp, mResp] = await Promise.all([
+        fetch("/worlds/ragnarok-gauntlet"),
+        fetch("/missions/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ world_id: "ragnarok-gauntlet" })
+        })
+      ]);
+
+      if (!mResp.ok) {
+        const errData = await mResp.json().catch(() => ({ detail: "Mission launch failed" }));
+        throw new Error(errData.detail || "Mission launch failed");
+      }
+
+      const worldData = await wResp.json().catch(() => ({ entities: [] }));
+      const missionData = await mResp.json();
+
+      switchStep(4);
+
+      if (plantViewer && typeof plantViewer.loadReplay === "function") {
+        plantViewer.loadReplay(missionData.trajectory, worldData.entities);
+      }
+
+      if (elements.replayDiffValue) {
+        elements.replayDiffValue.textContent = Number(missionData.replay_max_abs_diff).toExponential(3);
+      }
+      if (elements.replayBadge) {
+        elements.replayBadge.textContent = missionData.replay_matched ? "MATCHED (1e-12)" : "DIVERGED";
+        elements.replayBadge.className = "badge " + (missionData.replay_matched ? "badge-success" : "badge-danger");
+      }
+      if (elements.verdictFlight) {
+        const isSafe = missionData.physical_verdict === "NOT_FALSIFIED";
+        elements.verdictFlight.textContent = isSafe ? "NOT FALSIFIED" : "FALSIFIED";
+        elements.verdictFlight.className = "verdict-badge " + (isSafe ? "verdict-pass" : "verdict-fail");
+      }
+      if (elements.verdictFlightDesc) {
+        elements.verdictFlightDesc.textContent = missionData.summary;
+      }
+      if (elements.adjudicationText) {
+        elements.adjudicationText.textContent = missionData.summary + " " + missionData.limitation_note;
+      }
+
+      if (missionData.trajectory && missionData.trajectory.length > 0) {
+        renderAltitudeChart(missionData.trajectory, {
+          target_altitude_m: 0.20,
+          tolerance_m: 0.08,
+          min_altitude_m: 0.02,
+          max_altitude_m: 1.00,
+          mission_duration_s: 0.90
+        });
+      }
+
+      toast("Ragnarök Gauntlet executed. Verdict: " + missionData.physical_verdict + " (Replay Matched)", "success");
+    } catch (err) {
+      toast("Gauntlet execution failed: " + err.message, "error");
+    } finally {
+      if (elements.runGauntletMissionBtn) elements.runGauntletMissionBtn.disabled = false;
+      if (elements.gauntletSpinner) elements.gauntletSpinner.classList.add("hidden");
+    }
+  }
+
   function copyRepairedCode() {
     if (!state.ragnarok.repairedResult || !state.ragnarok.repairedResult.repaired_controller_source) {
       toast("No repaired controller code to copy.", "warning");
@@ -4147,6 +4305,9 @@
     }
     if (elements.runArenaBtn) {
       elements.runArenaBtn.addEventListener("click", runArenaCoEvolution);
+    }
+    if (elements.runGauntletMissionBtn) {
+      elements.runGauntletMissionBtn.addEventListener("click", runGauntletMission);
     }
     if (elements.copyRepairedCodeBtn) {
       elements.copyRepairedCodeBtn.addEventListener("click", copyRepairedCode);

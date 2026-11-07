@@ -7,6 +7,8 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from domnir.spec import FlightSpec, GeneratedController
+from domnir.missions.schema import MissionSpecV2
+from domnir.faults.schema import MissionFaultSchedule
 
 
 class ExperimentState(str, Enum):
@@ -282,5 +284,34 @@ class RagnarokArenaResponse(BaseModel):
     limitation_note: str = (
         "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
     )
+
+
+class MissionRunRequest(BaseModel):
+    mission: MissionSpecV2 | None = None
+    world_id: str = "ragnarok-gauntlet"
+    controller_type: str = "baseline_3d"
+    controller_source: str | None = None
+    faults: MissionFaultSchedule | None = None
+    initial_pos_m: list[float] | None = None
+
+
+class MissionRunResponse(BaseModel):
+    mission_id: str
+    world_id: str
+    physical_verdict: str
+    mission_verdict: str
+    min_robustness: float
+    critical_predicate: str
+    critical_timestamp_s: float
+    replay_matched: bool
+    replay_max_abs_diff: float
+    summary: str
+    trajectory: list[dict[str, Any]] = Field(default_factory=list)
+    contacts: list[dict[str, Any]] = Field(default_factory=list)
+    stage_results: list[dict[str, Any]] = Field(default_factory=list)
+    limitation_note: str = (
+        "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
+    )
+
 
 

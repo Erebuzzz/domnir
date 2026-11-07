@@ -1,0 +1,53 @@
+"""Tests for API mission laboratory endpoints (/worlds, /missions/run)."""
+
+from fastapi.testclient import TestClient
+from domnir.api.app import app
+
+
+client = TestClient(app)
+
+
+def test_get_worlds_list():
+    resp = client.get("/worlds")
+    assert resp.status_code == 200
+    worlds = resp.json()
+    assert len(worlds) >= 5
+    ids = [w["id"] for w in worlds]
+    assert "ragnarok-gauntlet" in ids
+    assert "precision-landing" in ids
+    assert "gate-corridor" in ids
+    assert "wind-tunnel" in ids
+    assert "open-field" in ids
+
+
+def test_get_world_detail():
+    resp = client.get("/worlds/ragnarok-gauntlet")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "ragnarok-gauntlet"
+    assert "entities" in data
+    assert len(data["entities"]) == 3
+
+
+def test_run_mission_gauntlet_baseline():
+    resp = client.post("/missions/run", json={"world_id": "ragnarok-gauntlet"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["world_id"] == "ragnarok-gauntlet"
+    assert data["physical_verdict"] == "NOT_FALSIFIED"
+    assert data["replay_matched"] is True
+    assert len(data["trajectory"]) > 0
+    assert "limitation_note" in data
+
+
+def test_run_mission_untrusted_controller_fails_closed():
+    resp = client.post(
+        "/missions/run",
+        json={
+            "world_id": "ragnarok-gauntlet",
+            "controller_source": "import os; os.system('echo pwned')",
+        },
+    )
+    # Must fail closed without microVM isolation
+    assert resp.status_code == 503
+    assert "isolation is unavailable" in resp.json()["detail"]

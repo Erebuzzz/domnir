@@ -6,6 +6,7 @@ import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -33,11 +34,16 @@ from domnir.api.models import (
     RagnarokRepairResponse,
     RagnarokArenaRequest,
     RagnarokArenaResponse,
+    MissionRunRequest,
+    MissionRunResponse,
     ReadyResponse,
     RunExperimentRequest,
     SpecValidationRequest,
     SpecValidationResponse,
 )
+from domnir.worlds import list_worlds, get_world
+from domnir.missions import run_mission_simulation, MissionSpecV2, MissionStage, MissionStageKind, MissionConstraints
+from domnir.controls import Baseline3DController
 from domnir.contracts.stl import SafetyContract, STLMonitor, STLRobustnessResult
 from domnir.ragnarok.minimize import CounterexampleMinimizer
 from domnir.ragnarok.repair import AutonomousRepairEngine
@@ -585,6 +591,185 @@ def ragnarok_arena_run_endpoint(request: RagnarokArenaRequest) -> RagnarokArenaR
         raise
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@app.get("/worlds", response_model=list[dict[str, Any]])
+async def get_worlds_endpoint() -> list[dict[str, Any]]:
+    worlds = []
+    for item in list_worlds():
+        w = get_world(item["id"])
+        worlds.append({
+            "id": w.world_id,
+            "name": w.name,
+            "floor_dimensions_m": w.floor_dimensions_m,
+            "entities": [
+                {
+                    "id": e.id,
+                    "kind": e.kind.value,
+                    "position_m": e.pose.position_m,
+                    "dimensions_m": e.dimensions_m,
+                    "contact_class": e.contact_class,
+                }
+                for e in w.entities
+            ],
+        })
+    return worlds
+
+
+@app.get("/worlds/{world_id}", response_model=dict[str, Any])
+async def get_world_detail_endpoint(world_id: str) -> dict[str, Any]:
+    w = get_world(world_id)
+    return {
+        "id": w.world_id,
+        "name": w.name,
+        "floor_dimensions_m": w.floor_dimensions_m,
+        "entities": [
+            {
+                "id": e.id,
+                "kind": e.kind.value,
+                "position_m": e.pose.position_m,
+                "dimensions_m": e.dimensions_m,
+                "contact_class": e.contact_class,
+            }
+            for e in w.entities
+        ],
+    }
+
+
+@app.post("/missions/run", response_model=MissionRunResponse)
+async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
+    model_path = get_default_model_path()
+    if not model_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Base MuJoCo model not found at {model_path}",
+        )
+
+    world = get_world(request.world_id)
+
+    mission = request.mission
+    if mission is None:
+        if request.world_id == "precision-landing":
+            stages = [
+                MissionStage(
+                    id="approach",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[0.10, 0.0, 0.08],
+                    tolerance_m=0.06,
+                    dwell_s=0.02,
+                    completion_deadline_s=0.20,
+                ),
+                MissionStage(
+                    id="touchdown",
+                    kind=MissionStageKind.LANDING,
+                    target_position_m=[0.10, 0.0, 0.02],
+                    tolerance_m=0.08,
+                    dwell_s=0.02,
+                    completion_deadline_s=1.00,
+                ),
+            ]
+            constraints = MissionConstraints(
+                min_altitude_m=0.01,
+                max_landing_impact_speed_mps=1.0,
+                fail_on_unpermitted_contact=True,
+            )
+            init_pos = request.initial_pos_m or [0.10, 0.0, 0.10]
+        else:
+            stages = [
+                MissionStage(
+                    id="takeoff",
+                    kind=MissionStageKind.TAKEOFF,
+                    target_position_m=[0.0, 0.0, 0.20],
+                    tolerance_m=0.06,
+                    dwell_s=0.02,
+                    completion_deadline_s=0.25,
+                ),
+                MissionStage(
+                    id="slalom_waypoint",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[0.10, -0.05, 0.22],
+                    tolerance_m=0.08,
+                    dwell_s=0.02,
+                    completion_deadline_s=0.60,
+                ),
+                MissionStage(
+                    id="terminal_approach",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[0.15, 0.0, 0.15],
+                    tolerance_m=0.08,
+                    dwell_s=0.02,
+                    completion_deadline_s=0.90,
+                ),
+            ]
+            constraints = MissionConstraints(
+                min_altitude_m=0.02,
+                max_altitude_m=1.00,
+                max_tilt_deg=55.0,
+                fail_on_unpermitted_contact=True,
+            )
+            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
+
+        mission = MissionSpecV2(
+            mission_id=f"mission-{request.world_id}",
+            world_id=request.world_id,
+            stages=stages,
+            constraints=constraints,
+        )
+    else:
+        init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
+
+    if request.controller_source is not None:
+        if not is_microvm_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Untrusted controller code execution is disabled when hardware microVM isolation is unavailable.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Custom controller source for 3D multi-mission execution requires microVM integration.",
+        )
+
+    ctrl = Baseline3DController()
+    res = run_mission_simulation(
+        model_path,
+        mission,
+        world,
+        lambda obs: ctrl.compute_action(obs),
+        faults=request.faults,
+        initial_pos_m=init_pos,
+    )
+
+    stride = max(1, len(res.trajectory) // 250)
+    sampled_traj = res.trajectory[::stride]
+
+    contacts_data = [
+        {
+            "step_index": c.step_index,
+            "sim_time_s": c.sim_time_s,
+            "geom1": c.geom1,
+            "geom2": c.geom2,
+            "contact_class": c.contact_class,
+            "impact_velocity_mps": c.impact_velocity_mps,
+            "position_m": c.position_m,
+        }
+        for c in res.contacts
+    ]
+
+    return MissionRunResponse(
+        mission_id=mission.mission_id,
+        world_id=world.world_id,
+        physical_verdict=res.evaluation.physical_verdict,
+        mission_verdict=res.evaluation.mission_verdict,
+        min_robustness=res.evaluation.min_robustness,
+        critical_predicate=res.evaluation.critical_predicate,
+        critical_timestamp_s=res.evaluation.critical_timestamp_s,
+        replay_matched=res.replay_matched,
+        replay_max_abs_diff=res.replay_max_abs_diff,
+        summary=res.evaluation.summary,
+        trajectory=sampled_traj,
+        contacts=contacts_data,
+        stage_results=res.evaluation.stage_results,
+    )
 
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
