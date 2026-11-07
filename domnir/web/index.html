@@ -196,21 +196,18 @@
           Quick Tour
         </button>
 
-        <div class="system-status-bar" id="systemStatusBar">
-          <div class="status-indicator-pill" id="statusApiPill" title="FastAPI Control Plane: Connecting...">
+        <div class="system-status-bar" id="systemStatusBar" role="region" aria-label="System status telemetry">
+          <div class="status-indicator-pill" id="statusApiPill" title="FastAPI Control Plane: Connecting..." tabindex="0">
             <span class="status-dot dot-unknown" id="apiDot"></span>
             <span class="status-name">API</span>
-            <span class="status-val hidden" id="apiStatusText">Connecting...</span>
           </div>
-          <div class="status-indicator-pill" id="statusInferencePill" title="Vultr Serverless Inference: Checking...">
+          <div class="status-indicator-pill" id="statusInferencePill" title="Vultr Serverless Inference: Checking..." tabindex="0">
             <span class="status-dot dot-unknown" id="inferenceDot"></span>
             <span class="status-name">Inference</span>
-            <span class="status-val hidden" id="inferenceStatusText">Checking...</span>
           </div>
-          <div class="status-indicator-pill" id="statusSandboxPill" title="MicroVM Hardware Virtualization: Checking...">
+          <div class="status-indicator-pill" id="statusSandboxPill" title="MicroVM Hardware Virtualization: Checking..." tabindex="0">
             <span class="status-dot dot-unknown" id="backendDot"></span>
             <span class="status-name">Sandbox</span>
-            <span class="status-val hidden" id="backendStatusText">Checking...</span>
           </div>
           <button type="button" class="status-refresh-btn" id="refreshStatusBtn" title="Refresh system status" aria-label="Refresh system status">
             <svg width="12" height="12"><use href="#icon-reset" /></svg>

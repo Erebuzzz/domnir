@@ -199,3 +199,62 @@ class ContainmentStatusResponse(BaseModel):
     execution_source: str
     timestamp: str
 
+
+class RagnarokFalsifyRequest(BaseModel):
+    spec: FlightSpec = Field(default_factory=FlightSpec)
+    controller_source: str
+    budget: int = Field(default=12, ge=2, le=30)
+    strategy: str = Field(default="differential_evolution", pattern="^(differential_evolution|sobol|compare)$")
+    seed: int = Field(default=42, ge=0)
+
+
+class RagnarokFalsifyResponse(BaseModel):
+    strategy: str
+    evaluations_count: int
+    first_violation_iteration: int | None
+    violations_found: int
+    min_robustness: float
+    best_scenario: dict[str, Any]
+    critical_witness: dict[str, Any] | None = None
+    comparison: dict[str, Any] | None = None
+    summary: str
+
+
+class RagnarokMinimizeRequest(BaseModel):
+    spec: FlightSpec = Field(default_factory=FlightSpec)
+    controller_source: str
+    witness_scenario: dict[str, Any]
+    max_evaluations: int = Field(default=12, ge=2, le=25)
+
+
+class RagnarokMinimizeResponse(BaseModel):
+    original_scenario: dict[str, Any]
+    minimized_scenario: dict[str, Any]
+    original_robustness: float
+    minimized_robustness: float
+    original_cost: float
+    minimized_cost: float
+    cost_reduction_ratio: float
+    evaluations_used: int
+    predicate_preserved: bool
+    summary: str
+
+
+class RagnarokRepairRequest(BaseModel):
+    spec: FlightSpec = Field(default_factory=FlightSpec)
+    controller_source: str
+    witness_scenario: dict[str, Any]
+    model: str | None = None
+    reasoning_effort: str | None = None
+    max_revisions: int = Field(default=2, ge=1, le=3)
+
+
+class RagnarokRepairResponse(BaseModel):
+    outcome: str
+    repaired_controller_source: str | None = None
+    repaired_source_sha256: str | None = None
+    total_revisions_attempted: int
+    history: list[dict[str, Any]] = Field(default_factory=list)
+    summary: str
+
+

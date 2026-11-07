@@ -1839,6 +1839,12 @@
 
     let isDawn = document.documentElement.classList.contains("rune-dawn");
 
+    const ditherRuneImg = new Image();
+    ditherRuneImg.src = "/assets/ragnarok_rune_dither.jpg";
+    ditherRuneImg.onload = () => {
+      renderLandscapeBuffer();
+    };
+
     const particleCount = 48;
     const particles = [];
 
@@ -1994,6 +2000,19 @@
         const runeCenterX = width * 0.50;
         const runeCenterY = height * 0.36;
         const R = Math.min(width * 0.12, 108);
+
+        // Draw Authentic Dithered Celestial Great Rune background asset when loaded
+        if (ditherRuneImg && ditherRuneImg.complete && ditherRuneImg.naturalWidth > 0) {
+          bg.save();
+          const imgAspect = ditherRuneImg.naturalWidth / ditherRuneImg.naturalHeight;
+          const targetH = Math.min(height * 0.90, 820);
+          const targetW = targetH * imgAspect;
+          const targetX = (width - targetW) / 2;
+          const targetY = (height - targetH) * 0.36;
+          bg.globalAlpha = 0.52;
+          bg.drawImage(ditherRuneImg, targetX, targetY, targetW, targetH);
+          bg.restore();
+        }
 
         bg.save();
 

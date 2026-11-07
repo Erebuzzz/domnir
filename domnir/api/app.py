@@ -25,11 +25,28 @@ from domnir.api.models import (
     HealthResponse,
     ModelInfo,
     ModelsResponse,
+    RagnarokFalsifyRequest,
+    RagnarokFalsifyResponse,
+    RagnarokMinimizeRequest,
+    RagnarokMinimizeResponse,
+    RagnarokRepairRequest,
+    RagnarokRepairResponse,
     ReadyResponse,
     RunExperimentRequest,
     SpecValidationRequest,
     SpecValidationResponse,
 )
+from domnir.contracts.stl import SafetyContract, STLMonitor, STLRobustnessResult
+from domnir.ragnarok.minimize import CounterexampleMinimizer
+from domnir.ragnarok.repair import AutonomousRepairEngine
+from domnir.ragnarok.search import (
+    DifferentialEvolutionFalsifier,
+    RagnarokSearchSpace,
+    ScenarioParameter,
+    SobolBaselineFalsifier,
+    compare_falsification_policies,
+)
+from domnir.spec import FlightSpec, GeneratedController
 from domnir.api.security import (
     PayloadTooLargeError,
     RateLimitMiddleware,
@@ -342,6 +359,164 @@ def run_containment_endpoint(request: Request) -> ContainmentStatusResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Containment execution error: {err}",
         )
+
+
+def _evaluate_scenario_with_orchestrator(
+    spec: FlightSpec,
+    controller_source: str,
+    scenario: ScenarioParameter,
+) -> STLRobustnessResult:
+    contract = SafetyContract.from_flight_spec(spec)
+    ctrl = GeneratedController.from_source(controller_source, model_id="candidate")
+    job = orchestrator.create_job(
+        RunExperimentRequest(
+            spec=spec,
+            controller=ctrl,
+            initial_altitude_m=scenario.initial_altitude_m,
+            vertical_disturbance_n=scenario.disturbance_force_z,
+            steps=contract.physics_steps,
+        )
+    )
+    orchestrator.execute_job(job)
+    return STLMonitor.evaluate_trajectory(contract, job.trajectory)
+
+
+@app.post("/ragnarok/falsify", response_model=RagnarokFalsifyResponse)
+def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsifyResponse:
+    try:
+        ctrl = GeneratedController.from_source(request.controller_source, model_id="candidate")
+        contract = SafetyContract.from_flight_spec(request.spec)
+        space = RagnarokSearchSpace.from_contract(contract)
+
+        def eval_fn(s: ScenarioParameter) -> STLRobustnessResult:
+            return _evaluate_scenario_with_orchestrator(request.spec, ctrl.source_code, s)
+
+        if request.strategy == "compare":
+            comp = compare_falsification_policies(space, eval_fn, evaluations_budget=request.budget, seed=request.seed)
+            return RagnarokFalsifyResponse(
+                strategy="compare",
+                evaluations_count=request.budget * 2,
+                first_violation_iteration=comp["differential_evolution"]["first_violation"],
+                violations_found=comp["differential_evolution"]["violations_found"],
+                min_robustness=comp["differential_evolution"]["min_robustness"],
+                best_scenario={"strategy": "comparison"},
+                comparison=comp,
+                summary=f"Compared DE vs Sobol on budget {request.budget}. Efficiency ratio: {comp['discovery_efficiency_ratio']}",
+            )
+        elif request.strategy == "sobol":
+            falsifier = SobolBaselineFalsifier(space, seed=request.seed)
+            res = falsifier.run(eval_fn, max_evaluations=request.budget)
+        else:
+            falsifier = DifferentialEvolutionFalsifier(space, seed=request.seed)
+            res = falsifier.run(eval_fn, max_evaluations=request.budget)
+
+        witness_dict = None
+        if res.critical_witness is not None:
+            witness_dict = {
+                "iteration": res.critical_witness.iteration,
+                "scenario": res.critical_witness.scenario.model_dump(),
+                "robustness": res.critical_witness.robustness,
+                "critical_predicate": res.critical_witness.critical_predicate,
+                "critical_time_s": res.critical_witness.critical_time_s,
+            }
+
+        return RagnarokFalsifyResponse(
+            strategy=res.strategy,
+            evaluations_count=res.evaluations_count,
+            first_violation_iteration=res.first_violation_iteration,
+            violations_found=res.violations_found,
+            min_robustness=res.min_robustness,
+            best_scenario=res.best_scenario.model_dump(),
+            critical_witness=witness_dict,
+            summary=res.summary,
+        )
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@app.post("/ragnarok/minimize", response_model=RagnarokMinimizeResponse)
+def ragnarok_minimize_endpoint(request: RagnarokMinimizeRequest) -> RagnarokMinimizeResponse:
+    try:
+        ctrl = GeneratedController.from_source(request.controller_source, model_id="candidate")
+        witness_param = ScenarioParameter(**request.witness_scenario)
+        contract = SafetyContract.from_flight_spec(request.spec)
+
+        def eval_fn(s: ScenarioParameter) -> STLRobustnessResult:
+            return _evaluate_scenario_with_orchestrator(request.spec, ctrl.source_code, s)
+
+        minimizer = CounterexampleMinimizer(
+            target_altitude_m=contract.target_altitude_m,
+            max_evaluations=request.max_evaluations,
+        )
+        res = minimizer.minimize(witness_param, eval_fn)
+
+        return RagnarokMinimizeResponse(
+            original_scenario=res.original_scenario.model_dump(),
+            minimized_scenario=res.minimized_scenario.model_dump(),
+            original_robustness=res.original_robustness,
+            minimized_robustness=res.minimized_robustness,
+            original_cost=res.original_cost,
+            minimized_cost=res.minimized_cost,
+            cost_reduction_ratio=res.cost_reduction_ratio,
+            evaluations_used=res.evaluations_used,
+            predicate_preserved=res.predicate_preserved,
+            summary=res.summary,
+        )
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@app.post("/ragnarok/repair", response_model=RagnarokRepairResponse)
+def ragnarok_repair_endpoint(request: RagnarokRepairRequest) -> RagnarokRepairResponse:
+    try:
+        ctrl = GeneratedController.from_source(request.controller_source, model_id="candidate")
+        witness_param = ScenarioParameter(**request.witness_scenario)
+        contract = SafetyContract.from_flight_spec(request.spec)
+
+        def eval_ctrl(c: GeneratedController, s: ScenarioParameter) -> STLRobustnessResult:
+            return _evaluate_scenario_with_orchestrator(request.spec, c.source_code, s)
+
+        witness_res = eval_ctrl(ctrl, witness_param)
+        if witness_res.satisfied:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Witness scenario does not violate safety contract for this controller.",
+            )
+
+        repair_engine = AutonomousRepairEngine(
+            contract,
+            evaluator=eval_ctrl,
+            inference_client=orchestrator.inference_client,
+            max_revisions=request.max_revisions,
+        )
+        res = repair_engine.run_repair(ctrl, witness_param, witness_res)
+
+        history_records = [
+            {
+                "revision": h.revision_number,
+                "source_sha256": h.source_sha256,
+                "passed_known_failure": h.passed_known_failure,
+                "passed_nominal": h.passed_nominal,
+                "passed_holdout": h.passed_holdout,
+                "holdout_pass_rate": h.holdout_pass_rate,
+                "accepted": h.accepted,
+                "rejection_reason": h.rejection_reason,
+            }
+            for h in res.history
+        ]
+
+        return RagnarokRepairResponse(
+            outcome=res.outcome,
+            repaired_controller_source=res.repaired_controller.source_code if res.repaired_controller else None,
+            repaired_source_sha256=res.repaired_controller.source_sha256 if res.repaired_controller else None,
+            total_revisions_attempted=res.total_revisions_attempted,
+            history=history_records,
+            summary=res.summary,
+        )
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
