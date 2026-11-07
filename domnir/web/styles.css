@@ -29,7 +29,7 @@ html.rune-dusk {
   --glass-bg: linear-gradient(135deg, rgba(10, 15, 27, 0.82) 0%, rgba(6, 9, 18, 0.90) 100%);
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-border-specular: rgba(255, 255, 255, 0.24);
-  --glass-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 24px -6px rgba(6, 182, 212, 0.12);
+  --glass-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.88), 0 6px 18px -4px rgba(0, 0, 0, 0.95), 0 0 1px 1px rgba(255, 255, 255, 0.08);
   --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
   --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 70%);
 
@@ -40,11 +40,12 @@ html.rune-dusk {
   --radius-md: 6px;
   --radius-lg: 10px;
 
-  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.60);
+  --shadow-card: 0 18px 44px -8px rgba(0, 0, 0, 0.86), 0 6px 16px -3px rgba(0, 0, 0, 0.92), 0 0 1px 1px rgba(255, 255, 255, 0.06);
   --shadow-elevation-0: none;
-  --shadow-elevation-1: 0 4px 16px -2px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(56, 189, 248, 0.05);
-  --shadow-elevation-2: 0 10px 28px -4px rgba(0, 0, 0, 0.80), 0 0 16px -2px rgba(6, 182, 212, 0.14);
-  --shadow-elevation-3: 0 20px 48px -8px rgba(0, 0, 0, 0.90), 0 0 28px -4px rgba(56, 189, 248, 0.18);
+  --shadow-elevation-1: 0 4px 14px -2px rgba(0, 0, 0, 0.70), 0 2px 6px rgba(0, 0, 0, 0.80);
+  --shadow-elevation-2: 0 12px 32px -4px rgba(0, 0, 0, 0.85), 0 4px 12px -2px rgba(0, 0, 0, 0.90);
+  --shadow-elevation-3: 0 24px 60px -8px rgba(0, 0, 0, 0.92), 0 8px 24px -4px rgba(0, 0, 0, 0.95);
+  --shadow-btn: 0 4px 12px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.60);
 
   --chart-bg: #030509;
   --code-bg: #04060a;
@@ -74,15 +75,16 @@ html.rune-dawn {
   --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
   --glass-border: rgba(15, 23, 42, 0.14);
   --glass-border-specular: rgba(255, 255, 255, 0.98);
-  --glass-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.08), 0 0 24px -6px rgba(234, 88, 12, 0.06);
+  --glass-shadow: 0 20px 44px -8px rgba(15, 23, 42, 0.16), 0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 0 1px rgba(15, 23, 42, 0.08);
   --caustic-glow-amber: radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.12) 0%, transparent 70%);
   --caustic-glow-cyan: radial-gradient(circle at 50% 0%, rgba(2, 132, 199, 0.10) 0%, transparent 70%);
 
-  --shadow-card: 0 8px 28px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 18px 40px -8px rgba(15, 23, 42, 0.14), 0 5px 14px -4px rgba(15, 23, 42, 0.10);
   --shadow-elevation-0: none;
-  --shadow-elevation-1: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.03);
-  --shadow-elevation-2: 0 10px 28px -4px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.05);
-  --shadow-elevation-3: 0 20px 48px -8px rgba(15, 23, 42, 0.14), 0 8px 16px rgba(15, 23, 42, 0.07);
+  --shadow-elevation-1: 0 4px 14px -2px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
+  --shadow-elevation-2: 0 12px 30px -4px rgba(15, 23, 42, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+  --shadow-elevation-3: 0 24px 54px -8px rgba(15, 23, 42, 0.20), 0 8px 20px -4px rgba(15, 23, 42, 0.12);
+  --shadow-btn: 0 4px 12px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
 
   --chart-bg: #111827;
   --code-bg: #0f172a;
@@ -119,22 +121,22 @@ html.rune-dawn body {
     radial-gradient(rgba(234, 88, 12, 0.03) 1px, transparent 1px);
 }
 
-/* Bayer Matrix Dither Overlay Texture (Authentic 8x8 Ordered Halftone) */
+/* Bayer Matrix Dither Overlay Texture (Authentic Ordered Halftone) */
 .dither-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.22;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Crect x='0' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.16'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.45'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.28'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.55'/%3E%3Crect x='0' y='4' width='1' height='1' fill='%23ffffff' fill-opacity='0.38'/%3E%3Crect x='4' y='4' width='1' height='1' fill='%23ffffff' fill-opacity='0.10'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23ffffff' fill-opacity='0.50'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%23ffffff' fill-opacity='0.22'/%3E%3C/svg%3E");
+  opacity: 0.72;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.06'/%3E%3Crect x='1' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.33'/%3E%3Crect x='2' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.13'/%3E%3Crect x='3' y='0' width='1' height='1' fill='%23ffffff' fill-opacity='0.39'/%3E%3Crect x='0' y='1' width='1' height='1' fill='%23ffffff' fill-opacity='0.46'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23ffffff' fill-opacity='0.19'/%3E%3Crect x='2' y='1' width='1' height='1' fill='%23ffffff' fill-opacity='0.53'/%3E%3Crect x='3' y='1' width='1' height='1' fill='%23ffffff' fill-opacity='0.26'/%3E%3Crect x='0' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.16'/%3E%3Crect x='1' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.43'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.09'/%3E%3Crect x='3' y='2' width='1' height='1' fill='%23ffffff' fill-opacity='0.36'/%3E%3Crect x='0' y='3' width='1' height='1' fill='%23ffffff' fill-opacity='0.56'/%3E%3Crect x='1' y='3' width='1' height='1' fill='%23ffffff' fill-opacity='0.29'/%3E%3Crect x='2' y='3' width='1' height='1' fill='%23ffffff' fill-opacity='0.49'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%23ffffff' fill-opacity='0.23'/%3E%3C/svg%3E");
   background-size: 8px 8px;
   background-repeat: repeat;
   image-rendering: pixelated;
 }
 
 html.rune-dawn .dither-overlay {
-  opacity: 0.16;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Crect x='0' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.16'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.42'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.26'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.52'/%3E%3Crect x='0' y='4' width='1' height='1' fill='%230f172a' fill-opacity='0.36'/%3E%3Crect x='4' y='4' width='1' height='1' fill='%230f172a' fill-opacity='0.10'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%230f172a' fill-opacity='0.48'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%230f172a' fill-opacity='0.20'/%3E%3C/svg%3E");
+  opacity: 0.48;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.06'/%3E%3Crect x='1' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.29'/%3E%3Crect x='2' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.12'/%3E%3Crect x='3' y='0' width='1' height='1' fill='%230f172a' fill-opacity='0.35'/%3E%3Crect x='0' y='1' width='1' height='1' fill='%230f172a' fill-opacity='0.41'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%230f172a' fill-opacity='0.18'/%3E%3Crect x='2' y='1' width='1' height='1' fill='%230f172a' fill-opacity='0.47'/%3E%3Crect x='3' y='1' width='1' height='1' fill='%230f172a' fill-opacity='0.24'/%3E%3Crect x='0' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.15'/%3E%3Crect x='1' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.38'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.09'/%3E%3Crect x='3' y='2' width='1' height='1' fill='%230f172a' fill-opacity='0.32'/%3E%3Crect x='0' y='3' width='1' height='1' fill='%230f172a' fill-opacity='0.5'/%3E%3Crect x='1' y='3' width='1' height='1' fill='%230f172a' fill-opacity='0.27'/%3E%3Crect x='2' y='3' width='1' height='1' fill='%230f172a' fill-opacity='0.44'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%230f172a' fill-opacity='0.21'/%3E%3C/svg%3E");
 }
 
 /* Procedural Dithered Atmospheric Canvas */
@@ -145,7 +147,7 @@ html.rune-dawn .dither-overlay {
   height: 100vh;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.85;
+  opacity: 0.35;
   transition: opacity 0.5s ease;
 }
 
@@ -176,11 +178,15 @@ html.rune-dawn .norse-knotwork-watermark {
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border-bottom: 1px solid var(--glass-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.50);
   padding: 0.85rem 1.75rem;
   position: relative;
   z-index: 10;
   transition: all 0.3s ease;
+}
+
+html.rune-dawn .app-header {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .header-container {
@@ -379,9 +385,14 @@ html.rune-dawn .brand-logo-img {
 .nav-tabs {
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   padding: 0 1.75rem;
   position: relative;
   z-index: 9;
+}
+
+html.rune-dawn .nav-tabs {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
 }
 
 .nav-container {
@@ -682,6 +693,7 @@ html.rune-dusk .nav-tab.active .tab-icon {
   transition: all 0.2s ease;
   border: 1px solid transparent;
   white-space: nowrap;
+  box-shadow: var(--shadow-btn);
 }
 
 .btn-sm {
@@ -3594,6 +3606,7 @@ html.rune-dawn .doc-context-link {
   border-top: 2px solid rgba(234, 88, 12, 0.5);
   background: linear-gradient(180deg, rgba(234, 88, 12, 0.05) 0%, var(--bg-card) 60px);
   position: relative;
+  box-shadow: var(--shadow-card);
 }
 
 html.rune-dawn .ragnarok-arena-card {
@@ -3653,6 +3666,7 @@ html.rune-dawn .badge-ragnarok {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevation-1);
   padding: 16px;
   margin-bottom: 18px;
 }
@@ -3746,6 +3760,7 @@ html.rune-dawn .strategy-pill.active {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevation-1);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -3771,6 +3786,7 @@ html.rune-dawn .strategy-pill.active {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevation-1);
   padding: 16px;
   margin-bottom: 18px;
 }
@@ -3941,6 +3957,7 @@ html.rune-dawn .atlas-tooltip {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevation-1);
   padding: 16px;
   display: flex;
   flex-direction: column;

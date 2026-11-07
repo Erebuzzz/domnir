@@ -1899,7 +1899,7 @@
       renderLandscapeBuffer();
     };
 
-    const particleCount = 48;
+    const particleCount = 24;
     const particles = [];
 
     function initParticles() {
@@ -1908,11 +1908,11 @@
         particles.push({
           x: Math.random() * (width || 800),
           y: Math.random() * (height || 600),
-          size: 1.0 + Math.random() * 2.2,
-          speed: 0.35 + Math.random() * 0.7,
-          drift: (Math.random() - 0.5) * 0.35,
-          opacity: 0.2 + Math.random() * 0.6,
-          pulseSpeed: 0.02 + Math.random() * 0.03,
+          size: 0.8 + Math.random() * 1.6,
+          speed: 0.20 + Math.random() * 0.45,
+          drift: (Math.random() - 0.5) * 0.25,
+          opacity: 0.10 + Math.random() * 0.28,
+          pulseSpeed: 0.015 + Math.random() * 0.025,
           pulsePhase: Math.random() * Math.PI * 2,
         });
       }
@@ -2038,32 +2038,30 @@
 
         bg.restore();
       } else {
-        // RUNE DUSK: BLAZING ELDEN RING CELESTIAL GREAT RUNE & VOLCANIC DITHER
+        // RUNE DUSK: LOW-BRIGHTNESS ATMOSPHERIC VOID & PROMINENT STIPPLE DITHER
         const skyGrad = bg.createLinearGradient(0, 0, 0, height);
-        skyGrad.addColorStop(0, "#050103");
-        skyGrad.addColorStop(0.25, "#140307");
-        skyGrad.addColorStop(0.48, "#2d050a");
-        skyGrad.addColorStop(0.66, "#550b11");
-        skyGrad.addColorStop(0.74, "#7f1d1d");
-        skyGrad.addColorStop(0.82, "#35080c");
-        skyGrad.addColorStop(1.0, "#070104");
+        skyGrad.addColorStop(0, "#010204");
+        skyGrad.addColorStop(0.35, "#040711");
+        skyGrad.addColorStop(0.65, "#070c18");
+        skyGrad.addColorStop(0.85, "#0a1122");
+        skyGrad.addColorStop(1.0, "#020306");
         bg.fillStyle = skyGrad;
         bg.fillRect(0, 0, width, height);
 
-        // Blazing Elden Ring Celestial Great Rune
+        // Subdued Celestial Runic Compass
         const runeCenterX = width * 0.50;
         const runeCenterY = height * 0.36;
         const R = Math.min(width * 0.12, 108);
 
-        // Draw Authentic Dithered Celestial Great Rune background asset when loaded
+        // Draw Authentic Dithered Celestial Great Rune background asset with low brightness
         if (ditherRuneImg && ditherRuneImg.complete && ditherRuneImg.naturalWidth > 0) {
           bg.save();
           const imgAspect = ditherRuneImg.naturalWidth / ditherRuneImg.naturalHeight;
-          const targetH = Math.min(height * 0.90, 820);
+          const targetH = Math.min(height * 0.85, 760);
           const targetW = targetH * imgAspect;
           const targetX = (width - targetW) / 2;
           const targetY = (height - targetH) * 0.36;
-          bg.globalAlpha = 0.52;
+          bg.globalAlpha = 0.22;
           bg.drawImage(ditherRuneImg, targetX, targetY, targetW, targetH);
           bg.restore();
         }
@@ -2071,7 +2069,7 @@
         bg.save();
 
         // Stippled Dither Clouds around the Great Rune
-        bg.fillStyle = "rgba(239, 68, 68, 0.20)";
+        bg.fillStyle = "rgba(56, 189, 248, 0.12)";
         const ditherStep = 10;
         for (let dx = runeCenterX - R * 2.2; dx < runeCenterX + R * 2.2; dx += ditherStep) {
           for (let dy = runeCenterY - R * 1.8; dy < runeCenterY + R * 2.2; dy += ditherStep) {
@@ -2082,7 +2080,7 @@
           }
         }
 
-        // Multi-Pass Glowing Molten Arc Geometry
+        // Multi-Pass Low-Brightness Arc Geometry
         function drawRunePass(strokeCol, lineW, shadowBlur, shadowCol) {
           bg.save();
           bg.strokeStyle = strokeCol;
@@ -2092,14 +2090,14 @@
             bg.shadowColor = shadowCol;
           }
 
-          // 1. Top Inverted Molten Basin & Vertical Ray Conduit
+          // 1. Top Inverted Basin & Vertical Ray Conduit
           bg.beginPath();
           const basinY = runeCenterY - R * 1.52;
           bg.moveTo(runeCenterX - R * 0.65, basinY - 6);
           bg.quadraticCurveTo(runeCenterX, basinY + 14, runeCenterX + R * 0.65, basinY - 6);
           bg.stroke();
 
-          // Vertical Molten Spear Conduit through the center
+          // Vertical Spear Conduit through the center
           bg.beginPath();
           bg.moveTo(runeCenterX, basinY);
           bg.lineTo(runeCenterX, runeCenterY + R * 1.55);
@@ -2137,16 +2135,14 @@
           bg.restore();
         }
 
-        // Pass 1: Volcanic Crimson Radiance
-        drawRunePass("rgba(220, 38, 38, 0.42)", 16, 28, "#dc2626");
-        // Pass 2: Blazing Molten Ember
-        drawRunePass("rgba(249, 115, 22, 0.85)", 5.5, 14, "#f97316");
-        // Pass 3: Radiant Core Golden Fire
-        drawRunePass("rgba(254, 240, 138, 0.98)", 1.8, 4, "#fef08a");
+        // Low-Brightness Atmospheric Passes
+        drawRunePass("rgba(234, 88, 12, 0.16)", 6, 10, "#ea580c");
+        drawRunePass("rgba(249, 115, 22, 0.28)", 2.4, 5, "#f97316");
+        drawRunePass("rgba(254, 215, 170, 0.40)", 1.0, 2, "#fed7aa");
 
         // Jagged Volcanic Crags (Bottom Silhouette)
         const waterY = height * 0.76;
-        bg.fillStyle = "#070204";
+        bg.fillStyle = "#020306";
         bg.beginPath();
         bg.moveTo(0, waterY);
         const volcanicPeaks = [
@@ -2169,7 +2165,7 @@
         bg.fill();
 
         // Molten Lava Reflection Ripples
-        bg.fillStyle = "rgba(249, 115, 22, 0.35)";
+        bg.fillStyle = "rgba(234, 88, 12, 0.14)";
         for (let wy = waterY + 4; wy < height; wy += 8) {
           const waveSpan = width * 0.36;
           const startX = width * 0.32 + (Math.sin(wy * 0.1) * 20);
@@ -2965,16 +2961,36 @@
       fillLight.position.set(-2.0, 1.0, -1.5);
       scene.add(fillLight);
 
-      const shadowGeo = new THREE.CircleGeometry(0.08, 32);
+      function createCrazyflieContactShadowTexture() {
+        const shadowCanvas = document.createElement("canvas");
+        shadowCanvas.width = 128;
+        shadowCanvas.height = 128;
+        const sCtx = shadowCanvas.getContext("2d");
+        const grad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        grad.addColorStop(0, "rgba(0, 0, 0, 0.95)");
+        grad.addColorStop(0.25, "rgba(0, 0, 0, 0.78)");
+        grad.addColorStop(0.50, "rgba(0, 0, 0, 0.42)");
+        grad.addColorStop(0.75, "rgba(0, 0, 0, 0.16)");
+        grad.addColorStop(0.92, "rgba(0, 0, 0, 0.04)");
+        grad.addColorStop(1.0, "rgba(0, 0, 0, 0.0)");
+        sCtx.fillStyle = grad;
+        sCtx.fillRect(0, 0, 128, 128);
+        const tex = new THREE.CanvasTexture(shadowCanvas);
+        tex.needsUpdate = true;
+        return tex;
+      }
+      const shadowTex = createCrazyflieContactShadowTexture();
+      const shadowGeo = new THREE.PlaneGeometry(0.24, 0.24);
       shadowGeo.rotateX(-Math.PI / 2);
       const shadowMat = new THREE.MeshBasicMaterial({
+        map: shadowTex,
         color: 0x000000,
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.88,
         depthWrite: false
       });
       const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-      shadowMesh.position.y = -0.015;
+      shadowMesh.position.y = -0.014;
       scene.add(shadowMesh);
 
       // 3D Ground Metric Grid and XYZ Spatial Axes
@@ -3008,8 +3024,8 @@
           keyLight.position.set(1.5, 3.0, 2.0);
           fillLight.color.setHex(0xdfba96);
           fillLight.intensity = 0.8;
-          shadowMat.color.setHex(0x422006);
-          shadowMat.opacity = 0.32;
+          shadowMat.color.setHex(0x1a0d04);
+          shadowMat.opacity = 0.75;
         } else {
           ambientLight.color.setHex(0x162238);
           ambientLight.intensity = 1.0;
@@ -3019,8 +3035,8 @@
           fillLight.color.setHex(0x38bdf8);
           fillLight.intensity = 1.6;
           fillLight.position.set(-2.5, 1.5, -2.0);
-          shadowMat.color.setHex(0x020617);
-          shadowMat.opacity = 0.55;
+          shadowMat.color.setHex(0x000000);
+          shadowMat.opacity = 0.88;
         }
       }
 
@@ -3172,9 +3188,11 @@
         camera.position.y = defaultCamPos.y + sceneY;
         controls.update();
 
-        const shadowScale = Math.max(0.4, 1.0 - (altM - 0.05) * 1.5);
+        shadowMesh.position.x = droneModel.position.x;
+        shadowMesh.position.z = droneModel.position.z;
+        const shadowScale = Math.max(0.6, 1.0 + Math.max(0, altM - 0.05) * 1.5);
         shadowMesh.scale.set(shadowScale, shadowScale, shadowScale);
-        shadowMat.opacity = Math.max(0.1, 0.45 * shadowScale);
+        shadowMat.opacity = Math.max(0.18, 0.85 / (1.0 + Math.max(0, altM - 0.05) * 3.5));
 
         const thrust = pt.action && pt.action.length > 0 ? pt.action[0] : (pt.thrust || 0.26);
         const spinDelta = (thrust / 0.26) * 0.35;
@@ -3246,6 +3264,11 @@
           if (rotorRL) rotorRL.rotation.y -= 0.18;
         }
 
+        if (droneModel) {
+          shadowMesh.position.x = droneModel.position.x;
+          shadowMesh.position.z = droneModel.position.z;
+        }
+
         controls.update();
         renderer.render(scene, camera);
       }
@@ -3257,6 +3280,8 @@
           controls.target.copy(defaultTarget);
           camera.position.copy(defaultCamPos);
           controls.update();
+          shadowMesh.position.set(0, -0.014, 0);
+          shadowMesh.scale.set(1, 1, 1);
           if (droneModel && !isReplaying) {
             droneModel.rotation.set(0, 0, 0);
             droneModel.position.set(0, 0, 0);
@@ -3321,7 +3346,7 @@
           camera.position.copy(defaultCamPos);
           controls.update();
           shadowMesh.scale.set(1, 1, 1);
-          shadowMat.opacity = 0.35;
+          shadowMat.opacity = document.documentElement.classList.contains("rune-dawn") ? 0.75 : 0.88;
         },
         setStep: (idx, traj) => {
           if (isReplaying) {
