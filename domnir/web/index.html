@@ -873,6 +873,205 @@
                   </div>
                 </div>
 
+                <!-- RAGNAROK ADVERSARIAL ARENA & FAILURE ATLAS CARD -->
+                <div class="card ragnarok-arena-card" id="ragnarokArenaCard">
+                  <div class="card-header ragnarok-arena-header">
+                    <div class="card-header-icon arena-header-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </div>
+                    <div class="arena-header-text">
+                      <div class="arena-header-badge-row">
+                        <span class="badge badge-ragnarok">RAGNAROK ADVERSARIAL ARENA</span>
+                        <span class="badge badge-outline" id="arenaStatusBadge">READY</span>
+                      </div>
+                      <h3 class="card-title">Adaptive Falsification Search &amp; Failure Atlas</h3>
+                      <p class="card-subtitle">Differential evolution boundary discovery, 1-minimal counterexample reduction, and holdout-gated CEGIS repair</p>
+                    </div>
+                  </div>
+
+                  <div class="card-body">
+                    <!-- CONTROLS PANEL -->
+                    <div class="arena-controls-panel">
+                      <div class="arena-control-col">
+                        <label class="control-label">Search Strategy</label>
+                        <div class="strategy-pill-group" role="radiogroup" aria-label="Falsification Strategy">
+                          <button type="button" class="strategy-pill active" data-strategy="differential_evolution" id="stratPillDE">
+                            Differential Evolution
+                          </button>
+                          <button type="button" class="strategy-pill" data-strategy="sobol" id="stratPillSobol">
+                            Sobol Quasi-Random
+                          </button>
+                          <button type="button" class="strategy-pill" data-strategy="compare" id="stratPillCompare">
+                            Benchmark Compare
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="arena-control-col budget-col">
+                        <div class="budget-label-row">
+                          <label for="ragnarokBudgetInput" class="control-label">Evaluation Budget</label>
+                          <span class="budget-val-display font-mono" id="ragnarokBudgetValue">12 trials</span>
+                        </div>
+                        <input type="range" id="ragnarokBudgetInput" class="form-range" min="4" max="24" step="1" value="12" aria-label="Evaluation Budget Slider">
+                      </div>
+
+                      <div class="arena-control-col actions-col">
+                        <label class="control-label">Campaign Actions</label>
+                        <div class="arena-btn-group">
+                          <button type="button" class="btn btn-primary" id="runFalsifyBtn">
+                            <span class="btn-spinner hidden" id="falsifySpinner"></span>
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Launch Adversarial Search
+                          </button>
+                          <button type="button" class="btn btn-outline" id="runMinimizeBtn" disabled title="Finds 1-minimal coordinate perturbation for critical witness">
+                            <span class="btn-spinner hidden" id="minimizeSpinner"></span>
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                            1-Minimal Reduction
+                          </button>
+                          <button type="button" class="btn btn-outline" id="runRepairBtn" disabled title="Autonomous counterexample-guided repair with 5-case holdout suite gating">
+                            <span class="btn-spinner hidden" id="repairSpinner"></span>
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            Autonomous CEGIS Repair
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- CAMPAIGN METRICS BAR -->
+                    <div class="atlas-metrics-bar">
+                      <div class="atlas-metric-col">
+                        <span class="atlas-metric-label">Trials Evaluated</span>
+                        <span class="atlas-metric-num font-mono" id="atlasMetricTrials">0</span>
+                      </div>
+                      <div class="atlas-metric-col">
+                        <span class="atlas-metric-label">Violations Found</span>
+                        <span class="atlas-metric-num font-mono" id="atlasMetricViolations">0</span>
+                      </div>
+                      <div class="atlas-metric-col">
+                        <span class="atlas-metric-label">Min Robustness (&rho;<sub>min</sub>)</span>
+                        <span class="atlas-metric-num font-mono" id="atlasMetricMinRobustness">---</span>
+                      </div>
+                      <div class="atlas-metric-col">
+                        <span class="atlas-metric-label">Discovery Speedup Ratio</span>
+                        <span class="atlas-metric-num font-mono" id="atlasMetricSpeedup">1.00x</span>
+                      </div>
+                    </div>
+
+                    <!-- FAILURE ATLAS SVG CONTAINER -->
+                    <div class="failure-atlas-container" id="failureAtlasContainer">
+                      <div class="atlas-chart-header">
+                        <div>
+                          <h4 class="atlas-chart-title">Failure Atlas &bull; Admissible Disturbance vs. Initial Altitude</h4>
+                          <p class="atlas-chart-subtitle">X-axis: Vertical Disturbance Force (N) &bull; Y-axis: Initial Altitude (m) &bull; Hover points for candidate telemetry</p>
+                        </div>
+                        <div class="atlas-legend">
+                          <span class="legend-item"><span class="legend-dot dot-satisfied"></span> Satisfied (&rho; &gt; 0)</span>
+                          <span class="legend-item"><span class="legend-dot dot-violated"></span> Violated Witness (&rho; &le; 0)</span>
+                          <span class="legend-item"><span class="legend-dot dot-minimized"></span> 1-Minimal Witness</span>
+                        </div>
+                      </div>
+
+                      <div class="failure-atlas-wrapper" id="failureAtlasWrapper">
+                        <svg id="failureAtlasSvg" class="failure-atlas-svg" viewBox="0 0 760 320" preserveAspectRatio="none" aria-label="Ragnarok Failure Atlas Scatter Plot">
+                          <rect width="100%" height="100%" fill="var(--chart-bg)" />
+                          <text x="380" y="160" fill="#64748b" text-anchor="middle" font-family="monospace" font-size="13">Launch Adversarial Search to map the physical failure boundary</text>
+                        </svg>
+                        <div id="atlasTooltip" class="atlas-tooltip hidden"></div>
+                      </div>
+                    </div>
+
+                    <!-- WITNESS & REPAIR 2-COLUMN GRID -->
+                    <div class="ragnarok-subgrid">
+                      <!-- WITNESS INSPECTOR CARD -->
+                      <div class="card-subpanel witness-inspector-card" id="witnessInspectorCard">
+                        <div class="subpanel-header">
+                          <span class="subpanel-icon subpanel-icon-danger">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          </span>
+                          <div>
+                            <h4 class="subpanel-title">Critical Violation Witness</h4>
+                            <p class="subpanel-subtitle">Worst-case adversarial parameter point breaking safety contract</p>
+                          </div>
+                        </div>
+                        <div class="witness-details-body" id="witnessDetailsBody">
+                          <p class="witness-empty-text" id="witnessEmptyText">No violation witness discovered yet. Controller complies with all tested scenarios.</p>
+                          <div class="witness-data-grid hidden" id="witnessDataGrid">
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Breach Predicate</span>
+                              <span class="witness-stat-val font-mono" id="witnessPredicate">---</span>
+                            </div>
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Critical Timestamp</span>
+                              <span class="witness-stat-val font-mono" id="witnessTimestamp">---</span>
+                            </div>
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Physical Robustness Margin</span>
+                              <span class="witness-stat-val font-mono" id="witnessMargin">---</span>
+                            </div>
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Adversarial Disturbance</span>
+                              <span class="witness-stat-val font-mono" id="witnessDisturbance">---</span>
+                            </div>
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Initial Altitude</span>
+                              <span class="witness-stat-val font-mono" id="witnessAltitude">---</span>
+                            </div>
+                            <div class="witness-stat">
+                              <span class="witness-stat-label">Minimization Reduction</span>
+                              <span class="witness-stat-val font-mono" id="witnessCostReduction">---</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- REPAIR STATUS & CONTROLLER DIFF CARD -->
+                      <div class="card-subpanel repair-inspector-card" id="repairInspectorCard">
+                        <div class="subpanel-header">
+                          <span class="subpanel-icon subpanel-icon-repair">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          </span>
+                          <div>
+                            <h4 class="subpanel-title">Autonomous CEGIS Repair</h4>
+                            <p class="subpanel-subtitle">Synthesizes patch, re-evaluates witness, and gates via hidden holdout suite</p>
+                          </div>
+                        </div>
+                        <div class="repair-details-body" id="repairDetailsBody">
+                          <p class="repair-empty-text" id="repairEmptyText">Awaiting adversarial violation witness to initiate counterexample-guided repair.</p>
+                          <div class="repair-content-box hidden" id="repairContentBox">
+                            <div class="repair-status-box" id="repairStatusBox">
+                              <div class="repair-metric">
+                                <span class="repair-metric-label">Repair Outcome:</span>
+                                <span class="badge font-mono" id="repairOutcomeBadge">NOT RUN</span>
+                              </div>
+                              <div class="repair-metric">
+                                <span class="repair-metric-label">Holdout Pass Rate:</span>
+                                <span class="repair-metric-val font-mono" id="repairHoldoutRate">---</span>
+                              </div>
+                              <div class="repair-metric">
+                                <span class="repair-metric-label">Revisions Attempted:</span>
+                                <span class="repair-metric-val font-mono" id="repairRevisionsCount">0</span>
+                              </div>
+                            </div>
+                            <div class="repaired-code-view-container">
+                              <div class="code-view-header">
+                                <span class="code-view-title">Repaired Controller Source</span>
+                                <div class="code-view-actions">
+                                  <button type="button" class="btn btn-xs btn-outline" id="copyRepairedCodeBtn">Copy Code</button>
+                                  <button type="button" class="btn btn-xs btn-primary" id="loadRepairedCodeBtn">Load Into Step 2</button>
+                                </div>
+                              </div>
+                              <pre class="repaired-code-pre"><code id="repairedControllerSource" class="font-mono"># No repaired code generated yet.</code></pre>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
                 <!-- COURT RECORD EXPORT PANEL -->
                 <div class="court-export-bar">
                   <div class="export-left">

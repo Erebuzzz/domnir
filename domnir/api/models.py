@@ -216,6 +216,7 @@ class RagnarokFalsifyResponse(BaseModel):
     min_robustness: float
     best_scenario: dict[str, Any]
     critical_witness: dict[str, Any] | None = None
+    candidates: list[dict[str, Any]] = Field(default_factory=list)
     comparison: dict[str, Any] | None = None
     summary: str
 

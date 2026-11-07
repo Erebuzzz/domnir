@@ -420,6 +420,19 @@ def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsif
                 "critical_time_s": res.critical_witness.critical_time_s,
             }
 
+        candidates_data = [
+            {
+                "candidate_id": c.candidate_id,
+                "iteration": c.iteration,
+                "scenario": c.scenario.model_dump(),
+                "robustness": c.robustness,
+                "satisfied": c.satisfied,
+                "critical_predicate": c.critical_predicate,
+                "critical_time_s": c.critical_time_s,
+            }
+            for c in res.all_candidates
+        ]
+
         return RagnarokFalsifyResponse(
             strategy=res.strategy,
             evaluations_count=res.evaluations_count,
@@ -428,6 +441,7 @@ def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsif
             min_robustness=res.min_robustness,
             best_scenario=res.best_scenario.model_dump(),
             critical_witness=witness_dict,
+            candidates=candidates_data,
             summary=res.summary,
         )
     except Exception as err:

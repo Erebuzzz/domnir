@@ -16,6 +16,15 @@
     activeCourtRecord: null,
     activeTrajectory: [],
     pollTimer: null,
+    ragnarok: {
+      strategy: "differential_evolution",
+      budget: 12,
+      candidates: [],
+      criticalWitness: null,
+      minimizedWitness: null,
+      repairedResult: null,
+      discoverySpeedup: 1.0,
+    },
   };
 
   let droneViewer = null;
@@ -143,6 +152,51 @@
     verdictProvenance: document.getElementById("verdictProvenance"),
     verdictCleanup: document.getElementById("verdictCleanup"),
     adjudicationText: document.getElementById("adjudicationText"),
+
+    // Ragnarok Adversarial Arena & Failure Atlas
+    ragnarokArenaCard: document.getElementById("ragnarokArenaCard"),
+    arenaStatusBadge: document.getElementById("arenaStatusBadge"),
+    stratPillDE: document.getElementById("stratPillDE"),
+    stratPillSobol: document.getElementById("stratPillSobol"),
+    stratPillCompare: document.getElementById("stratPillCompare"),
+    stratPills: document.querySelectorAll(".strategy-pill"),
+    ragnarokBudgetInput: document.getElementById("ragnarokBudgetInput"),
+    ragnarokBudgetValue: document.getElementById("ragnarokBudgetValue"),
+    runFalsifyBtn: document.getElementById("runFalsifyBtn"),
+    falsifySpinner: document.getElementById("falsifySpinner"),
+    runMinimizeBtn: document.getElementById("runMinimizeBtn"),
+    minimizeSpinner: document.getElementById("minimizeSpinner"),
+    runRepairBtn: document.getElementById("runRepairBtn"),
+    repairSpinner: document.getElementById("repairSpinner"),
+    atlasMetricTrials: document.getElementById("atlasMetricTrials"),
+    atlasMetricViolations: document.getElementById("atlasMetricViolations"),
+    atlasMetricMinRobustness: document.getElementById("atlasMetricMinRobustness"),
+    atlasMetricSpeedup: document.getElementById("atlasMetricSpeedup"),
+    failureAtlasContainer: document.getElementById("failureAtlasContainer"),
+    failureAtlasWrapper: document.getElementById("failureAtlasWrapper"),
+    failureAtlasSvg: document.getElementById("failureAtlasSvg"),
+    atlasTooltip: document.getElementById("atlasTooltip"),
+    witnessInspectorCard: document.getElementById("witnessInspectorCard"),
+    witnessDetailsBody: document.getElementById("witnessDetailsBody"),
+    witnessEmptyText: document.getElementById("witnessEmptyText"),
+    witnessDataGrid: document.getElementById("witnessDataGrid"),
+    witnessPredicate: document.getElementById("witnessPredicate"),
+    witnessTimestamp: document.getElementById("witnessTimestamp"),
+    witnessMargin: document.getElementById("witnessMargin"),
+    witnessDisturbance: document.getElementById("witnessDisturbance"),
+    witnessAltitude: document.getElementById("witnessAltitude"),
+    witnessCostReduction: document.getElementById("witnessCostReduction"),
+    repairInspectorCard: document.getElementById("repairInspectorCard"),
+    repairDetailsBody: document.getElementById("repairDetailsBody"),
+    repairEmptyText: document.getElementById("repairEmptyText"),
+    repairContentBox: document.getElementById("repairContentBox"),
+    repairStatusBox: document.getElementById("repairStatusBox"),
+    repairOutcomeBadge: document.getElementById("repairOutcomeBadge"),
+    repairHoldoutRate: document.getElementById("repairHoldoutRate"),
+    repairRevisionsCount: document.getElementById("repairRevisionsCount"),
+    repairedControllerSource: document.getElementById("repairedControllerSource"),
+    copyRepairedCodeBtn: document.getElementById("copyRepairedCodeBtn"),
+    loadRepairedCodeBtn: document.getElementById("loadRepairedCodeBtn"),
 
     // Court Record Export
     downloadCourtRecordBtn: document.getElementById("downloadCourtRecordBtn"),
@@ -3358,6 +3412,563 @@
   }
 
   // ==========================================================================
+  // Ragnarok Adversarial Arena & Failure Atlas Logic (Stage I)
+  // ==========================================================================
+
+  function renderFailureAtlas(candidates, criticalWitness, minimizedWitness, spec) {
+    const svg = elements.failureAtlasSvg;
+    if (!svg) return;
+
+    if ((!candidates || candidates.length === 0) && !criticalWitness && !minimizedWitness) {
+      svg.innerHTML = `
+        <rect width="100%" height="100%" fill="var(--chart-bg)" />
+        <text x="380" y="160" fill="#64748b" text-anchor="middle" font-family="monospace" font-size="13">Launch Adversarial Search to map the physical failure boundary</text>
+      `;
+      return;
+    }
+
+    const width = 760;
+    const height = 320;
+    const padding = { top: 35, right: 35, bottom: 45, left: 65 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    // Disturbance force bounds (X axis)
+    let minForce = -0.15;
+    let maxForce = 0.15;
+    if (spec && typeof spec.disturbance_force_z_min === "number") {
+      minForce = Math.min(minForce, spec.disturbance_force_z_min);
+    }
+    if (spec && typeof spec.disturbance_force_z_max === "number") {
+      maxForce = Math.max(maxForce, spec.disturbance_force_z_max);
+    }
+
+    // Altitude bounds (Y axis)
+    let minAlt = 0.05;
+    let maxAlt = 0.25;
+    if (spec && typeof spec.min_allowed_altitude_m === "number") {
+      minAlt = Math.max(0.01, spec.min_allowed_altitude_m * 0.8);
+    }
+    if (spec && typeof spec.max_allowed_altitude_m === "number") {
+      maxAlt = Math.max(0.20, (spec.target_altitude_m || 0.1) * 1.6);
+    }
+
+    // Expand bounds with candidate values if any exceed default
+    const allPts = [...(candidates || [])];
+    if (criticalWitness && criticalWitness.scenario) {
+      allPts.push(criticalWitness);
+    }
+    if (minimizedWitness) {
+      allPts.push({ scenario: minimizedWitness, satisfied: false });
+    }
+
+    for (const pt of allPts) {
+      const scen = pt.scenario || pt;
+      const f = scen.disturbance_force_z;
+      const a = scen.initial_altitude_m;
+      if (typeof f === "number") {
+        if (f < minForce) minForce = f - 0.02;
+        if (f > maxForce) maxForce = f + 0.02;
+      }
+      if (typeof a === "number") {
+        if (a < minAlt) minAlt = Math.max(0.01, a - 0.02);
+        if (a > maxAlt) maxAlt = a + 0.02;
+      }
+    }
+
+    const scaleX = f => padding.left + ((f - minForce) / (maxForce - minForce || 1)) * chartW;
+    const scaleY = a => padding.top + chartH - ((a - minAlt) / (maxAlt - minAlt || 1)) * chartH;
+
+    let svgHtml = `
+      <defs>
+        <clipPath id="atlasClipArea">
+          <rect x="${padding.left}" y="${padding.top}" width="${chartW}" height="${chartH}" />
+        </clipPath>
+      </defs>
+      <rect width="100%" height="100%" fill="var(--chart-bg)" />
+    `;
+
+    // Horizontal grid lines (Altitude)
+    const yTicks = 5;
+    for (let i = 0; i <= yTicks; i++) {
+      const aVal = minAlt + (i / yTicks) * (maxAlt - minAlt);
+      const y = scaleY(aVal);
+      svgHtml += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#1e293b" stroke-width="1" stroke-dasharray="2,2"/>`;
+      svgHtml += `<text x="${padding.left - 8}" y="${y + 4}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">${aVal.toFixed(2)}m</text>`;
+    }
+
+    // Vertical grid lines (Disturbance Force)
+    const xTicks = 6;
+    for (let i = 0; i <= xTicks; i++) {
+      const fVal = minForce + (i / xTicks) * (maxForce - minForce);
+      const x = scaleX(fVal);
+      svgHtml += `<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" stroke="#1e293b" stroke-width="1" stroke-dasharray="2,2"/>`;
+      const sign = fVal > 0 ? "+" : "";
+      svgHtml += `<text x="${x}" y="${height - padding.bottom + 18}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="middle">${sign}${fVal.toFixed(2)}N</text>`;
+    }
+
+    // Zero-force reference line
+    if (minForce <= 0 && maxForce >= 0) {
+      const zeroX = scaleX(0.0);
+      svgHtml += `<line x1="${zeroX}" y1="${padding.top}" x2="${zeroX}" y2="${height - padding.bottom}" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+      svgHtml += `<text x="${zeroX}" y="${padding.top - 12}" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="middle">Zero Disturbance</text>`;
+    }
+
+    // Target altitude reference line
+    if (spec && typeof spec.target_altitude_m === "number") {
+      const targetY = scaleY(spec.target_altitude_m);
+      if (targetY >= padding.top && targetY <= height - padding.bottom) {
+        svgHtml += `<line x1="${padding.left}" y1="${targetY}" x2="${width - padding.right}" y2="${targetY}" stroke="rgba(6, 182, 212, 0.4)" stroke-width="1" stroke-dasharray="4,4"/>`;
+        svgHtml += `<text x="${width - padding.right}" y="${targetY - 4}" fill="#06b6d4" font-family="monospace" font-size="9" text-anchor="end">Target Alt (${spec.target_altitude_m.toFixed(2)}m)</text>`;
+      }
+    }
+
+    // Axis titles
+    svgHtml += `<text x="${padding.left + chartW / 2}" y="${height - 8}" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle" font-weight="600">Vertical Disturbance Force (N)</text>`;
+    svgHtml += `<text x="18" y="${padding.top + chartH / 2}" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 18 ${padding.top + chartH / 2})">Initial Altitude (m)</text>`;
+
+    // Plot candidates
+    (candidates || []).forEach((c, idx) => {
+      const scen = c.scenario || {};
+      const f = typeof scen.disturbance_force_z === "number" ? scen.disturbance_force_z : 0.0;
+      const a = typeof scen.initial_altitude_m === "number" ? scen.initial_altitude_m : 0.1;
+      const x = scaleX(f);
+      const y = scaleY(a);
+      const isSatisfied = c.satisfied !== false && (c.robustness === undefined || c.robustness > 0);
+      const fillClass = isSatisfied ? "atlas-point-satisfied" : "atlas-point-violated";
+      const fillColor = isSatisfied ? "#10b981" : "#f43f5e";
+
+      svgHtml += `
+        <circle
+          cx="${x}"
+          cy="${y}"
+          r="5"
+          class="atlas-point ${fillClass}"
+          data-candidate-idx="${idx}"
+          fill="${fillColor}"
+          opacity="0.88"
+        />
+      `;
+    });
+
+    // If critical witness exists, draw pulsating target ring and label
+    if (criticalWitness && criticalWitness.scenario) {
+      const wf = criticalWitness.scenario.disturbance_force_z;
+      const wa = criticalWitness.scenario.initial_altitude_m;
+      const wx = scaleX(wf);
+      const wy = scaleY(wa);
+
+      svgHtml += `
+        <g class="witness-marker">
+          <circle cx="${wx}" cy="${wy}" r="11" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" opacity="0.9" />
+          <circle cx="${wx}" cy="${wy}" r="17" fill="none" stroke="#f43f5e" stroke-width="1" opacity="0.4" />
+          <circle cx="${wx}" cy="${wy}" r="6" fill="#f43f5e" stroke="#ffffff" stroke-width="1.5" />
+          <text x="${wx + 10}" y="${wy - 8}" fill="#f43f5e" font-family="monospace" font-size="10" font-weight="700">WITNESS</text>
+        </g>
+      `;
+    }
+
+    // If minimized witness exists, draw connecting reduction vector line and diamond
+    if (minimizedWitness && criticalWitness && criticalWitness.scenario) {
+      const origX = scaleX(criticalWitness.scenario.disturbance_force_z);
+      const origY = scaleY(criticalWitness.scenario.initial_altitude_m);
+      const minX = scaleX(minimizedWitness.disturbance_force_z);
+      const minY = scaleY(minimizedWitness.initial_altitude_m);
+
+      svgHtml += `
+        <g class="reduction-vector">
+          <line x1="${origX}" y1="${origY}" x2="${minX}" y2="${minY}" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,3" />
+          <polygon points="${minX},${minY - 7} ${minX + 7},${minY} ${minX},${minY + 7} ${minX - 7},${minY}" fill="#f59e0b" stroke="#ffffff" stroke-width="1.5" />
+          <text x="${minX + 9}" y="${minY + 12}" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="700">1-MINIMAL</text>
+        </g>
+      `;
+    }
+
+    svg.innerHTML = svgHtml;
+
+    // Attach interactive tooltips to circles
+    attachAtlasTooltipListeners(candidates, scaleX, scaleY);
+  }
+
+  function attachAtlasTooltipListeners(candidates, scaleX, scaleY) {
+    const wrapper = elements.failureAtlasWrapper;
+    const tooltip = elements.atlasTooltip;
+    if (!wrapper || !tooltip) return;
+
+    const circles = wrapper.querySelectorAll("circle.atlas-point");
+    circles.forEach(circle => {
+      circle.addEventListener("mouseenter", e => {
+        const idx = parseInt(circle.dataset.candidateIdx, 10);
+        const c = candidates[idx];
+        if (!c) return;
+
+        const scen = c.scenario || {};
+        const f = typeof scen.disturbance_force_z === "number" ? scen.disturbance_force_z.toFixed(4) : "0.0000";
+        const a = typeof scen.initial_altitude_m === "number" ? scen.initial_altitude_m.toFixed(3) : "0.000";
+        const rho = typeof c.robustness === "number" ? c.robustness.toFixed(4) : "---";
+        const statusText = c.satisfied === false || c.robustness <= 0 ? "VIOLATION" : "SATISFIED";
+        const statusColor = statusText === "VIOLATION" ? "#f43f5e" : "#10b981";
+
+        tooltip.innerHTML = `
+          <div class="atlas-tooltip-header">
+            <span>Trial #${c.iteration || (idx + 1)}</span>
+            <span style="color: ${statusColor}; font-weight: 700;">${statusText}</span>
+          </div>
+          <div class="atlas-tooltip-row">
+            <span>Disturbance Force:</span>
+            <span class="atlas-tooltip-val font-mono">${f} N</span>
+          </div>
+          <div class="atlas-tooltip-row">
+            <span>Initial Altitude:</span>
+            <span class="atlas-tooltip-val font-mono">${a} m</span>
+          </div>
+          <div class="atlas-tooltip-row">
+            <span>Robustness Margin:</span>
+            <span class="atlas-tooltip-val font-mono">${rho} m</span>
+          </div>
+          ${c.critical_predicate ? `
+          <div class="atlas-tooltip-row">
+            <span>Predicate:</span>
+            <span class="atlas-tooltip-val font-mono">${c.critical_predicate}</span>
+          </div>` : ""}
+        `;
+
+        tooltip.classList.remove("hidden");
+        const rect = wrapper.getBoundingClientRect();
+        const left = e.clientX - rect.left;
+        const top = e.clientY - rect.top;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      });
+
+      circle.addEventListener("mousemove", e => {
+        const rect = wrapper.getBoundingClientRect();
+        const left = e.clientX - rect.left;
+        const top = e.clientY - rect.top;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      });
+
+      circle.addEventListener("mouseleave", () => {
+        tooltip.classList.add("hidden");
+      });
+    });
+  }
+
+  async function runFalsification() {
+    const spec = getSpecFromForm();
+    const sourceCode = elements.controllerSource.value;
+
+    if (!sourceCode.trim()) {
+      toast("Please load or generate a controller before launching adversarial search.", "warning");
+      switchStep(2);
+      return;
+    }
+
+    if (elements.runFalsifyBtn) elements.runFalsifyBtn.disabled = true;
+    if (elements.falsifySpinner) elements.falsifySpinner.classList.remove("hidden");
+    if (elements.arenaStatusBadge) {
+      elements.arenaStatusBadge.textContent = "SEARCHING...";
+      elements.arenaStatusBadge.className = "badge badge-running";
+    }
+
+    const payload = {
+      spec: spec,
+      controller_source: sourceCode,
+      budget: state.ragnarok.budget,
+      strategy: state.ragnarok.strategy,
+      seed: 42,
+    };
+
+    try {
+      const res = await fetch("/ragnarok/falsify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || "Adversarial search failed");
+      }
+
+      const data = await res.json();
+      state.ragnarok.candidates = data.candidates || [];
+      state.ragnarok.criticalWitness = data.critical_witness || null;
+      state.ragnarok.minimizedWitness = null;
+
+      if (elements.atlasMetricTrials) elements.atlasMetricTrials.textContent = data.evaluations_count;
+      if (elements.atlasMetricViolations) elements.atlasMetricViolations.textContent = data.violations_found;
+      if (elements.atlasMetricMinRobustness) {
+        elements.atlasMetricMinRobustness.textContent =
+          typeof data.min_robustness === "number" ? data.min_robustness.toFixed(4) + " m" : "---";
+      }
+
+      if (data.comparison && data.comparison.discovery_efficiency_ratio) {
+        state.ragnarok.discoverySpeedup = data.comparison.discovery_efficiency_ratio;
+        if (elements.atlasMetricSpeedup) {
+          elements.atlasMetricSpeedup.textContent = state.ragnarok.discoverySpeedup.toFixed(2) + "x";
+        }
+      } else if (data.strategy === "differential_evolution" && data.violations_found > 0) {
+        const speedup = (data.evaluations_count / (data.first_violation_iteration || 1));
+        state.ragnarok.discoverySpeedup = Math.max(1.0, speedup);
+        if (elements.atlasMetricSpeedup) {
+          elements.atlasMetricSpeedup.textContent = state.ragnarok.discoverySpeedup.toFixed(2) + "x";
+        }
+      } else {
+        if (elements.atlasMetricSpeedup) elements.atlasMetricSpeedup.textContent = "1.00x";
+      }
+
+      if (data.violations_found > 0 && data.critical_witness) {
+        if (elements.arenaStatusBadge) {
+          elements.arenaStatusBadge.textContent = "FALSIFIED";
+          elements.arenaStatusBadge.className = "badge badge-failed";
+        }
+        if (elements.runMinimizeBtn) elements.runMinimizeBtn.disabled = false;
+        if (elements.runRepairBtn) elements.runRepairBtn.disabled = false;
+
+        if (elements.witnessDataGrid) elements.witnessDataGrid.classList.remove("hidden");
+        if (elements.witnessEmptyText) elements.witnessEmptyText.classList.add("hidden");
+
+        const cw = data.critical_witness;
+        if (elements.witnessPredicate) elements.witnessPredicate.textContent = cw.critical_predicate || "safety_contract_breach";
+        if (elements.witnessTimestamp) {
+          elements.witnessTimestamp.textContent = typeof cw.critical_time_s === "number" ? cw.critical_time_s.toFixed(3) + " s" : "---";
+        }
+        if (elements.witnessMargin) {
+          elements.witnessMargin.textContent = typeof cw.robustness === "number" ? cw.robustness.toFixed(4) + " m" : "---";
+        }
+        if (elements.witnessDisturbance && cw.scenario) {
+          elements.witnessDisturbance.textContent = typeof cw.scenario.disturbance_force_z === "number" ? cw.scenario.disturbance_force_z.toFixed(4) + " N" : "0.000 N";
+        }
+        if (elements.witnessAltitude && cw.scenario) {
+          elements.witnessAltitude.textContent = typeof cw.scenario.initial_altitude_m === "number" ? cw.scenario.initial_altitude_m.toFixed(3) + " m" : "---";
+        }
+        if (elements.witnessCostReduction) elements.witnessCostReduction.textContent = "Pending 1-minimal reduction";
+
+        toast(`Adversarial violation witness found at trial #${cw.iteration || 1}! Predicate: ${cw.critical_predicate}`, "error");
+      } else {
+        if (elements.arenaStatusBadge) {
+          elements.arenaStatusBadge.textContent = "NOT FALSIFIED";
+          elements.arenaStatusBadge.className = "badge badge-passed";
+        }
+        if (elements.runMinimizeBtn) elements.runMinimizeBtn.disabled = true;
+        if (elements.runRepairBtn) elements.runRepairBtn.disabled = true;
+
+        if (elements.witnessDataGrid) elements.witnessDataGrid.classList.add("hidden");
+        if (elements.witnessEmptyText) {
+          elements.witnessEmptyText.classList.remove("hidden");
+          elements.witnessEmptyText.textContent = `Search completed: Controller satisfied all ${data.evaluations_count} adversarial trials within safety envelope.`;
+        }
+
+        toast(`Search complete: 0 violations found within budget (${data.evaluations_count} evaluations).`, "success");
+      }
+
+      renderFailureAtlas(state.ragnarok.candidates, state.ragnarok.criticalWitness, null, spec);
+    } catch (err) {
+      if (elements.arenaStatusBadge) {
+        elements.arenaStatusBadge.textContent = "ERROR";
+        elements.arenaStatusBadge.className = "badge badge-failed";
+      }
+      toast("Adversarial search failed: " + err.message, "error");
+    } finally {
+      if (elements.runFalsifyBtn) elements.runFalsifyBtn.disabled = false;
+      if (elements.falsifySpinner) elements.falsifySpinner.classList.add("hidden");
+    }
+  }
+
+  async function runCounterexampleMinimization() {
+    if (!state.ragnarok.criticalWitness) {
+      toast("No active violation witness to minimize. Run adversarial search first.", "warning");
+      return;
+    }
+
+    const spec = getSpecFromForm();
+    const sourceCode = elements.controllerSource.value;
+
+    if (elements.runMinimizeBtn) elements.runMinimizeBtn.disabled = true;
+    if (elements.minimizeSpinner) elements.minimizeSpinner.classList.remove("hidden");
+
+    const payload = {
+      spec: spec,
+      controller_source: sourceCode,
+      witness_scenario: state.ragnarok.criticalWitness.scenario,
+      max_evaluations: 12,
+    };
+
+    try {
+      const res = await fetch("/ragnarok/minimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || "Minimization failed");
+      }
+
+      const data = await res.json();
+      state.ragnarok.minimizedWitness = data.minimized_scenario;
+
+      const pct = (data.cost_reduction_ratio * 100).toFixed(1);
+      if (elements.witnessCostReduction) {
+        elements.witnessCostReduction.textContent = `${pct}% cost reduction (evals: ${data.evaluations_used})`;
+      }
+
+      renderFailureAtlas(state.ragnarok.candidates, state.ragnarok.criticalWitness, state.ragnarok.minimizedWitness, spec);
+
+      toast(`1-Minimal reduction complete: Perturbation shrunk by ${pct}% while preserving failure predicate.`, "success");
+    } catch (err) {
+      toast("Minimization failed: " + err.message, "error");
+    } finally {
+      if (elements.runMinimizeBtn) elements.runMinimizeBtn.disabled = false;
+      if (elements.minimizeSpinner) elements.minimizeSpinner.classList.add("hidden");
+    }
+  }
+
+  async function runAutonomousRepair() {
+    if (!state.ragnarok.criticalWitness) {
+      toast("No active violation witness for repair. Run adversarial search first.", "warning");
+      return;
+    }
+
+    const spec = getSpecFromForm();
+    const sourceCode = elements.controllerSource.value;
+
+    if (elements.runRepairBtn) elements.runRepairBtn.disabled = true;
+    if (elements.repairSpinner) elements.repairSpinner.classList.remove("hidden");
+
+    const payload = {
+      spec: spec,
+      controller_source: sourceCode,
+      witness_scenario: state.ragnarok.criticalWitness.scenario,
+      model: state.selectedModel,
+      reasoning_effort: state.selectedReasoningEffort,
+      max_revisions: 2,
+    };
+
+    try {
+      const res = await fetch("/ragnarok/repair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || "Autonomous repair failed");
+      }
+
+      const data = await res.json();
+      state.ragnarok.repairedResult = data;
+
+      if (elements.repairEmptyText) elements.repairEmptyText.classList.add("hidden");
+      if (elements.repairContentBox) elements.repairContentBox.classList.remove("hidden");
+
+      if (elements.repairOutcomeBadge) {
+        elements.repairOutcomeBadge.textContent = data.outcome;
+        elements.repairOutcomeBadge.className = data.repaired_controller_source
+          ? "badge badge-passed font-mono"
+          : "badge badge-failed font-mono";
+      }
+
+      if (elements.repairRevisionsCount) {
+        elements.repairRevisionsCount.textContent = data.total_revisions_attempted;
+      }
+
+      if (elements.repairHoldoutRate) {
+        if (data.history && data.history.length > 0) {
+          const latest = data.history[data.history.length - 1];
+          const ratePct = (latest.holdout_pass_rate * 100).toFixed(1);
+          elements.repairHoldoutRate.textContent = `${ratePct}% (${latest.passed_holdout ? "PASSED" : "FAILED"})`;
+        } else {
+          elements.repairHoldoutRate.textContent = data.repaired_controller_source ? "100.0% (PASSED)" : "0.0% (FAILED)";
+        }
+      }
+
+      if (elements.repairedControllerSource) {
+        elements.repairedControllerSource.textContent =
+          data.repaired_controller_source || "# No acceptable repair generated that satisfies the holdout suite.";
+      }
+
+      if (data.repaired_controller_source) {
+        toast("Autonomous CEGIS Repair accepted! Passed holdout suite regression gate.", "success");
+      } else {
+        toast("CEGIS Repair attempted " + data.total_revisions_attempted + " revisions but rejected by holdout gate.", "warning");
+      }
+    } catch (err) {
+      toast("Autonomous repair failed: " + err.message, "error");
+    } finally {
+      if (elements.runRepairBtn) elements.runRepairBtn.disabled = false;
+      if (elements.repairSpinner) elements.repairSpinner.classList.add("hidden");
+    }
+  }
+
+  function copyRepairedCode() {
+    if (!state.ragnarok.repairedResult || !state.ragnarok.repairedResult.repaired_controller_source) {
+      toast("No repaired controller code to copy.", "warning");
+      return;
+    }
+    navigator.clipboard.writeText(state.ragnarok.repairedResult.repaired_controller_source)
+      .then(() => toast("Repaired controller code copied to clipboard!", "success"))
+      .catch(() => toast("Failed to copy code to clipboard.", "error"));
+  }
+
+  function loadRepairedCodeIntoStep2() {
+    if (!state.ragnarok.repairedResult || !state.ragnarok.repairedResult.repaired_controller_source) {
+      toast("No repaired controller code available to load.", "warning");
+      return;
+    }
+    elements.controllerSource.value = state.ragnarok.repairedResult.repaired_controller_source;
+    updateCodeMetadata(state.ragnarok.repairedResult.repaired_controller_source);
+    switchStep(2);
+    toast("Repaired controller loaded into Step 2! You can now validate AST and run verification.", "success");
+  }
+
+  function setupRagnarokArena() {
+    // Strategy pills
+    if (elements.stratPills && elements.stratPills.length > 0) {
+      elements.stratPills.forEach(pill => {
+        pill.addEventListener("click", () => {
+          elements.stratPills.forEach(p => p.classList.remove("active"));
+          pill.classList.add("active");
+          state.ragnarok.strategy = pill.dataset.strategy || "differential_evolution";
+        });
+      });
+    }
+
+    // Budget slider
+    if (elements.ragnarokBudgetInput && elements.ragnarokBudgetValue) {
+      elements.ragnarokBudgetInput.addEventListener("input", e => {
+        const val = parseInt(e.target.value, 10) || 12;
+        state.ragnarok.budget = val;
+        elements.ragnarokBudgetValue.textContent = `${val} trials`;
+      });
+    }
+
+    // Action buttons
+    if (elements.runFalsifyBtn) {
+      elements.runFalsifyBtn.addEventListener("click", runFalsification);
+    }
+    if (elements.runMinimizeBtn) {
+      elements.runMinimizeBtn.addEventListener("click", runCounterexampleMinimization);
+    }
+    if (elements.runRepairBtn) {
+      elements.runRepairBtn.addEventListener("click", runAutonomousRepair);
+    }
+    if (elements.copyRepairedCodeBtn) {
+      elements.copyRepairedCodeBtn.addEventListener("click", copyRepairedCode);
+    }
+    if (elements.loadRepairedCodeBtn) {
+      elements.loadRepairedCodeBtn.addEventListener("click", loadRepairedCodeIntoStep2);
+    }
+
+    // Initial empty Atlas
+    renderFailureAtlas([], null, null, getSpecFromForm());
+  }
+
+  // ==========================================================================
   // Initialization
   // ==========================================================================
 
@@ -3377,6 +3988,7 @@
     setupDroneViewer();
     setupInitialModelCards();
     setupReasoningEffort();
+    setupRagnarokArena();
 
     // Inputs listeners
     elements.missionDuration.addEventListener("input", updateStepBudget);

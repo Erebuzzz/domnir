@@ -481,6 +481,94 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertNotIn("Bit-for-Bit Deterministic Qualification Court", html)
         self.assertIn("Dómnir &bull; Crazyflie 2.0 MuJoCo Simulation &bull; Evidence-Based Adjudication", html)
 
+    def test_ragnarok_arena_markup_elements(self):
+        content = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="ragnarokArenaCard"', content)
+        self.assertIn("RAGNAROK ADVERSARIAL ARENA", content)
+        self.assertIn('data-strategy="differential_evolution"', content)
+        self.assertIn('data-strategy="sobol"', content)
+        self.assertIn('data-strategy="compare"', content)
+        self.assertIn('id="ragnarokBudgetInput"', content)
+        self.assertIn('id="runFalsifyBtn"', content)
+        self.assertIn('id="runMinimizeBtn"', content)
+        self.assertIn('id="runRepairBtn"', content)
+        self.assertIn('id="atlasMetricTrials"', content)
+        self.assertIn('id="atlasMetricViolations"', content)
+        self.assertIn('id="atlasMetricMinRobustness"', content)
+        self.assertIn('id="atlasMetricSpeedup"', content)
+        self.assertIn('id="failureAtlasContainer"', content)
+        self.assertIn('id="failureAtlasSvg"', content)
+        self.assertIn('id="atlasTooltip"', content)
+        self.assertIn('id="witnessInspectorCard"', content)
+        self.assertIn('id="witnessPredicate"', content)
+        self.assertIn('id="witnessTimestamp"', content)
+        self.assertIn('id="witnessMargin"', content)
+        self.assertIn('id="repairInspectorCard"', content)
+        self.assertIn('id="repairStatusBox"', content)
+        self.assertIn('id="repairOutcomeBadge"', content)
+        self.assertIn('id="repairHoldoutRate"', content)
+        self.assertIn('id="repairedControllerSource"', content)
+
+    def test_ragnarok_css_classes_present(self):
+        css = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+        self.assertIn(".ragnarok-arena-card", css)
+        self.assertIn(".failure-atlas-container", css)
+        self.assertIn(".failure-atlas-svg", css)
+        self.assertIn(".atlas-point", css)
+        self.assertIn(".atlas-tooltip", css)
+        self.assertIn(".repair-status-box", css)
+
+    def test_ragnarok_js_functions_and_state(self):
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        self.assertIn("setupRagnarokArena", js)
+        self.assertIn("renderFailureAtlas", js)
+        self.assertIn("runFalsification", js)
+        self.assertIn("runCounterexampleMinimization", js)
+        self.assertIn("runAutonomousRepair", js)
+        self.assertIn("/ragnarok/falsify", js)
+        self.assertIn("/ragnarok/minimize", js)
+        self.assertIn("/ragnarok/repair", js)
+
+    def test_ragnarok_falsify_web_api_integration(self):
+        sample_source = (
+            "def observe(obs):\n"
+            "    z = obs['position_m'][2]\n"
+            "    vz = obs['velocity_mps'][2]\n"
+            "    target_z = obs.get('target_altitude_m', 0.1)\n"
+            "    thrust = max(0.0, min(0.35, 0.26487 + 0.20 * (target_z - z) - 0.08 * vz))\n"
+            "    return {\n"
+            "        'schema_version': '1.0',\n"
+            "        'trial_id': obs['trial_id'],\n"
+            "        'step_index': obs['step_index'],\n"
+            "        'thrust': float(thrust),\n"
+            "        'moment_x': 0.0,\n"
+            "        'moment_y': 0.0,\n"
+            "        'moment_z': 0.0,\n"
+            "    }\n"
+        )
+        payload = {
+            "spec": {
+                "target_altitude_m": 0.10,
+                "altitude_tolerance_m": 0.05,
+                "min_allowed_altitude_m": 0.05,
+                "max_allowed_altitude_m": 1.00,
+                "mission_duration_s": 0.40,
+                "dt_s": 0.002,
+                "disturbance_force_z_min": -0.05,
+                "disturbance_force_z_max": 0.05,
+            },
+            "controller_source": sample_source,
+            "budget": 2,
+            "strategy": "sobol",
+        }
+        res = self.client.post("/ragnarok/falsify", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["strategy"], "sobol_quasi_random")
+        self.assertEqual(data["evaluations_count"], 2)
+        self.assertIn("candidates", data)
+        self.assertEqual(len(data["candidates"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

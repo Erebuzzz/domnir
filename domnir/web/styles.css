@@ -3582,3 +3582,563 @@ html.rune-dawn .doc-context-link {
     font-size: 11px;
   }
 }
+
+/* ==========================================================================
+   Ragnarok Adversarial Arena & Failure Atlas UI (U5, U13, U14)
+   Differential Evolution, Sobol Baseline, 1-Minimal Reduction & CEGIS Repair
+   Zero em dashes.
+   ========================================================================== */
+
+.ragnarok-arena-card {
+  margin-top: 24px;
+  border-top: 2px solid rgba(234, 88, 12, 0.5);
+  background: linear-gradient(180deg, rgba(234, 88, 12, 0.05) 0%, var(--bg-card) 60px);
+  position: relative;
+}
+
+html.rune-dawn .ragnarok-arena-card {
+  border-top: 2px solid rgba(234, 88, 12, 0.8);
+  background: linear-gradient(180deg, rgba(234, 88, 12, 0.08) 0%, var(--bg-card) 60px);
+}
+
+.ragnarok-arena-header {
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 20px;
+}
+
+.arena-header-icon {
+  background: rgba(234, 88, 12, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(234, 88, 12, 0.35);
+  box-shadow: 0 0 12px rgba(234, 88, 12, 0.2);
+}
+
+html.rune-dawn .arena-header-icon {
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.3);
+}
+
+.arena-header-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.badge-ragnarok {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.25) 0%, rgba(244, 63, 94, 0.22) 100%);
+  border: 1px solid rgba(234, 88, 12, 0.55);
+  color: #fb923c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+html.rune-dawn .badge-ragnarok {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.15) 0%, rgba(244, 63, 94, 0.12) 100%);
+  border: 1px solid rgba(234, 88, 12, 0.45);
+  color: #c2410c;
+}
+
+/* Arena Controls Panel */
+.arena-controls-panel {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1.7fr;
+  gap: 16px;
+  align-items: flex-end;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.arena-control-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arena-control-col .control-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.strategy-pill-group {
+  display: flex;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  gap: 4px;
+}
+
+.strategy-pill {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.strategy-pill:hover {
+  color: var(--text-main);
+}
+
+.strategy-pill.active {
+  background: var(--accent-cyan);
+  color: #050811;
+  font-weight: 700;
+  box-shadow: 0 1px 6px rgba(6, 182, 212, 0.35);
+}
+
+html.rune-dawn .strategy-pill.active {
+  background: var(--accent-cyan);
+  color: #ffffff;
+}
+
+.budget-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-val-display {
+  font-size: 12px;
+  color: var(--accent-amber);
+  font-weight: 700;
+}
+
+.arena-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.arena-btn-group .btn {
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+/* Campaign Metrics Bar */
+.atlas-metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.atlas-metric-col {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.atlas-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.atlas-metric-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Failure Atlas Container & SVG */
+.failure-atlas-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.atlas-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.atlas-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 2px 0;
+}
+
+.atlas-chart-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.atlas-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.dot-satisfied {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+}
+
+.legend-dot.dot-violated {
+  background: #f43f5e;
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.7);
+}
+
+.legend-dot.dot-minimized {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+}
+
+.failure-atlas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--chart-bg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html.rune-dawn .failure-atlas-wrapper {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.failure-atlas-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Atlas Points */
+.atlas-point {
+  cursor: pointer;
+  transition: r 0.15s ease, stroke-width 0.15s ease, filter 0.15s ease;
+}
+
+.atlas-point:hover {
+  r: 8px;
+  stroke: #ffffff;
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.atlas-point-satisfied {
+  fill: #10b981;
+  stroke: rgba(16, 185, 129, 0.4);
+}
+
+.atlas-point-violated {
+  fill: #f43f5e;
+  stroke: rgba(244, 63, 94, 0.5);
+}
+
+.atlas-point-minimized {
+  fill: #f59e0b;
+  stroke: #ffffff;
+  stroke-width: 1.5px;
+}
+
+/* Tooltip */
+.atlas-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(5, 8, 17, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(6, 182, 212, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  z-index: 40;
+  color: var(--text-main);
+  max-width: 280px;
+  line-height: 1.4;
+  transform: translate(-50%, -115%);
+  transition: opacity 0.1s ease;
+}
+
+html.rune-dawn .atlas-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15), 0 0 12px rgba(234, 88, 12, 0.15);
+}
+
+.atlas-tooltip-header {
+  font-weight: 700;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.atlas-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.atlas-tooltip-val {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* Ragnarok Subgrid: Witness & Repair */
+.ragnarok-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.card-subpanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.subpanel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.subpanel-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.subpanel-icon-danger {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.subpanel-icon-repair {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.subpanel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.subpanel-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.witness-empty-text,
+.repair-empty-text {
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-style: italic;
+  margin: 8px 0;
+}
+
+.witness-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.witness-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-subtle);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.witness-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.witness-stat-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Repair Status Box */
+.repair-status-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-subtle);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.repair-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.repair-metric-label {
+  color: var(--text-muted);
+}
+
+.repair-metric-val {
+  font-weight: 700;
+  color: var(--accent-emerald);
+}
+
+.repaired-code-view-container {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.code-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.code-view-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.repaired-code-pre {
+  margin: 0;
+  padding: 10px;
+  background: var(--code-bg);
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 11px;
+  color: #e2e8f0;
+}
+
+html.rune-dawn .repaired-code-pre {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Responsive adjustments for Ragnarok Arena */
+@media (max-width: 1024px) {
+  .arena-controls-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .actions-col {
+    grid-column: 1 / -1;
+  }
+
+  .atlas-metrics-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .arena-controls-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .ragnarok-subgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .failure-atlas-wrapper {
+    height: 270px;
+  }
+}
+
+@media (max-width: 480px) {
+  .atlas-metrics-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-pill-group {
+    flex-direction: column;
+  }
+
+  .arena-btn-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .failure-atlas-wrapper {
+    height: 240px;
+  }
+}
+
