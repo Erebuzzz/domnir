@@ -21,7 +21,8 @@ from tests.test_court_record import SAMPLE_CONTROLLER, run_test_simulation
 
 
 @pytest.fixture
-def valid_court_record(tmp_path: Path) -> dict:
+def valid_court_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict:
+    monkeypatch.setenv("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK", "1")
     model_path = get_default_model_path()
     sim = run_test_simulation(model_path, steps=5)
     spec = FlightSpec(

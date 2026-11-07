@@ -351,7 +351,8 @@ def test_sensitivity_analyzer_with_real_mujoco_and_altitude_controller():
     assert chr(0x2014) not in report.summary
 
 
-def test_generated_controller_execution_with_wrapper():
+def test_generated_controller_execution_with_wrapper(monkeypatch):
+    monkeypatch.setenv("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK", "1")
     code = (
         "def observe(observation: dict) -> list[float]:\n"
         "    return [0.26, 0.0, 0.0, 0.0]\n"

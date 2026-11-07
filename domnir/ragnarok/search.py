@@ -9,30 +9,7 @@ from typing import Callable, Protocol, Sequence
 from pydantic import BaseModel, Field
 
 from domnir.contracts.stl import SafetyContract, STLRobustnessResult
-
-
-class ScenarioParameter(BaseModel):
-    initial_altitude_m: float = Field(gt=0.0)
-    disturbance_force_z: float
-    pulse_start_s: float = Field(default=0.0, ge=0.0)
-    pulse_duration_s: float = Field(default=0.0, ge=0.0)
-
-    def to_vector(self) -> list[float]:
-        return [
-            self.initial_altitude_m,
-            self.disturbance_force_z,
-            self.pulse_start_s,
-            self.pulse_duration_s,
-        ]
-
-    @classmethod
-    def from_vector(cls, vec: Sequence[float]) -> ScenarioParameter:
-        return cls(
-            initial_altitude_m=float(vec[0]),
-            disturbance_force_z=float(vec[1]),
-            pulse_start_s=float(vec[2]) if len(vec) > 2 else 0.0,
-            pulse_duration_s=float(vec[3]) if len(vec) > 3 else 0.0,
-        )
+from domnir.scenario import ScenarioParameter, calculate_applied_disturbance
 
 
 @dataclass(frozen=True)
@@ -73,6 +50,18 @@ class RagnarokSearchSpace:
             max(self.pulse_duration_min_s, min(self.pulse_duration_max_s, vec[3])),
         ]
 
+    def point_to_scenario(self, point: Sequence[float]) -> ScenarioParameter:
+        p0 = max(0.0, min(1.0, float(point[0])))
+        p1 = max(0.0, min(1.0, float(point[1])))
+        p2 = max(0.0, min(1.0, float(point[2])))
+        p3 = max(0.0, min(1.0, float(point[3])))
+        return ScenarioParameter(
+            initial_altitude_m=self.alt_min_m + p0 * (self.alt_max_m - self.alt_min_m),
+            disturbance_force_z=self.force_min_n + p1 * (self.force_max_n - self.force_min_n),
+            pulse_start_s=self.pulse_start_min_s + p2 * (self.pulse_start_max_s - self.pulse_start_min_s),
+            pulse_duration_s=self.pulse_duration_min_s + p3 * (self.pulse_duration_max_s - self.pulse_duration_min_s),
+        )
+
     def random_sample(self, rng: random.Random) -> ScenarioParameter:
         return ScenarioParameter(
             initial_altitude_m=rng.uniform(self.alt_min_m, self.alt_max_m),
@@ -80,6 +69,56 @@ class RagnarokSearchSpace:
             pulse_start_s=rng.uniform(self.pulse_start_min_s, self.pulse_start_max_s),
             pulse_duration_s=rng.uniform(self.pulse_duration_min_s, self.pulse_duration_max_s),
         )
+
+
+def generate_sobol_points(n_points: int, dimension: int = 4, seed: int = 42) -> list[list[float]]:
+    """Generate authentic 4D low-discrepancy Sobol sequence with Cranley-Patterson shift."""
+    L = 32
+    dim = min(4, max(1, dimension))
+    V = [[0] * L for _ in range(4)]
+
+    # Direction numbers (Joe & Kuo)
+    for j in range(L):
+        V[0][j] = 1 << (31 - j)
+
+    m1 = [1] * L
+    for j in range(1, L):
+        m1[j] = (2 * m1[j - 1]) ^ m1[j - 1]
+    for j in range(L):
+        V[1][j] = (m1[j] << (31 - j)) & 0xFFFFFFFF
+
+    m2 = [1, 3] + [0] * (L - 2)
+    for j in range(2, L):
+        m2[j] = (m2[j - 1] << 1) ^ (m2[j - 2] << 2) ^ m2[j - 2]
+    for j in range(L):
+        V[2][j] = (m2[j] << (31 - j)) & 0xFFFFFFFF
+
+    m3 = [1, 3, 7] + [0] * (L - 3)
+    for j in range(3, L):
+        m3[j] = (m3[j - 1] << 1) ^ (m3[j - 3] << 3) ^ m3[j - 3]
+    for j in range(L):
+        V[3][j] = (m3[j] << (31 - j)) & 0xFFFFFFFF
+
+    shift_rng = random.Random(seed)
+    shift = [shift_rng.random() for _ in range(dim)]
+
+    points: list[list[float]] = []
+    X = [0] * 4
+    for i in range(1, n_points + 1):
+        c = 0
+        val = i - 1
+        while val & 1:
+            val >>= 1
+            c += 1
+        c = min(c, L - 1)
+        pt: list[float] = []
+        for d in range(dim):
+            X[d] ^= V[d][c]
+            base_val = X[d] / (1 << 32)
+            shifted = (base_val + shift[d]) % 1.0
+            pt.append(shifted)
+        points.append(pt)
+    return points
 
 
 @dataclass(frozen=True)
@@ -104,14 +143,15 @@ class FalsificationCampaignResult:
     critical_witness: FalsificationCandidate | None
     all_candidates: list[FalsificationCandidate] = field(default_factory=list)
     summary: str = ""
+    invalid_evaluations_count: int = 0
 
 
 # Evaluator function signature: takes a scenario proposal and returns the STL robustness result
 ScenarioEvaluator = Callable[[ScenarioParameter], STLRobustnessResult]
 
 
-class SobolBaselineFalsifier:
-    """Quasi-random low-discrepancy baseline search policy."""
+class UniformRandomFalsifier:
+    """Pure uniform pseudorandom search policy (Monte Carlo baseline)."""
 
     def __init__(self, search_space: RagnarokSearchSpace, seed: int = 42) -> None:
         self.search_space = search_space
@@ -124,9 +164,80 @@ class SobolBaselineFalsifier:
         best_scenario: ScenarioParameter | None = None
         witness: FalsificationCandidate | None = None
         violations_count = 0
+        invalids_count = 0
 
         for i in range(max_evaluations):
             scenario = self.search_space.random_sample(self.rng)
+            res = evaluator(scenario)
+
+            candidate = FalsificationCandidate(
+                candidate_id=f"uniform-{i:03d}",
+                iteration=i + 1,
+                scenario=scenario,
+                robustness=res.min_robustness,
+                satisfied=res.satisfied,
+                critical_predicate=res.critical_predicate,
+                critical_time_s=res.critical_timestamp_s,
+            )
+            candidates.append(candidate)
+
+            is_valid_result = getattr(res, "is_valid", True) and res.verdict != "INVALID"
+
+            if is_valid_result and res.min_robustness < min_rho:
+                min_rho = res.min_robustness
+                best_scenario = scenario
+
+            if is_valid_result and res.verdict == "VIOLATED":
+                violations_count += 1
+                if first_violation is None:
+                    first_violation = i + 1
+                    witness = candidate
+            elif not is_valid_result:
+                invalids_count += 1
+
+        summary = (
+            f"Uniform Random evaluated {max_evaluations} scenarios. "
+            f"Found {violations_count} violations (min robustness: {min_rho:.4f})."
+        )
+        if first_violation is not None:
+            summary += f" First violation detected at iteration {first_violation}."
+        else:
+            summary += " Not falsified within evaluation budget."
+
+        return FalsificationCampaignResult(
+            strategy="uniform_random",
+            evaluations_count=max_evaluations,
+            first_violation_iteration=first_violation,
+            violations_found=violations_count,
+            min_robustness=min_rho if min_rho != float("inf") else 0.0,
+            best_scenario=best_scenario or self.search_space.random_sample(self.rng),
+            critical_witness=witness,
+            all_candidates=candidates,
+            summary=summary,
+            invalid_evaluations_count=invalids_count,
+        )
+
+
+class SobolBaselineFalsifier:
+    """Authentic low-discrepancy Sobol quasi-random sequence baseline search policy."""
+
+    def __init__(self, search_space: RagnarokSearchSpace, seed: int = 42) -> None:
+        self.search_space = search_space
+        self.seed = seed
+
+    def run(self, evaluator: ScenarioEvaluator, max_evaluations: int = 25) -> FalsificationCampaignResult:
+        candidates: list[FalsificationCandidate] = []
+        first_violation: int | None = None
+        min_rho = float("inf")
+        best_scenario: ScenarioParameter | None = None
+        witness: FalsificationCandidate | None = None
+        violations_count = 0
+        invalids_count = 0
+
+        sobol_pts = generate_sobol_points(max_evaluations, dimension=4, seed=self.seed)
+
+        for i, pt in enumerate(sobol_pts):
+            scenario = self.search_space.point_to_scenario(pt)
             res = evaluator(scenario)
 
             candidate = FalsificationCandidate(
@@ -140,15 +251,19 @@ class SobolBaselineFalsifier:
             )
             candidates.append(candidate)
 
-            if res.min_robustness < min_rho:
+            is_valid_result = getattr(res, "is_valid", True) and res.verdict != "INVALID"
+
+            if is_valid_result and res.min_robustness < min_rho:
                 min_rho = res.min_robustness
                 best_scenario = scenario
 
-            if not res.satisfied:
+            if is_valid_result and res.verdict == "VIOLATED":
                 violations_count += 1
                 if first_violation is None:
                     first_violation = i + 1
                     witness = candidate
+            elif not is_valid_result:
+                invalids_count += 1
 
         summary = (
             f"Sobol Quasi-Random evaluated {max_evaluations} scenarios. "
@@ -159,16 +274,18 @@ class SobolBaselineFalsifier:
         else:
             summary += " Not falsified within evaluation budget."
 
+        default_scen = self.search_space.point_to_scenario(sobol_pts[0]) if sobol_pts else ScenarioParameter(0.1, 0.0)
         return FalsificationCampaignResult(
             strategy="sobol_quasi_random",
             evaluations_count=max_evaluations,
             first_violation_iteration=first_violation,
             violations_found=violations_count,
-            min_robustness=min_rho,
-            best_scenario=best_scenario or self.search_space.random_sample(self.rng),
+            min_robustness=min_rho if min_rho != float("inf") else 0.0,
+            best_scenario=best_scenario or default_scen,
             critical_witness=witness,
             all_candidates=candidates,
             summary=summary,
+            invalid_evaluations_count=invalids_count,
         )
 
 
@@ -199,6 +316,7 @@ class DifferentialEvolutionFalsifier:
         first_violation: int | None = None
         witness: FalsificationCandidate | None = None
         violations_count = 0
+        invalids_count = 0
 
         for i in range(self.pop_size):
             scenario = self.search_space.random_sample(self.rng)
@@ -219,11 +337,15 @@ class DifferentialEvolutionFalsifier:
             pop.append(scenario.to_vector())
             fitness.append(rho)
 
-            if not res.satisfied:
+            is_valid_result = getattr(res, "is_valid", True) and res.verdict != "INVALID"
+
+            if is_valid_result and res.verdict == "VIOLATED":
                 violations_count += 1
                 if first_violation is None:
                     first_violation = eval_count
                     witness = cand
+            elif not is_valid_result:
+                invalids_count += 1
 
             if eval_count >= max_evaluations:
                 break
@@ -269,16 +391,20 @@ class DifferentialEvolutionFalsifier:
                 )
                 candidates.append(cand)
 
+                is_valid_result = getattr(res, "is_valid", True) and res.verdict != "INVALID"
+
                 # Objective is minimization of robustness (finding hardest violation)
-                if trial_rho <= fitness[i]:
+                if is_valid_result and trial_rho <= fitness[i]:
                     pop[i] = clamped_trial
                     fitness[i] = trial_rho
 
-                if not res.satisfied:
+                if is_valid_result and res.verdict == "VIOLATED":
                     violations_count += 1
                     if first_violation is None:
                         first_violation = eval_count
                         witness = cand
+                elif not is_valid_result:
+                    invalids_count += 1
 
         best_idx = min(range(len(fitness)), key=lambda idx: fitness[idx])
         min_rho = fitness[best_idx]
@@ -298,11 +424,12 @@ class DifferentialEvolutionFalsifier:
             evaluations_count=eval_count,
             first_violation_iteration=first_violation,
             violations_found=violations_count,
-            min_robustness=min_rho,
+            min_robustness=min_rho if min_rho != float("inf") else 0.0,
             best_scenario=best_scenario,
             critical_witness=witness,
             all_candidates=candidates,
             summary=summary,
+            invalid_evaluations_count=invalids_count,
         )
 
 
@@ -312,7 +439,10 @@ def compare_falsification_policies(
     evaluations_budget: int = 20,
     seed: int = 42,
 ) -> dict[str, Any]:
-    """Empirically compare adaptive DE search vs quasi-random baseline on identical budget."""
+    """Empirically compare adaptive DE search vs Sobol and uniform random baselines on identical budget."""
+    uniform = UniformRandomFalsifier(search_space, seed=seed)
+    uniform_res = uniform.run(evaluator, max_evaluations=evaluations_budget)
+
     sobol = SobolBaselineFalsifier(search_space, seed=seed)
     sobol_res = sobol.run(evaluator, max_evaluations=evaluations_budget)
 
@@ -327,6 +457,14 @@ def compare_falsification_policies(
 
     return {
         "budget": evaluations_budget,
+        "uniform_random": {
+            "strategy": uniform_res.strategy,
+            "evaluations": uniform_res.evaluations_count,
+            "first_violation": uniform_res.first_violation_iteration,
+            "violations_found": uniform_res.violations_found,
+            "min_robustness": uniform_res.min_robustness,
+            "summary": uniform_res.summary,
+        },
         "sobol": {
             "strategy": sobol_res.strategy,
             "evaluations": sobol_res.evaluations_count,
@@ -344,5 +482,5 @@ def compare_falsification_policies(
             "summary": de_res.summary,
         },
         "discovery_efficiency_ratio": round(speedup, 3),
-        "falsification_achieved": de_res.violations_found > 0 or sobol_res.violations_found > 0,
+        "falsification_achieved": de_res.violations_found > 0 or sobol_res.violations_found > 0 or uniform_res.violations_found > 0,
     }

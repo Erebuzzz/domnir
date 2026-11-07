@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 from domnir.contracts.stl import SafetyContract, STLMonitor, STLRobustnessResult
 from domnir.court_record import canonical_json
 from domnir.ragnarok.repair import HoldoutSuite
-from domnir.ragnarok.search import ScenarioParameter
+from domnir.scenario import ScenarioParameter, calculate_applied_disturbance
 from domnir.spec import GeneratedController
 from domnir.uncertainty.simulator import resolve_model_path
 
@@ -98,14 +98,56 @@ class RoboticsCIGate:
             raise FileNotFoundError(f"MuJoCo model file not found: {resolved_path}")
 
         observe_fn: Callable[[dict[str, Any]], Any]
-        if isinstance(ctrl, GeneratedController):
-            ns: dict[str, Any] = {"__builtins__": __builtins__}
-            exec(compile(ctrl.source_code, "<controller>", "exec"), ns)
-            observe_fn = ns["observe"]
-        elif isinstance(ctrl, str):
-            ns = {"__builtins__": __builtins__}
-            exec(compile(ctrl, "<controller>", "exec"), ns)
-            observe_fn = ns["observe"]
+        if isinstance(ctrl, (GeneratedController, str)):
+            source_code = ctrl.source_code if isinstance(ctrl, GeneratedController) else ctrl
+            from domnir.evaluator import SafeControllerEvaluator
+            if not SafeControllerEvaluator.is_execution_available():
+                invalid_res = STLRobustnessResult(
+                    satisfied=False,
+                    verdict="INVALID",
+                    min_robustness=0.0,
+                    critical_timestamp_s=0.0,
+                    critical_step_index=0,
+                    critical_predicate="execution_unavailable",
+                    critical_actual_value=0.0,
+                    critical_threshold=0.0,
+                    summary="MicroVM sandbox required to evaluate untrusted controller in CI gate",
+                    timeline=[],
+                    is_valid=False,
+                )
+                return invalid_res, 0.0, ""
+            exec_res = SafeControllerEvaluator.execute(
+                source_code,
+                model_path=resolved_path,
+                contract=contract,
+                scenario=scenario,
+            )
+            if exec_res.status != "SUCCESS":
+                invalid_res = STLRobustnessResult(
+                    satisfied=False,
+                    verdict="INVALID",
+                    min_robustness=0.0,
+                    critical_timestamp_s=0.0,
+                    critical_step_index=0,
+                    critical_predicate="execution_error",
+                    critical_actual_value=0.0,
+                    critical_threshold=0.0,
+                    summary=f"CI execution error: {exec_res.error_message}",
+                    timeline=[],
+                    is_valid=False,
+                )
+                return invalid_res, 0.0, ""
+            robustness_result = STLMonitor.evaluate_trajectory(contract, exec_res.trajectory)
+            tracking_errors = [
+                abs(f.get("altitude_error_m", 0.0))
+                for f in exec_res.trajectory
+                if f.get("sim_time_s", 0.0) >= contract.settling_time_s
+            ]
+            mean_tracking_err = (
+                float(np.mean(tracking_errors)) if tracking_errors else 0.0
+            )
+            record_hash = hashlib.sha256(canonical_json(exec_res.trajectory)).hexdigest()
+            return robustness_result, mean_tracking_err, record_hash
         elif hasattr(ctrl, "observe") and callable(ctrl.observe):
             observe_fn = ctrl.observe
         elif callable(ctrl):
@@ -158,8 +200,9 @@ class RoboticsCIGate:
                     current_action = np.array(raw_act[:4], dtype=np.float64)
 
             data.ctrl[:] = current_action
-            if disturbance != 0.0 and body_id >= 0:
-                data.xfrc_applied[body_id, 2] = disturbance
+            dist_force = calculate_applied_disturbance(scenario, sim_time)
+            if body_id >= 0:
+                data.xfrc_applied[body_id, 2] = dist_force
 
             mujoco.mj_step(model, data)
 
@@ -247,13 +290,15 @@ class RoboticsCIGate:
                 cand_res = STLRobustnessResult(
                     satisfied=False,
                     verdict="INVALID",
-                    min_robustness=float("-inf"),
+                    min_robustness=0.0,
                     critical_timestamp_s=0.0,
                     critical_step_index=0,
                     critical_predicate="execution_error",
                     critical_actual_value=0.0,
                     critical_threshold=0.0,
                     summary=str(e),
+                    timeline=[],
+                    is_valid=False,
                 )
                 cand_hash = hashlib.sha256(f"error_{scenario_name}".encode()).hexdigest()
 
@@ -275,13 +320,15 @@ class RoboticsCIGate:
                 base_res = STLRobustnessResult(
                     satisfied=False,
                     verdict="INVALID",
-                    min_robustness=float("-inf"),
+                    min_robustness=0.0,
                     critical_timestamp_s=0.0,
                     critical_step_index=0,
                     critical_predicate="execution_error",
                     critical_actual_value=0.0,
                     critical_threshold=0.0,
                     summary=str(e),
+                    timeline=[],
+                    is_valid=False,
                 )
 
             if cand_res.satisfied:

@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import os
 import unittest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -435,7 +436,15 @@ class IndependentReplayVerificationTests(unittest.TestCase):
 
 class CourtRecordApiEndpointsTests(unittest.TestCase):
     def setUp(self):
+        self._prev_fallback = os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK")
+        os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = "1"
         self.client = TestClient(app)
+
+    def tearDown(self):
+        if self._prev_fallback is not None:
+            os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = self._prev_fallback
+        else:
+            os.environ.pop("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK", None)
 
     def test_get_court_record_returns_200_and_valid_structure(self):
         payload = {

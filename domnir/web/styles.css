@@ -3884,6 +3884,13 @@ html.rune-dawn .failure-atlas-wrapper {
   stroke-width: 1.5px;
 }
 
+.atlas-point-selected {
+  stroke: #38bdf8 !important;
+  stroke-width: 3px !important;
+  r: 9px !important;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8)) !important;
+}
+
 /* Tooltip */
 .atlas-tooltip {
   position: absolute;

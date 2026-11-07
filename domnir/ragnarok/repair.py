@@ -32,6 +32,7 @@ class RepairCampaignResult:
     outcome: str
     history: list[RepairAttempt] = field(default_factory=list)
     summary: str = ""
+    limitation_note: str = "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
 
 
 class HoldoutSuite:
@@ -216,7 +217,7 @@ class AutonomousRepairEngine:
                     holdout_passes += 1
 
             pass_rate = holdout_passes / len(self.holdout_suite)
-            if pass_rate < 0.80:
+            if pass_rate < 1.0:
                 history.append(
                     RepairAttempt(
                         revision_number=rev,
@@ -226,7 +227,7 @@ class AutonomousRepairEngine:
                         passed_holdout=False,
                         holdout_pass_rate=pass_rate,
                         accepted=False,
-                        rejection_reason=f"Holdout pass rate {pass_rate * 100:.1f}% below 80% threshold",
+                        rejection_reason=f"Holdout pass rate {pass_rate * 100:.1f}% below 100% hard safety acceptance gate ({holdout_passes}/{len(self.holdout_suite)} passed)",
                     )
                 )
                 continue

@@ -221,8 +221,16 @@ class ControllerGenerationEndpointTests(unittest.TestCase):
 class ExperimentWorkflowTests(unittest.TestCase):
     def setUp(self):
         import os
+        self._orig_fallback = os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK")
         os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = "1"
         self.client = TestClient(app)
+
+    def tearDown(self):
+        import os
+        if self._orig_fallback is not None:
+            os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = self._orig_fallback
+        else:
+            os.environ.pop("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK", None)
 
     def test_production_fails_closed_when_microvm_unavailable(self):
         import os

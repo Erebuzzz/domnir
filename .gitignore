@@ -11,6 +11,7 @@ __pycache__/
 .env
 *.env
 *.tar.gz
+*.zip
 
 # Agent instructions and internal planning files
 AGENTS.md

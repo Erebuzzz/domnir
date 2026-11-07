@@ -70,15 +70,40 @@ class GuardianTrialReport(BaseModel):
 
 
 def _resolve_controller_fn(controller: Any) -> Callable[[dict[str, Any]], Any]:
-    if isinstance(controller, GeneratedController):
-        ns: dict[str, Any] = {}
-        code_obj = compile(controller.source_code, "<string>", "exec")
-        exec(code_obj, ns)
-        return ns["observe"]
     if hasattr(controller, "observe") and callable(controller.observe):
         return controller.observe
     if callable(controller):
         return controller
+    if isinstance(controller, (GeneratedController, str)):
+        source_code = controller.source_code if isinstance(controller, GeneratedController) else controller
+        from domnir.evaluator import get_builtin_controller_fn
+        builtin_fn = get_builtin_controller_fn(source_code)
+        if builtin_fn is not None:
+            return builtin_fn
+
+        from domnir.evaluator import SafeControllerEvaluator, is_microvm_available
+        if not SafeControllerEvaluator.is_execution_available():
+            raise RuntimeError(
+                "BLOCKED: ISOLATION_UNAVAILABLE: MicroVM hardware acceleration (/dev/kvm) is required to execute untrusted controller code."
+            )
+        from domnir.api.jobs import _MicroVMGuestStream, _IsolatedSubprocessGuestStream
+        from domnir.sandbox import SandboxLease
+        import shutil
+        import json
+        if is_microvm_available():
+            msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
+            lease = SandboxLease(msb_path, duration_seconds=60)
+            lease.__enter__()
+            lease.install_controller(source_code.encode("utf-8"))
+            stream = _MicroVMGuestStream(lease)
+        else:
+            stream = _IsolatedSubprocessGuestStream(source_code)
+
+        def sandboxed_observe(obs: dict[str, Any]) -> Any:
+            resp_str = stream.exchange(obs)
+            return json.loads(resp_str)
+
+        return sandboxed_observe
     raise ValueError(f"Unsupported controller type: {type(controller)}")
 
 
@@ -527,14 +552,14 @@ class GuardianTrialComparator:
                 ctrl_max = model.actuator_ctrlrange[:, 1]
                 data.ctrl[:] = np.clip(ctrl_vec, ctrl_min, ctrl_max)
 
-                current_disturbance = 0.0
-                if pulse_dur > 0.0:
-                    if pulse_start <= sim_time <= pulse_start + pulse_dur:
-                        current_disturbance = dist_f
-                else:
-                    current_disturbance = dist_f
-
                 if body_id >= 0:
+                    if scenario is not None and hasattr(scenario, "pulse_start_s"):
+                        from domnir.scenario import calculate_applied_disturbance
+                        current_disturbance = calculate_applied_disturbance(scenario, sim_time)
+                    elif pulse_dur > 0.0:
+                        current_disturbance = dist_f if pulse_start <= sim_time < pulse_start + pulse_dur else 0.0
+                    else:
+                        current_disturbance = dist_f
                     data.xfrc_applied[body_id, 2] = current_disturbance
 
                 mujoco.mj_step(model, data)
@@ -597,11 +622,13 @@ class GuardianTrialComparator:
                 applied_action = raw_action
 
             thrust = self.supervisor._extract_thrust(applied_action)
-            current_disturbance = (
-                dist_f
-                if (pulse_dur <= 0.0 or pulse_start <= sim_time <= pulse_start + pulse_dur)
-                else 0.0
-            )
+            if scenario is not None and hasattr(scenario, "pulse_start_s"):
+                from domnir.scenario import calculate_applied_disturbance
+                current_disturbance = calculate_applied_disturbance(scenario, sim_time)
+            elif pulse_dur > 0.0:
+                current_disturbance = dist_f if pulse_start <= sim_time < pulse_start + pulse_dur else 0.0
+            else:
+                current_disturbance = dist_f
 
             az = (
                 (thrust / self.supervisor.mass_kg)

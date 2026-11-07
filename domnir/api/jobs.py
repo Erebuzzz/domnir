@@ -36,6 +36,7 @@ from domnir.replay import (
     restore_integration_state,
 )
 from domnir.sandbox import SandboxLease
+from domnir.scenario import ScenarioParameter, calculate_applied_disturbance
 from domnir.spec import FlightSpec, GeneratedController
 
 MAX_QUEUED_JOBS = 20
@@ -259,6 +260,8 @@ class ExperimentJob:
         steps: int | None = None,
         initial_altitude_m: float = 0.15,
         vertical_disturbance_n: float = 0.0,
+        pulse_start_s: float = 0.0,
+        pulse_duration_s: float = 0.0,
         seed: int = 42,
     ) -> None:
         self.id = experiment_id
@@ -270,6 +273,14 @@ class ExperimentJob:
         self.steps = steps or spec.step_budget
         self.initial_altitude_m = initial_altitude_m
         self.vertical_disturbance_n = vertical_disturbance_n
+        self.pulse_start_s = pulse_start_s
+        self.pulse_duration_s = pulse_duration_s
+        self.scenario = ScenarioParameter(
+            initial_altitude_m=initial_altitude_m,
+            disturbance_force_z=vertical_disturbance_n,
+            pulse_start_s=pulse_start_s,
+            pulse_duration_s=pulse_duration_s,
+        )
         self.seed = seed
 
         now = datetime.now(timezone.utc).isoformat()
@@ -425,6 +436,8 @@ class JobOrchestrator:
                 steps=request.steps,
                 initial_altitude_m=request.initial_altitude_m,
                 vertical_disturbance_n=request.vertical_disturbance_n,
+                pulse_start_s=request.pulse_start_s,
+                pulse_duration_s=request.pulse_duration_s,
                 seed=request.seed,
             )
             self._jobs[experiment_id] = job
@@ -560,6 +573,7 @@ class JobOrchestrator:
             "orientation_quat_wxyz": data.qpos[3:7].tolist(),
             "altitude_error_m": float(data.qpos[2] - job.spec.target_altitude_m),
             "action": [0.0, 0.0, 0.0, 0.0],
+            "applied_disturbance_n": float(calculate_applied_disturbance(job.scenario, 0.0)),
         }]
 
         is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
@@ -616,7 +630,8 @@ class JobOrchestrator:
 
                 actions[step_idx] = action
                 data.ctrl[:] = action
-                data.xfrc_applied[body_id, 2] = job.vertical_disturbance_n
+                f_z = calculate_applied_disturbance(job.scenario, float(data.time))
+                data.xfrc_applied[body_id, 2] = f_z
                 mujoco.mj_step(model, data)
 
                 states[step_idx + 1] = np.concatenate((data.qpos, data.qvel))
@@ -630,6 +645,7 @@ class JobOrchestrator:
                     "orientation_quat_wxyz": data.qpos[3:7].tolist(),
                     "altitude_error_m": float(data.qpos[2] - job.spec.target_altitude_m),
                     "action": list(action),
+                    "applied_disturbance_n": float(f_z),
                 })
 
                 if not np.isfinite(states[step_idx + 1]).all():
@@ -656,7 +672,8 @@ class JobOrchestrator:
 
         for step_idx, action in enumerate(actions):
             replay_data.ctrl[:] = action
-            replay_data.xfrc_applied[replay_body_id, 2] = job.vertical_disturbance_n
+            replay_f_z = calculate_applied_disturbance(job.scenario, float(replay_data.time))
+            replay_data.xfrc_applied[replay_body_id, 2] = replay_f_z
             mujoco.mj_step(replay_model, replay_data)
             replay_states[step_idx + 1] = np.concatenate((replay_data.qpos, replay_data.qvel))
             replay_integration_states[step_idx + 1] = capture_integration_state(replay_model, replay_data)
@@ -724,6 +741,8 @@ class JobOrchestrator:
             scenario_seed=job.seed,
             initial_altitude_m=job.initial_altitude_m,
             vertical_disturbance_n=job.vertical_disturbance_n,
+            pulse_start_s=job.pulse_start_s,
+            pulse_duration_s=job.pulse_duration_s,
             steps=steps,
             timestep_s=float(model.opt.timestep),
             controller_source=src_code,

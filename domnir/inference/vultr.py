@@ -188,6 +188,17 @@ class VultrInferenceClient:
         self._cache_time = now
         return models
 
+    def is_live_verified(self) -> bool:
+        if not self.api_key:
+            return False
+        if self._cached_models and (time.time() - self._cache_time < 300):
+            return True
+        try:
+            models = self.list_models()
+            return bool(models)
+        except Exception:
+            return False
+
     def validate_model_id(self, model_id: str) -> None:
         catalog = self.list_models()
         if model_id not in catalog:

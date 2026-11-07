@@ -25,6 +25,7 @@ from domnir.ragnarok.search import (
     RagnarokSearchSpace,
     ScenarioParameter,
     SobolBaselineFalsifier,
+    calculate_applied_disturbance,
 )
 from domnir.spec import FlightSpec, GeneratedController
 from domnir.uncertainty.models import ParameterizedSuite
@@ -140,14 +141,69 @@ class CompleteBenchmarkReport:
         }
 
 
+def _eval_open_loop_weak(obs: dict[str, Any]) -> list[float]:
+    return [0.18, 0.18, 0.18, 0.18]
+
+
+def _eval_classical_p(obs: dict[str, Any]) -> list[float]:
+    pos = obs.get("position_m", [0.0, 0.0, 0.0])
+    target_z = obs.get("target_altitude_m", 0.10)
+    err = target_z - pos[2]
+    thrust = max(0.0, min(1.0, 0.27 + 2.0 * err))
+    return [thrust, thrust, thrust, thrust]
+
+
+def _eval_calibrated_pid(obs: dict[str, Any]) -> list[float]:
+    pos = obs.get("position_m", [0.0, 0.0, 0.0])
+    vel = obs.get("velocity_mps", [0.0, 0.0, 0.0])
+    target_z = obs.get("target_altitude_m", 0.10)
+    err = target_z - pos[2]
+    vz = vel[2]
+    thrust = max(0.0, min(1.0, 0.27 + 3.2 * err - 0.45 * vz))
+    return [thrust, thrust, thrust, thrust]
+
+
+BUILTIN_CONTROLLERS_MAP: dict[str, Callable[[dict[str, Any]], list[float]]] = {
+    BENCHMARK_CONTROLLERS["open_loop_weak"]: _eval_open_loop_weak,
+    BENCHMARK_CONTROLLERS["classical_p"]: _eval_classical_p,
+    BENCHMARK_CONTROLLERS["calibrated_pid"]: _eval_calibrated_pid,
+}
+
+
 def make_analytical_evaluator(
     controller_code: str,
     contract: SafetyContract,
 ) -> Any:
-    """Create an isolated simulator evaluator for a reference controller."""
-    local_ns: dict[str, Any] = {}
-    exec(controller_code, {}, local_ns)
-    observe_fn = local_ns["observe"]
+    """Create an isolated simulator evaluator for a reference controller without host exec."""
+    from domnir.evaluator import get_builtin_controller_fn
+    builtin_fn = get_builtin_controller_fn(controller_code)
+    if builtin_fn is not None:
+        observe_fn = builtin_fn
+    else:
+        from domnir.evaluator import validate_controller_source, SafeControllerEvaluator, is_microvm_available
+        validate_controller_source(controller_code)
+        if not SafeControllerEvaluator.is_execution_available():
+            raise RuntimeError(
+                "BLOCKED: ISOLATION_UNAVAILABLE: MicroVM hardware acceleration (/dev/kvm) is required to execute untrusted controller code."
+            )
+        from domnir.api.jobs import _MicroVMGuestStream, _IsolatedSubprocessGuestStream
+        from domnir.sandbox import SandboxLease
+        import shutil
+        import json
+        if is_microvm_available():
+            msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
+            lease = SandboxLease(msb_path, duration_seconds=60)
+            lease.__enter__()
+            lease.install_controller(controller_code.encode("utf-8"))
+            stream = _MicroVMGuestStream(lease)
+        else:
+            stream = _IsolatedSubprocessGuestStream(controller_code)
+
+        def sandboxed_observe(obs: dict[str, Any]) -> Any:
+            resp_str = stream.exchange(obs)
+            return json.loads(resp_str)
+
+        observe_fn = sandboxed_observe
 
     def evaluate_scenario(scenario: ScenarioParameter) -> STLRobustnessResult:
         dt = contract.physics_dt_s
@@ -180,14 +236,10 @@ def make_analytical_evaluator(
             except Exception:
                 action = [0.0, 0.0, 0.0, 0.0]
 
-            thrust_norm = float(sum(action[:4])) / 4.0
-            thrust_norm = max(0.0, min(1.0, thrust_norm))
-            total_thrust_n = thrust_norm * max_total_thrust
+            thrust = float(action[0]) if float(action[0]) > 0.15 else float(sum(action[:4]))
+            total_thrust_n = max(0.0, min(0.35, thrust))
 
-            # Add external vertical disturbance force if within pulse window
-            ext_force = 0.0
-            if pulse_start_step <= step_idx < pulse_end_step or scenario.pulse_duration_s == 0.0:
-                ext_force = scenario.disturbance_force_z
+            ext_force = calculate_applied_disturbance(scenario, t)
 
             az = (total_thrust_n + ext_force) / mass - g
             vz += az * dt

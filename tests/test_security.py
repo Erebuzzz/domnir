@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import unittest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from domnir.api.app import app
@@ -229,3 +231,86 @@ class SecurityDefensesTests(unittest.TestCase):
         ]:
             resp = self.client.get(endpoint)
             self.assertIn(resp.status_code, (400, 404))
+
+    def test_untrusted_controller_marker_payload_never_executes_on_host(self):
+        import tempfile
+        from pathlib import Path
+        from domnir.verify import CourtRecordVerifier
+        from domnir.ci.gate import RoboticsCIGate
+        from domnir.contracts.stl import SafetyContract
+        from domnir.scenario import ScenarioParameter
+
+        with tempfile.TemporaryDirectory(prefix="sec-test-") as tmp_dir:
+            marker_file = Path(tmp_dir) / "host_pwned_marker.txt"
+            self.assertFalse(marker_file.exists())
+
+            # Host-marker payload: would write to marker_file if executed on host
+            marker_escaped = str(marker_file).replace("\\", "/")
+            malicious_code = (
+                f"import pathlib\n"
+                f"pathlib.Path('{marker_escaped}').write_text('HOST_COMPROMISED')\n"
+                f"def observe(obs):\n"
+                f"    return [0.26, 0.0, 0.0, 0.0]\n"
+            )
+
+            # 1. Verifier L0 / L1 path
+            crafted_record = {
+                "schema_version": "domnir-court-record-v1",
+                "record_id": "cr-sec-001",
+                "experiment_id": "exp-sec-001",
+                "created_at": "2026-11-07T00:00:00Z",
+                "spec": {"target_altitude_m": 0.10, "mission_duration_s": 0.02, "dt_s": 0.002},
+                "scenario": {"initial_altitude_m": 0.10, "vertical_disturbance_n": 0.0, "duration_s": 0.02},
+                "controller": {
+                    "source_code": malicious_code,
+                    "source_sha256": "fake",
+                    "model_id": "malicious-model",
+                },
+                "trajectory": {
+                    "steps": 0,
+                    "timestamps": [],
+                    "position_m": [],
+                    "velocity_mps": [],
+                    "actions": [],
+                    "integration_states": [],
+                    "trajectory_sha256": "fake",
+                },
+                "event_log": {"events": [], "event_count": 0, "head_sha256": "fake"},
+                "verdicts": {"flight_verdict": "NOT_FALSIFIED", "cleanup_status": "SUCCEEDED", "containment_status": "NOT_TESTED"},
+            }
+
+            verifier = CourtRecordVerifier()
+            # L0 must never execute
+            verifier.verify(crafted_record, max_tier="L0")
+            self.assertFalse(marker_file.exists(), "CRITICAL: Marker created during L0 verification!")
+
+            # L1 must never execute
+            verifier.verify(crafted_record, max_tier="L1")
+            self.assertFalse(marker_file.exists(), "CRITICAL: Marker created during L1 verification!")
+
+            # L2 without approved sandbox must fail closed and never execute on host
+            from unittest.mock import patch
+            with patch.dict(os.environ, {"DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK": ""}):
+                l2_report = verifier.verify_l2(crafted_record)
+                self.assertFalse(marker_file.exists(), "CRITICAL: Marker created during L2 verification!")
+                self.assertFalse(l2_report.passed)
+                self.assertIn("UNAVAILABLE", str(l2_report.details))
+
+            # 2. CI Gate path must never execute untrusted code on host
+            gate = RoboticsCIGate()
+            contract = SafetyContract(settling_time_s=0.01, mission_duration_s=0.02)
+            scen = ScenarioParameter(initial_altitude_m=0.10, disturbance_force_z=0.0)
+            res, _, _ = gate._default_simulate_and_evaluate(malicious_code, scen, contract)
+            self.assertFalse(marker_file.exists(), "CRITICAL: Marker created during CI evaluation!")
+            self.assertEqual(res.verdict, "INVALID")
+
+    def test_privileged_containment_endpoint_denied_without_operator_token(self):
+        # 1. Without token: 403 Forbidden
+        resp = self.client.post("/containment/run")
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn("operator", resp.json()["detail"].lower())
+
+        # 2. With invalid token: 403 Forbidden
+        resp_invalid = self.client.post("/containment/run", headers={"x-operator-token": "invalid_fake_token"})
+        self.assertEqual(resp_invalid.status_code, 403)
+        self.assertIn("operator", resp_invalid.json()["detail"].lower())

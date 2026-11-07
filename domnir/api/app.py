@@ -117,6 +117,8 @@ def get_ready() -> ReadyResponse:
     dev_fallback = (not is_prod) and (os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1")
     execution_permitted = bool(microvm_available or dev_fallback)
 
+    live_inference_verified = orchestrator.inference_client.is_live_verified()
+
     if model_loaded and inference_configured and microvm_available:
         status_str = "ready"
         ready_flag = True
@@ -133,7 +135,7 @@ def get_ready() -> ReadyResponse:
         http_health=True,
         model_loaded=model_loaded,
         inference_configured=inference_configured,
-        live_inference_verified=inference_configured,
+        live_inference_verified=live_inference_verified,
         microvm_available=microvm_available,
         execution_permitted=execution_permitted,
         supported_models=list(SUPPORTED_MODELS.keys()),
@@ -374,6 +376,8 @@ def _evaluate_scenario_with_orchestrator(
             controller=ctrl,
             initial_altitude_m=scenario.initial_altitude_m,
             vertical_disturbance_n=scenario.disturbance_force_z,
+            pulse_start_s=scenario.pulse_start_s,
+            pulse_duration_s=scenario.pulse_duration_s,
             steps=contract.physics_steps,
         )
     )

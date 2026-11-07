@@ -205,15 +205,40 @@ class UncertaintySimulationWrapper:
         if num_steps <= 0:
             num_steps = 200
 
-        if isinstance(controller, GeneratedController):
-            ns: dict[str, Any] = {}
-            code_obj = compile(controller.source_code, "<string>", "exec")
-            exec(code_obj, ns)
-            observe_fn = ns["observe"]
-        elif hasattr(controller, "observe") and callable(controller.observe):
+        if hasattr(controller, "observe") and callable(controller.observe):
             observe_fn = controller.observe
         elif callable(controller):
             observe_fn = controller
+        elif isinstance(controller, (GeneratedController, str)):
+            source_code = controller.source_code if isinstance(controller, GeneratedController) else controller
+            from domnir.evaluator import get_builtin_controller_fn
+            builtin_fn = get_builtin_controller_fn(source_code)
+            if builtin_fn is not None:
+                observe_fn = builtin_fn
+            else:
+                from domnir.evaluator import SafeControllerEvaluator, is_microvm_available
+                if not SafeControllerEvaluator.is_execution_available():
+                    raise RuntimeError(
+                        "BLOCKED: ISOLATION_UNAVAILABLE: MicroVM hardware acceleration (/dev/kvm) is required to execute untrusted controller code."
+                    )
+                from domnir.api.jobs import _MicroVMGuestStream, _IsolatedSubprocessGuestStream
+                from domnir.sandbox import SandboxLease
+                import shutil
+                import json
+                if is_microvm_available():
+                    msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
+                    lease = SandboxLease(msb_path, duration_seconds=60)
+                    lease.__enter__()
+                    lease.install_controller(source_code.encode("utf-8"))
+                    stream = _MicroVMGuestStream(lease)
+                else:
+                    stream = _IsolatedSubprocessGuestStream(source_code)
+
+                def sandboxed_observe(obs: dict[str, Any]) -> Any:
+                    resp_str = stream.exchange(obs)
+                    return json.loads(resp_str)
+
+                observe_fn = sandboxed_observe
         else:
             raise ValueError(f"Controller must be callable or define an observe method, got {type(controller)}")
 
@@ -259,14 +284,13 @@ class UncertaintySimulationWrapper:
 
             self.data.ctrl[:] = effective_action
 
-            if dist_f != 0.0 and self.body_id >= 0:
-                if pulse_dur > 0.0:
-                    if pulse_start <= sim_time < pulse_start + pulse_dur:
-                        self.data.xfrc_applied[self.body_id, 2] = dist_f
-                    else:
-                        self.data.xfrc_applied[self.body_id, 2] = 0.0
+            if self.body_id >= 0:
+                if scenario is not None:
+                    from domnir.scenario import calculate_applied_disturbance
+                    f_applied = calculate_applied_disturbance(scenario, sim_time)
                 else:
-                    self.data.xfrc_applied[self.body_id, 2] = dist_f
+                    f_applied = dist_f
+                self.data.xfrc_applied[self.body_id, 2] = f_applied
 
             mujoco.mj_step(self.model, self.data)
 

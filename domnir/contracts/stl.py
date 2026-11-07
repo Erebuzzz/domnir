@@ -48,6 +48,7 @@ class STLRobustnessResult:
     critical_threshold: float
     summary: str
     timeline: list[InstantaneousRobustness] = field(default_factory=list)
+    is_valid: bool = True
 
 
 class SafetyContract(BaseModel):
@@ -111,12 +112,14 @@ class STLMonitor:
         cls,
         contract: SafetyContract,
         trajectory: list[dict[str, Any]],
+        *,
+        require_full_horizon: bool = True,
     ) -> STLRobustnessResult:
         if not trajectory:
             return STLRobustnessResult(
                 satisfied=False,
                 verdict="INVALID",
-                min_robustness=float("-inf"),
+                min_robustness=0.0,
                 critical_timestamp_s=0.0,
                 critical_step_index=0,
                 critical_predicate="empty_trajectory",
@@ -124,6 +127,7 @@ class STLMonitor:
                 critical_threshold=0.0,
                 summary="Trajectory is empty. No telemetry recorded.",
                 timeline=[],
+                is_valid=False,
             )
 
         max_tilt_rad = math.radians(contract.max_tilt_deg)
@@ -135,14 +139,63 @@ class STLMonitor:
         crit_pred = PredicateType.FLOOR
         crit_val = 0.0
         crit_thresh = 0.0
+        prev_sim_time = -1.0
 
         for record in trajectory:
             step_idx = int(record.get("step_index", 0))
             sim_time = float(record.get("sim_time_s", step_idx * contract.physics_dt_s))
 
+            if prev_sim_time >= 0.0 and sim_time < prev_sim_time:
+                return STLRobustnessResult(
+                    satisfied=False,
+                    verdict="INVALID",
+                    min_robustness=0.0,
+                    critical_timestamp_s=sim_time,
+                    critical_step_index=step_idx,
+                    critical_predicate="non_monotonic_time",
+                    critical_actual_value=sim_time,
+                    critical_threshold=prev_sim_time,
+                    summary=f"Non-monotonic timestamp detected at step {step_idx} ({sim_time:.4f}s < {prev_sim_time:.4f}s)",
+                    timeline=timeline,
+                    is_valid=False,
+                )
+            prev_sim_time = sim_time
+
             pos = record.get("position_m", [0.0, 0.0, 0.0])
             vel = record.get("velocity_mps", [0.0, 0.0, 0.0])
             quat = record.get("orientation_quat_wxyz", [1.0, 0.0, 0.0, 0.0])
+
+            if len(quat) < 4:
+                return STLRobustnessResult(
+                    satisfied=False,
+                    verdict="INVALID",
+                    min_robustness=0.0,
+                    critical_timestamp_s=sim_time,
+                    critical_step_index=step_idx,
+                    critical_predicate="malformed_quaternion",
+                    critical_actual_value=float(len(quat)),
+                    critical_threshold=4.0,
+                    summary=f"Malformed quaternion length {len(quat)} at step {step_idx}",
+                    timeline=timeline,
+                    is_valid=False,
+                )
+
+            q_norm_sq = sum(float(c) ** 2 for c in quat[:4])
+            if not math.isfinite(q_norm_sq) or abs(math.sqrt(q_norm_sq) - 1.0) > 0.05:
+                q_norm = math.sqrt(q_norm_sq) if (math.isfinite(q_norm_sq) and q_norm_sq >= 0.0) else 0.0
+                return STLRobustnessResult(
+                    satisfied=False,
+                    verdict="INVALID",
+                    min_robustness=0.0,
+                    critical_timestamp_s=sim_time,
+                    critical_step_index=step_idx,
+                    critical_predicate="unnormalized_quaternion",
+                    critical_actual_value=q_norm,
+                    critical_threshold=1.0,
+                    summary=f"Quaternion normalization breached tolerance (|q|={q_norm:.4f}) at step {step_idx}",
+                    timeline=timeline,
+                    is_valid=False,
+                )
 
             z = float(pos[2]) if len(pos) > 2 else 0.0
             speed = math.sqrt(sum(float(v) ** 2 for v in vel[:3]))
@@ -152,14 +205,15 @@ class STLMonitor:
                 return STLRobustnessResult(
                     satisfied=False,
                     verdict="INVALID",
-                    min_robustness=float("-nan"),
+                    min_robustness=0.0,
                     critical_timestamp_s=sim_time,
                     critical_step_index=step_idx,
                     critical_predicate="non_finite_state",
-                    critical_actual_value=z,
+                    critical_actual_value=z if math.isfinite(z) else 0.0,
                     critical_threshold=0.0,
                     summary=f"Non-finite state (NaN/Inf) detected at step {step_idx} (t={sim_time:.4f}s)",
                     timeline=timeline,
+                    is_valid=False,
                 )
 
             # Quantitative robustness predicates:
@@ -210,6 +264,29 @@ class STLMonitor:
                 crit_thresh = step_min_pred[3]
 
         satisfied = global_min_rho >= 0.0
+
+        # Horizon check: if no breach occurred, check if trajectory covered expected duration
+        final_sim_time = float(trajectory[-1].get("sim_time_s", 0.0))
+        final_step_idx = int(trajectory[-1].get("step_index", len(trajectory) - 1))
+        expected_min_horizon = contract.mission_duration_s - (contract.physics_dt_s * 1.5)
+        if satisfied and require_full_horizon and final_sim_time < expected_min_horizon:
+            return STLRobustnessResult(
+                satisfied=False,
+                verdict="INVALID",
+                min_robustness=0.0,
+                critical_timestamp_s=final_sim_time,
+                critical_step_index=final_step_idx,
+                critical_predicate="truncated_horizon",
+                critical_actual_value=final_sim_time,
+                critical_threshold=contract.mission_duration_s,
+                summary=(
+                    f"Trajectory truncated at t={final_sim_time:.4f}s before required mission "
+                    f"duration {contract.mission_duration_s:.4f}s without meeting full horizon."
+                ),
+                timeline=timeline,
+                is_valid=False,
+            )
+
         verdict = "SATISFIED" if satisfied else "VIOLATED"
 
         if satisfied:
@@ -235,4 +312,5 @@ class STLMonitor:
             critical_threshold=crit_thresh,
             summary=summary,
             timeline=timeline,
+            is_valid=True,
         )

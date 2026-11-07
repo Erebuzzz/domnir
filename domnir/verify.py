@@ -64,6 +64,7 @@ class TierResult(BaseModel):
     level: str
     name: str
     passed: bool
+    status: str = "PASS"  # PASS, FAIL, NOT_RUN, INCOMPLETE, UNAVAILABLE
     tampered: bool = False
     details: dict[str, Any] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
@@ -330,10 +331,12 @@ class CourtRecordVerifier:
                 )
 
         passed = len(errors) == 0 and not tampered
+        status_str = "PASS" if passed else ("FAIL" if tampered else "INCOMPLETE")
         return TierResult(
             level="L0",
             name="Structural Integrity",
             passed=passed,
+            status=status_str,
             tampered=tampered,
             details=details,
             errors=errors,
@@ -463,6 +466,7 @@ class CourtRecordVerifier:
             level="L1",
             name="Physics Replay",
             passed=passed,
+            status="PASS" if passed else "FAIL",
             tampered=tampered,
             details=details,
             errors=errors,
@@ -501,80 +505,117 @@ class CourtRecordVerifier:
                 errors=["Action count does not match trajectory steps"],
             )
 
-        ns: dict[str, Any] = {"__builtins__": __builtins__}
+        # 1. Static validation of controller source without host execution
         try:
-            code_obj = compile(src, "<controller>", "exec")
-            exec(code_obj, ns)
+            from domnir.evaluator import validate_controller_source, is_microvm_available
+            validate_controller_source(src)
         except Exception as err:
             return TierResult(
                 level="L2",
                 name="Controller Determinism",
                 passed=False,
                 tampered=True,
-                errors=[f"Controller code execution error: {err}"],
+                errors=[f"Controller source validation error: {err}"],
             )
 
-        observe_fn = ns.get("observe")
-        if not callable(observe_fn):
+        # 2. Check execution capability (MicroVM or dev fallback)
+        is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
+        dev_fallback = (not is_prod) and (os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1")
+
+        if not (is_microvm_available() or dev_fallback):
             return TierResult(
                 level="L2",
                 name="Controller Determinism",
                 passed=False,
-                tampered=True,
-                errors=["Controller does not define a callable observe function"],
+                status="UNAVAILABLE",
+                tampered=False,
+                details={
+                    "status": "UNAVAILABLE",
+                    "reason": "MicroVM hardware acceleration (/dev/kvm) is required to execute untrusted controller code",
+                },
+                errors=["L2 execution skipped: microVM sandbox unavailable on unvirtualized host"],
             )
 
+        # 3. Execution strictly via isolated stream
+        from domnir.api.jobs import _MicroVMGuestStream, _IsolatedSubprocessGuestStream
+        from domnir.sandbox import SandboxLease
+        import shutil
+
+        stream = None
+        lease = None
         target_alt = float(record.get("spec", {}).get("target_altitude_m", 0.1))
         dt_s = float(record.get("scenario", {}).get("timestep_s", 0.002))
         max_action_diff = 0.0
 
-        for k in range(steps):
-            obs = {
-                "schema_version": "1.0",
-                "trial_id": str(record.get("experiment_id", "")),
-                "step_index": k,
-                "sim_time_s": float(timestamps[k]) if k < len(timestamps) else k * dt_s,
-                "dt_s": dt_s,
-                "position_m": list(pos_m[k]) if k < len(pos_m) else [0.0, 0.0, 0.1],
-                "velocity_mps": list(vel_mps[k]) if k < len(vel_mps) else [0.0, 0.0, 0.0],
-                "orientation_quat_wxyz": list(integration_states[k][3:7]) if k < len(integration_states) and len(integration_states[k]) >= 7 else [1.0, 0.0, 0.0, 0.0],
-                "body_angular_velocity_rps": list(integration_states[k][7:10]) if k < len(integration_states) and len(integration_states[k]) >= 10 else [0.0, 0.0, 0.0],
-                "target_position_m": [0.0, 0.0, target_alt],
-                "target_altitude_m": target_alt,
-            }
-
-            try:
-                raw_act = observe_fn(obs)
-            except Exception as err:
-                tampered = True
-                errors.append(f"Controller observe() raised exception at step {k}: {err}")
-                break
-
-            if isinstance(raw_act, dict):
-                act_vec = np.array([
-                    float(raw_act.get("thrust", 0.0)),
-                    float(raw_act.get("moment_x", 0.0)),
-                    float(raw_act.get("moment_y", 0.0)),
-                    float(raw_act.get("moment_z", 0.0)),
-                ], dtype=np.float64)
-            elif isinstance(raw_act, (list, tuple, np.ndarray)):
-                act_vec = np.array(raw_act[:4], dtype=np.float64)
+        try:
+            if is_microvm_available():
+                msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
+                lease = SandboxLease(msb_path, duration_seconds=60)
+                lease.__enter__()
+                lease.install_controller(src.encode("utf-8"))
+                stream = _MicroVMGuestStream(lease)
             else:
-                tampered = True
-                errors.append(f"Controller returned invalid action type at step {k}: {type(raw_act)}")
-                break
+                stream = _IsolatedSubprocessGuestStream(src)
 
-            rec_act = np.array(actions[k], dtype=np.float64)
-            diff = float(np.max(np.abs(act_vec - rec_act)))
-            if diff > max_action_diff:
-                max_action_diff = diff
+            for k in range(steps):
+                obs = {
+                    "schema_version": "1.0",
+                    "trial_id": str(record.get("experiment_id", "")),
+                    "step_index": k,
+                    "sim_time_s": float(timestamps[k]) if k < len(timestamps) else k * dt_s,
+                    "dt_s": dt_s,
+                    "position_m": list(pos_m[k]) if k < len(pos_m) else [0.0, 0.0, 0.1],
+                    "velocity_mps": list(vel_mps[k]) if k < len(vel_mps) else [0.0, 0.0, 0.0],
+                    "orientation_quat_wxyz": list(integration_states[k][3:7]) if k < len(integration_states) and len(integration_states[k]) >= 7 else [1.0, 0.0, 0.0, 0.0],
+                    "body_angular_velocity_rps": list(integration_states[k][7:10]) if k < len(integration_states) and len(integration_states[k]) >= 10 else [0.0, 0.0, 0.0],
+                    "target_position_m": [0.0, 0.0, target_alt],
+                    "target_altitude_m": target_alt,
+                }
 
-            if diff > 1e-6:
-                tampered = True
-                errors.append(
-                    f"Action mismatch at step {k}: observed action differs from recorded action (max diff: {diff:.2e})"
-                )
-                break
+                try:
+                    resp_str = stream.exchange(obs)
+                    raw_act = json.loads(resp_str)
+                except Exception as err:
+                    tampered = True
+                    errors.append(f"Guest observe() failed at step {k}: {err}")
+                    break
+
+                if isinstance(raw_act, dict):
+                    act_vec = np.array([
+                        float(raw_act.get("thrust", 0.0)),
+                        float(raw_act.get("moment_x", 0.0)),
+                        float(raw_act.get("moment_y", 0.0)),
+                        float(raw_act.get("moment_z", 0.0)),
+                    ], dtype=np.float64)
+                elif isinstance(raw_act, (list, tuple, np.ndarray)):
+                    act_vec = np.array(raw_act[:4], dtype=np.float64)
+                else:
+                    tampered = True
+                    errors.append(f"Controller returned invalid action type at step {k}: {type(raw_act)}")
+                    break
+
+                rec_act = np.array(actions[k], dtype=np.float64)
+                diff = float(np.max(np.abs(act_vec - rec_act)))
+                if diff > max_action_diff:
+                    max_action_diff = diff
+
+                if diff > 1e-6:
+                    tampered = True
+                    errors.append(
+                        f"Action mismatch at step {k}: observed action differs from recorded action (max diff: {diff:.2e})"
+                    )
+                    break
+        finally:
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+            if lease is not None:
+                try:
+                    lease.remove()
+                except Exception:
+                    pass
 
         details["max_action_diff"] = max_action_diff
         details["steps_verified"] = steps
@@ -584,6 +625,7 @@ class CourtRecordVerifier:
             level="L2",
             name="Controller Determinism",
             passed=passed,
+            status="PASS" if passed else "FAIL",
             tampered=tampered,
             details=details,
             errors=errors,
@@ -640,6 +682,7 @@ class CourtRecordVerifier:
             level="L3",
             name="Containment Audit",
             passed=passed,
+            status="PASS" if passed else "FAIL",
             tampered=tampered,
             details=details,
             errors=errors,

@@ -21,10 +21,12 @@ class MinimizationResult:
     evaluations_used: int
     predicate_preserved: bool
     summary: str
+    verified_violation: bool = True
+    limitation_note: str = "Local coordinate descent reduction does not prove global minimality."
 
 
 class CounterexampleMinimizer:
-    """1-minimal coordinate reduction engine for physical counterexample scenarios."""
+    """Locally reduced counterexample engine using 1-minimal coordinate descent."""
 
     def __init__(
         self,
@@ -106,7 +108,7 @@ class CounterexampleMinimizer:
                     initial_altitude_m=curr.initial_altitude_m,
                     disturbance_force_z=curr.disturbance_force_z,
                     pulse_start_s=curr.pulse_start_s,
-                    pulse_duration_s=dur_mid,
+                    pulse_duration_s=max(0.0, dur_mid),
                 )
                 res = evaluator(cand)
                 eval_count += 1
@@ -127,7 +129,7 @@ class CounterexampleMinimizer:
             for step_i in range(1, alt_steps):
                 if eval_count >= self.max_evaluations:
                     break
-                test_alt = alt_curr + step_delta * step_i
+                test_alt = max(0.05, alt_curr + step_delta * step_i)
                 cand = ScenarioParameter(
                     initial_altitude_m=test_alt,
                     disturbance_force_z=curr.disturbance_force_z,
@@ -143,17 +145,26 @@ class CounterexampleMinimizer:
                 else:
                     break
 
+        # Independent verification of final reduced candidate
+        verify_check = evaluator(curr)
+        eval_count += 1
+        verified_violation = (not verify_check.satisfied) and (
+            verify_check.critical_predicate == target_predicate or not verify_check.satisfied
+        )
+
         minimized_cost = self.compute_cost(curr)
         reduction_ratio = (
             (original_cost - minimized_cost) / original_cost
             if original_cost > 0.0 else 0.0
         )
 
+        limitation = "Local coordinate descent reduction does not prove global minimality."
         summary = (
-            f"1-minimal counterexample found in {eval_count} evaluations. "
+            f"Locally reduced counterexample found in {eval_count} evaluations. "
             f"Cost reduced from {original_cost:.4f} to {minimized_cost:.4f} "
             f"({reduction_ratio * 100:.1f}% reduction). "
-            f"Target predicate '{target_predicate}' maintained with robustness {curr_res.min_robustness:.4f}."
+            f"Target predicate '{target_predicate}' maintained with robustness {curr_res.min_robustness:.4f}. "
+            f"Verified violation: {verified_violation}. Limitation: {limitation}"
         )
 
         return MinimizationResult(
@@ -167,4 +178,6 @@ class CounterexampleMinimizer:
             evaluations_used=eval_count,
             predicate_preserved=curr_res.critical_predicate == target_predicate,
             summary=summary,
+            verified_violation=verified_violation,
+            limitation_note=limitation,
         )

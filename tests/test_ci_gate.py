@@ -276,3 +276,36 @@ def test_revision_evaluation_with_real_mujoco_simulation(base_contract):
     assert assessment.baseline_version == ctrl_base.source_sha256[:12]
     assert assessment.status in (ReleaseStatus.RELEASE_APPROVED, ReleaseStatus.AWAITING_REVIEW)
     assert len(assessment.court_record_hashes) == 2
+
+
+def test_revision_evaluation_with_pulse_disturbance_schedule(base_contract):
+    """Verify that CI gate accurately steps with pulse disturbance schedule."""
+    code_ctrl = (
+        "def observe(observation: dict) -> list[float]:\n"
+        "    z = observation['position_m'][2]\n"
+        "    vz = observation['velocity_mps'][2]\n"
+        "    thrust = max(0.0, min(0.35, 0.26487 + 0.15 * (0.1 - z) - 0.08 * vz))\n"
+        "    return [thrust, 0.0, 0.0, 0.0]\n"
+    )
+    ctrl_cand = GeneratedController.from_source(code_ctrl, model_id="candidate_model")
+    ctrl_base = GeneratedController.from_source(code_ctrl, model_id="baseline_model")
+
+    pulsed_suite = [
+        ScenarioParameter(
+            initial_altitude_m=0.10,
+            disturbance_force_z=0.04,
+            pulse_start_s=0.20,
+            pulse_duration_s=0.10,
+        )
+    ]
+    gate = RoboticsCIGate()
+    assessment = gate.evaluate_revision(
+        candidate_ctrl=ctrl_cand,
+        baseline_ctrl=ctrl_base,
+        contract=base_contract,
+        suite=pulsed_suite,
+    )
+    assert assessment.contracts_evaluated == 1
+    assert assessment.regressions_count == 0
+    assert len(assessment.court_record_hashes) == 1
+

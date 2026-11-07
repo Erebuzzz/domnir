@@ -10,8 +10,16 @@ from domnir.api.app import app, WEB_DIR
 class WebAppDeliveryTests(unittest.TestCase):
     def setUp(self):
         import os
+        self._orig_fallback = os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK")
         os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = "1"
         self.client = TestClient(app)
+
+    def tearDown(self):
+        import os
+        if self._orig_fallback is not None:
+            os.environ["DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK"] = self._orig_fallback
+        else:
+            os.environ.pop("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK", None)
 
     def test_web_directory_exists(self):
         self.assertTrue(WEB_DIR.is_dir(), f"Web directory does not exist: {WEB_DIR}")
@@ -568,6 +576,16 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertEqual(data["evaluations_count"], 2)
         self.assertIn("candidates", data)
         self.assertEqual(len(data["candidates"]), 2)
+
+    def test_failure_atlas_clickable_and_untested_marked(self):
+        js_content = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        css_content = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+        html_content = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("GRAY REGION: UNTESTED / UNKNOWN RISK", js_content)
+        self.assertIn("atlas-point-selected", js_content)
+        self.assertIn(".atlas-point-selected", css_content)
+        self.assertIn("Documentation search", html_content)
 
 
 if __name__ == "__main__":

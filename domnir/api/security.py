@@ -165,12 +165,21 @@ class RateLimiter:
             "/controllers/generate",
             "/containment/run",
         }
+        self._heavy_prefixes = (
+            "/ragnarok/",
+            "/guardian/",
+            "/uncertainty/",
+            "/ci/",
+        )
 
     def is_allowed(self, client_ip: str, path: str) -> tuple[bool, int, float]:
         with self._lock:
             now = time.monotonic()
             cutoff = now - self.window_seconds
-            is_heavy = path in self._heavy_paths
+            is_heavy = (
+                path in self._heavy_paths
+                or any(path.startswith(prefix) for prefix in self._heavy_prefixes)
+            )
 
             # Prune expired timestamps
             self._requests[client_ip] = [t for t in self._requests[client_ip] if t > cutoff]

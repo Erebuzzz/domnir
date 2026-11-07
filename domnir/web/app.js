@@ -3553,6 +3553,14 @@
     svgHtml += `<text x="${padding.left + chartW / 2}" y="${height - 8}" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle" font-weight="600">Vertical Disturbance Force (N)</text>`;
     svgHtml += `<text x="18" y="${padding.top + chartH / 2}" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 18 ${padding.top + chartH / 2})">Initial Altitude (m)</text>`;
 
+    // Untested domain watermark / annotation
+    svgHtml += `
+      <g class="atlas-untested-watermark" opacity="0.65">
+        <text x="${width - padding.right}" y="${padding.top + 14}" fill="#64748b" font-family="monospace" font-size="9" text-anchor="end">GRAY REGION: UNTESTED / UNKNOWN RISK</text>
+        <text x="${width - padding.right}" y="${padding.top + 26}" fill="#475569" font-family="monospace" font-size="8" text-anchor="end">Only plotted points have empirical physics evidence</text>
+      </g>
+    `;
+
     // Plot candidates
     (candidates || []).forEach((c, idx) => {
       const scen = c.scenario || {};
@@ -3677,6 +3685,25 @@
 
       circle.addEventListener("mouseleave", () => {
         tooltip.classList.add("hidden");
+      });
+
+      circle.addEventListener("click", () => {
+        const idx = parseInt(circle.dataset.candidateIdx, 10);
+        const c = candidates[idx];
+        if (!c) return;
+
+        wrapper.querySelectorAll("circle.atlas-point").forEach(el => el.classList.remove("atlas-point-selected"));
+        circle.classList.add("atlas-point-selected");
+
+        const scen = c.scenario || {};
+        if (elements.initAltitude && typeof scen.initial_altitude_m === "number") {
+          elements.initAltitude.value = scen.initial_altitude_m;
+        }
+        if (elements.vertDisturbance && typeof scen.disturbance_force_z === "number") {
+          elements.vertDisturbance.value = scen.disturbance_force_z;
+        }
+        const status = c.satisfied === false || c.robustness <= 0 ? "VIOLATION" : "SATISFIED";
+        toast(`Selected Trial #${c.iteration || (idx + 1)} (${status}): Alt=${scen.initial_altitude_m}m, Force=${scen.disturbance_force_z}N`, "info");
       });
     });
   }

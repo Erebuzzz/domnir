@@ -91,6 +91,8 @@ class RunExperimentRequest(BaseModel):
     steps: int | None = Field(default=None, ge=1, le=5000)
     initial_altitude_m: float = Field(default=0.15, ge=0.01, le=5.0)
     vertical_disturbance_n: float = Field(default=0.0, ge=-1.0, le=1.0)
+    pulse_start_s: float = Field(default=0.0, ge=0.0, le=10.0)
+    pulse_duration_s: float = Field(default=0.0, ge=0.0, le=10.0)
     seed: int = Field(default=42, ge=0)
     run_async: bool = False
 

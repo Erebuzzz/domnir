@@ -63,3 +63,35 @@ def test_minimizer_reduces_disturbance_magnitude():
     assert res.minimized_cost < res.original_cost
     assert res.cost_reduction_ratio > 0.0
     assert res.evaluations_used > 1
+    assert res.verified_violation is True
+    assert "minimality" in res.limitation_note.lower()
+
+
+def test_minimizer_admissible_bounds_enforced():
+    minimizer = CounterexampleMinimizer(target_altitude_m=0.10)
+    original = ScenarioParameter(
+        initial_altitude_m=0.06,
+        disturbance_force_z=-0.15,
+        pulse_start_s=0.05,
+        pulse_duration_s=0.08,
+    )
+
+    def mock_evaluator(s: ScenarioParameter) -> STLRobustnessResult:
+        violation = s.disturbance_force_z <= -0.05
+        return STLRobustnessResult(
+            satisfied=not violation,
+            verdict="VIOLATED" if violation else "SATISFIED",
+            min_robustness=s.disturbance_force_z - (-0.05),
+            critical_timestamp_s=0.10,
+            critical_step_index=50,
+            critical_predicate="floor",
+            critical_actual_value=s.initial_altitude_m,
+            critical_threshold=0.05,
+            summary="Bounds mock",
+            timeline=[],
+        )
+
+    res = minimizer.minimize(original, mock_evaluator)
+    assert res.minimized_scenario.initial_altitude_m >= 0.05
+    assert res.minimized_scenario.pulse_duration_s >= 0.0
+    assert res.verified_violation is True
