@@ -166,6 +166,60 @@ class SecurityDefensesTests(unittest.TestCase):
         self.assertIn("Retry-After", r3.headers)
         self.assertIn("Too many requests", r3.json()["detail"])
 
+    def test_forwarded_for_spoofing_rejected_for_untrusted_peer(self):
+        import asyncio
+        from domnir.api.security import RateLimitMiddleware, RateLimiter
+        from starlette.responses import JSONResponse
+
+        async def dummy_app(scope, receive, send):
+            res = JSONResponse({"ok": True})
+            await res(scope, receive, send)
+
+        limiter = RateLimiter(default_limit=1, heavy_limit=1, window_seconds=60.0)
+        mw = RateLimitMiddleware(dummy_app, limiter=limiter, enforce_testclient=True)
+
+        # Peer is an untrusted external IP trying to spoof X-Forwarded-For to bypass limits
+        sent_messages = []
+        async def send(msg):
+            sent_messages.append(msg)
+        async def receive():
+            return {"type": "http.request"}
+
+        scope_1 = {
+            "type": "http",
+            "path": "/health",
+            "client": ("198.51.100.55", 12345),
+            "headers": [(b"x-forwarded-for", b"1.1.1.1")],
+        }
+        asyncio.run(mw(scope_1, receive, send))
+        # First request allowed
+        self.assertEqual(sent_messages[0]["status"], 200)
+
+        # Second request from same peer but claiming a different forwarded IP
+        sent_messages_2 = []
+        async def send_2(msg):
+            sent_messages_2.append(msg)
+        scope_2 = {
+            "type": "http",
+            "path": "/health",
+            "client": ("198.51.100.55", 12345),
+            "headers": [(b"x-forwarded-for", b"2.2.2.2")],
+        }
+        asyncio.run(mw(scope_2, receive, send_2))
+        # Must be throttled based on peer IP, ignoring the spoofed X-Forwarded-For
+        self.assertEqual(sent_messages_2[0]["status"], 429)
+
+    def test_global_heavy_budget_enforced(self):
+        limiter = RateLimiter(default_limit=100, heavy_limit=10, window_seconds=60.0, global_heavy_limit=3)
+        # 3 different IPs make heavy requests
+        self.assertTrue(limiter.is_allowed("10.0.0.1", "/experiments/run")[0])
+        self.assertTrue(limiter.is_allowed("10.0.0.2", "/experiments/run")[0])
+        self.assertTrue(limiter.is_allowed("10.0.0.3", "/experiments/run")[0])
+        # 4th heavy request from a new IP hits the global heavy limit
+        allowed, limit, _ = limiter.is_allowed("10.0.0.4", "/experiments/run")
+        self.assertFalse(allowed)
+        self.assertEqual(limit, 3)
+
     def test_all_experiment_endpoints_path_traversal_guards(self):
         bad_id = "../../../etc/shadow"
         for endpoint in [

@@ -63,6 +63,15 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertIn("renderAltitudeChart", response.text)
         self.assertIn("verifyCourtRecord", response.text)
 
+    def test_javascript_syntax_validity(self):
+        import shutil
+        import subprocess
+        node_bin = shutil.which("node")
+        if node_bin:
+            js_path = WEB_DIR / "app.js"
+            res = subprocess.run([node_bin, "--check", str(js_path)], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"JavaScript syntax error in app.js: {res.stderr}")
+
     def test_api_routes_priority_over_static(self):
         # API endpoints must not be masked by static files mount
         health_res = self.client.get("/health")

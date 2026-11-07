@@ -557,9 +557,12 @@ class JobOrchestrator:
             "sim_time_s": 0.0,
             "position_m": data.qpos[:3].tolist(),
             "velocity_mps": data.qvel[:3].tolist(),
+            "orientation_quat_wxyz": data.qpos[3:7].tolist(),
             "altitude_error_m": float(data.qpos[2] - job.spec.target_altitude_m),
             "action": [0.0, 0.0, 0.0, 0.0],
         }]
+
+        is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
 
         if is_microvm_available() and job.controller:
             msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
@@ -570,7 +573,7 @@ class JobOrchestrator:
             stream: Any = _MicroVMGuestStream(lease)
             job._active_stream = stream
             job.execution_backend = "microvm"
-        elif os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1":
+        elif not is_prod and os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1":
             if not job.controller:
                 raise ValueError("Controller must be validated before simulation")
             stream = _IsolatedSubprocessGuestStream(job.controller.source_code)
@@ -579,6 +582,10 @@ class JobOrchestrator:
         else:
             if not job.controller:
                 raise ValueError("Controller must be validated before simulation")
+            if is_prod and os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1":
+                raise RuntimeError(
+                    "CRITICAL SECURITY VIOLATION: Subprocess execution fallback is strictly prohibited in production mode. Untrusted controllers must run inside verified microVM hardware isolation (/dev/kvm)."
+                )
             raise RuntimeError(
                 "BLOCKED: ISOLATION_UNAVAILABLE: MicroVM hardware acceleration (/dev/kvm) is required to execute untrusted controller code. Host execution fallback is strictly prohibited in production."
             )
@@ -620,6 +627,7 @@ class JobOrchestrator:
                     "sim_time_s": float(data.time),
                     "position_m": data.qpos[:3].tolist(),
                     "velocity_mps": data.qvel[:3].tolist(),
+                    "orientation_quat_wxyz": data.qpos[3:7].tolist(),
                     "altitude_error_m": float(data.qpos[2] - job.spec.target_altitude_m),
                     "action": list(action),
                 })

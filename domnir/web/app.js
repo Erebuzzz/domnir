@@ -1261,10 +1261,13 @@
     if (detail.state === "FAILED" && !courtRecord) {
       elements.verdictContainment.textContent = "FAULT / ABORTED";
       elements.verdictContainment.className = "verdict-val val-fail";
-    } else if (rawContainment === "POLICY_CONFIRMED" || backend === "microvm") {
-      elements.verdictContainment.textContent = "POLICY CONFIRMED (MICROVM)";
+    } else if (rawContainment === "POLICY_CONFIRMED") {
+      elements.verdictContainment.textContent = "POLICY CONFIRMED (AUDITED)";
       elements.verdictContainment.className = "verdict-val val-success";
-    } else if (rawContainment === "PARTIAL" || backend === "trusted_simulator" || backend === "subprocess") {
+    } else if (backend === "microvm") {
+      elements.verdictContainment.textContent = "ISOLATED GUEST (MICROVM)";
+      elements.verdictContainment.className = "verdict-val val-success";
+    } else if (rawContainment === "PARTIAL" || backend === "trusted_simulator" || backend === "subprocess" || backend === "subprocess_dev_unisolated") {
       elements.verdictContainment.textContent = "PARTIAL (TRUSTED SIMULATOR)";
       elements.verdictContainment.className = "verdict-val val-warning";
     } else {
@@ -1277,12 +1280,12 @@
     if (detail.state === "FAILED" && !courtRecord) {
       elements.verdictProvenance.textContent = "NOT AVAILABLE";
       elements.verdictProvenance.className = "verdict-val val-pending";
-    } else if (rawProvenance === "VERIFIED" || courtRecord) {
-      elements.verdictProvenance.textContent = "VERIFIED";
+    } else if (rawProvenance === "VERIFIED") {
+      elements.verdictProvenance.textContent = "EVENT CHAIN VERIFIED";
       elements.verdictProvenance.className = "verdict-val val-success";
     } else {
-      elements.verdictProvenance.textContent = rawProvenance || "INCOMPLETE";
-      elements.verdictProvenance.className = "verdict-val val-warning";
+      elements.verdictProvenance.textContent = rawProvenance || "AWAITING EVIDENCE";
+      elements.verdictProvenance.className = "verdict-val val-pending";
     }
 
     // Cleanup Status
@@ -1600,7 +1603,7 @@
       topic: "microvm",
       topicLabel: "Host Isolation Proof",
       title: "CAP-HOST-001: Strict Hardware Isolation & Capability Containment",
-      citation: "docs/evidence/baseline_audit.md Section CAP-HOST-001",
+      citation: "docs/evidence/containment-suite-20261105-final.json & domnir/containment.py",
       summary: "Documents that Microsandbox microVMs under Linux KVM (/dev/kvm) are strictly isolated with zero host mounts, default-deny network, and CPU/memory limits. Proof records in docs/evidence/ show the guest is incapable of accessing host files or sockets. Finite simulation does not constitute universal hardware airworthiness certification.",
       snippet: "# CAP-HOST-001 Verification Rule\nassert guest_cannot_access_host_files()\nassert guest_cannot_reach_network()\nassert host_simulator_owns_state()",
       lang: "python"
@@ -1610,7 +1613,7 @@
       topic: "microvm",
       topicLabel: "Network Invariant",
       title: "NET-EGRESS-001: Default-Deny Network Egress Invariant",
-      citation: "docs/evidence/baseline_audit.md Section NET-EGRESS-001",
+      citation: "docs/evidence/containment-suite-20261105-final.json & domnir/sandbox.py",
       summary: "All inbound and outbound guest network traffic is blocked by the host virtualization filter. Zero listening ports are exposed to untrusted code.",
       snippet: "# NET-EGRESS-001 Invariant\npolicy: default_egress = 'deny'\npolicy: default_ingress = 'deny'\nports_exposed = 0",
       lang: "yaml"
@@ -1630,7 +1633,7 @@
       topic: "microvm",
       topicLabel: "Teardown Guarantee",
       title: "CLEANUP-POST-001: Ephemeral MicroVM Teardown & Reclamation",
-      citation: "domnir/sandbox/microsandbox.py & docs/evidence/baseline_audit.md",
+      citation: "domnir/sandbox.py & docs/evidence/containment-suite-20261105-final.json",
       summary: "Teardown is executed in host context manager finally blocks. Sandbox instances and temporary IPC FIFOs are unconditionally unlinked and destroyed upon trial termination.",
       snippet: "# CLEANUP-POST-001 Context Manager\nwith SandboxLease(msb_path) as lease:\n    yield lease\n# __exit__ guarantees lease.destroy() and IPC unlinking",
       lang: "python"
@@ -1639,19 +1642,19 @@
       id: "oracle-replay",
       topic: "replay",
       topicLabel: "Deterministic Replay",
-      title: "Deterministic Physical Replay (Tolerance <= 1.00e-12 m)",
+      title: "Physical Replay within Declared Numerical Tolerance (<= 1.00e-12 m)",
       citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 4",
-      summary: "During simulation, control action vectors emitted by the caged guest are recorded step-by-step. To verify the absence of host state tampering or stochastic divergence, the entire action sequence is independently replayed on a fresh, pristine MuJoCo simulation instance. Trajectory difference must not exceed 1.00e-12 meters (exact IEEE 754 double-precision limit).",
-      snippet: "# Deterministic Replay Mathematical Verification\nmax_diff = max(abs(traj_original[t].z - traj_replay[t].z) for t in steps)\nassert max_diff <= 1.00e-12, f'Replay diverged: {max_diff:.3e} m'\nverdict = 'MATCHED (Deterministic physical reproducibility verified)'",
+      summary: "During simulation, control action vectors emitted by the caged guest are recorded step-by-step. To verify the absence of host state tampering or stochastic divergence, the entire action sequence is independently replayed on a fresh, pristine MuJoCo simulation instance. Replay trajectory matched within declared numerical tolerance (<= 1.00e-12 meters) under pinned environment conditions.",
+      snippet: "# Replay Mathematical Verification within Numerical Tolerance\nmax_diff = max(abs(traj_original[t].z - traj_replay[t].z) for t in steps)\nassert max_diff <= 1.00e-12, f'Replay diverged: {max_diff:.3e} m'\nverdict = 'MATCHED within declared numerical tolerance (<= 1.00e-12 m)'",
       lang: "python"
     },
     {
       id: "oracle-court",
       topic: "court",
       topicLabel: "Court Record Proof",
-      title: "Hash-Linked Court Record Ledger (Schema v1.0)",
+      title: "SHA-256 Hash-Linked Court Record (Schema v1.0)",
       citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 5",
-      summary: "Every experiment generates a hash-linked, self-contained Court Record JSON artifact. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
+      summary: "Every experiment generates a hash-linked, self-contained Court Record JSON artifact with locally verifiable integrity. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
       snippet: "{\n  \"schema_version\": \"1.0\",\n  \"record_id\": \"cr-a7f49c01b2\",\n  \"controller_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"event_log_hash_head\": \"67ff6282bf5943982cc0674c980170240571e52f8ec8f425ddcd6cec53101c80\",\n  \"replay_max_abs_difference\": 0.0\n}",
       lang: "json"
     },
@@ -1669,10 +1672,10 @@
       id: "oracle-ast",
       topic: "bounds",
       topicLabel: "Physical Bounds",
-      title: "Host AST Safety Filter & Forbidden Operation Ban",
-      citation: "domnir/synthesis/validator.py",
-      summary: "Before any generated Python flight controller is dispatched to a microVM cage, it is parsed into an Abstract Syntax Tree on the host. The AST filter strictly forbids dangerous Python built-ins and modules: eval, exec, __import__, open, socket, subprocess, os, and sys. Unbounded loops are rejected prior to execution.",
-      snippet: "# Prohibited Python AST Nodes\nFORBIDDEN_CALLS = {'eval', 'exec', '__import__', 'open', 'compile'}\nFORBIDDEN_MODULES = {'os', 'sys', 'socket', 'subprocess', 'requests'}\nFORBIDDEN_NODES = {ast.AsyncFor, ast.AsyncWith}\n# Permitted: pure numerical math, min, max, float, abs, dict return",
+      title: "Host Validation & MicroVM Isolation Boundary",
+      citation: "domnir/spec.py & domnir/sandbox.py",
+      summary: "Before controller execution, the host validates source size (<=32 KiB), UTF-8 encoding, Python syntax, and top-level observe() signature. Execution containment does not rely on fragile source-level AST keyword blacklists: containment is strictly enforced by the hardware MicroVM boundary (/dev/kvm) with default-deny network, zero host mounts, and resource quotas.",
+      snippet: "# Host Validation Contract (domnir/spec.py & domnir/sandbox.py)\nassert 1 <= len(source_bytes) <= 32768\nassert b'\\x00' not in source_bytes\ntree = ast.parse(source_text, filename='controller.py')\nassert any(isinstance(n, ast.FunctionDef) and n.name == 'observe' for n in tree.body)\n# Isolation enforced by: Microsandbox microVM (/dev/kvm)",
       lang: "python"
     },
     {
@@ -1680,7 +1683,7 @@
       topic: "vultr",
       topicLabel: "Vultr Serverless",
       title: "Vultr Serverless Reasoning Effort Calibration",
-      citation: "domnir/synthesis/generator.py",
+      citation: "domnir/vultr_inference.py & domnir/api/app.py",
       summary: "Reasoning effort can be set to Minimal, Low, Medium, or High. Minimal provides the lowest token latency (~1.8s) for direct PD hover loops. Higher reasoning efforts allow LLM models to analyze multi-variable state spaces and plan counter-force thrust vectors for high-turbulence mission scenarios.",
       snippet: "# Reasoning Effort Parameter Mapping\neffort_map = {\n    'minimal': {'temp': 0.15, 'reasoning_tokens': 0},\n    'low':     {'temp': 0.20, 'reasoning_tokens': 256},\n    'medium':  {'temp': 0.25, 'reasoning_tokens': 512},\n    'high':    {'temp': 0.30, 'reasoning_tokens': 1024}\n}",
       lang: "python"
@@ -2106,6 +2109,7 @@
 
         bg.restore();
       }
+    }
 
     function resize() {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -3070,7 +3074,24 @@
         const timeS = pt.sim_time_s || (idx * 0.002);
         const sceneY = (altM - 0.10) * 0.8;
 
-        droneModel.position.y = sceneY;
+        if (pt.position_m && pt.position_m.length >= 3) {
+          const posX = -(pt.position_m[1] || 0.0) * 0.8;
+          const posZ = -(pt.position_m[0] || 0.0) * 0.8;
+          droneModel.position.set(posX, sceneY, posZ);
+        } else {
+          droneModel.position.set(0, sceneY, 0);
+        }
+
+        if (pt.orientation_quat_wxyz && pt.orientation_quat_wxyz.length === 4) {
+          const [qw, qx, qy, qz] = pt.orientation_quat_wxyz;
+          droneModel.quaternion.set(-qy, qz, -qx, qw).normalize();
+        }
+
+        if (badge) {
+          badge.textContent = (pt.orientation_quat_wxyz && pt.orientation_quat_wxyz.length === 4)
+            ? "REPLAY: 6-DOF DYNAMICS"
+            : "REPLAY: 1D ALTITUDE PROFILE";
+        }
 
         // Dynamic 3D Follow-Camera tracking keeps Crazyflie in view at all altitudes
         controls.target.y = sceneY;
@@ -3137,6 +3158,8 @@
 
       function animate() {
         requestAnimationFrame(animate);
+
+        if (document.hidden) return;
 
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 

@@ -167,8 +167,7 @@
         </a>
         <div class="brand">
           <div class="brand-meta-row">
-            <span class="brand-badge">BLAST RADIUS ZERO</span>
-            <span class="brand-tag-secondary">HARDWARE CONFINED FALSIFICATION COURT</span>
+            <span class="brand-tag-secondary">HARDWARE-CONFINED FALSIFICATION COURT</span>
           </div>
           <h1 class="brand-title">DÓMNIR</h1>
           <p class="brand-tagline">Adversarial Falsification &amp; Deterministic Adjudication for AI Flight Controllers</p>
@@ -835,8 +834,8 @@
                     </div>
                     <div class="replay-status-box">
                       <span class="replay-label">Replay Divergence:</span>
-                      <span class="replay-val font-mono" id="replayDiffValue">0.00e+00 m</span>
-                      <span class="badge badge-success" id="replayBadge">MATCHED (&le; 1.00e-12 m)</span>
+                      <span class="replay-val font-mono" id="replayDiffValue">---</span>
+                      <span class="badge badge-unknown" id="replayBadge">NOT RUN</span>
                     </div>
                   </div>
 
@@ -849,20 +848,20 @@
 
                     <div class="verdict-box">
                       <span class="verdict-tag">Containment Perimeter</span>
-                      <div class="verdict-badge verdict-pass" id="verdictContainment">PASS</div>
-                      <p class="verdict-desc">MicroVM guest isolated; zero host secrets or socket leaks.</p>
+                      <div class="verdict-badge verdict-unknown" id="verdictContainment">NOT RUN</div>
+                      <p class="verdict-desc" id="verdictContainmentDesc">Awaiting execution evidence.</p>
                     </div>
 
                     <div class="verdict-box">
                       <span class="verdict-tag">Asset Provenance</span>
-                      <div class="verdict-badge verdict-pass" id="verdictProvenance">Hash Locked</div>
-                      <p class="verdict-desc">SHA-256 digests match model XML and controller AST.</p>
+                      <div class="verdict-badge verdict-unknown" id="verdictProvenance">AWAITING EVIDENCE</div>
+                      <p class="verdict-desc" id="verdictProvenanceDesc">Awaiting simulation and hash validation.</p>
                     </div>
 
                     <div class="verdict-box">
                       <span class="verdict-tag">Terminal Cleanup</span>
-                      <div class="verdict-badge verdict-pass" id="verdictCleanup">SUCCEEDED</div>
-                      <p class="verdict-desc">MicroVM destroyed; 100% resources reclaimed.</p>
+                      <div class="verdict-badge verdict-unknown" id="verdictCleanup">NOT RUN</div>
+                      <p class="verdict-desc" id="verdictCleanupDesc">Awaiting sandbox termination.</p>
                     </div>
                   </div>
 
@@ -881,7 +880,7 @@
                 <div class="court-export-bar">
                   <div class="export-left">
                     <span class="export-title">Court Record Package (Schema v1.0)</span>
-                    <span class="export-desc">Cryptographically signed JSON ledger containing actions, trajectory vectors, and event hash chain</span>
+                    <span class="export-desc">SHA-256 hash-linked Court Record with locally verifiable integrity</span>
                   </div>
                   <div class="export-right">
                     <button type="button" class="btn btn-outline" id="copyCourtRecordBtn">Copy JSON</button>
@@ -1003,28 +1002,28 @@
                   <tbody>
                     <tr>
                       <td>Controller Code Integrity</td>
-                      <td class="font-mono" id="verCtrlSha">SHA-256 Matched</td>
-                      <td id="verCtrlStatus"><span class="badge badge-success">MATCHED</span></td>
+                      <td class="font-mono text-muted" id="verCtrlSha">Awaiting Court Record upload</td>
+                      <td id="verCtrlStatus"><span class="badge badge-unknown">NOT VERIFIED</span></td>
                     </tr>
                     <tr>
                       <td>MuJoCo Plant Assets</td>
-                      <td class="font-mono" id="verModelSha">SHA-256 Matched (cf2.xml + assets)</td>
-                      <td id="verModelStatus"><span class="badge badge-success">MATCHED</span></td>
+                      <td class="font-mono text-muted" id="verModelSha">Awaiting Court Record upload</td>
+                      <td id="verModelStatus"><span class="badge badge-unknown">NOT VERIFIED</span></td>
                     </tr>
                     <tr>
                       <td>Trajectory Hash Consistency</td>
-                      <td class="font-mono" id="verTrajSha">SHA-256 Coordinates Locked</td>
-                      <td id="verTrajStatus"><span class="badge badge-success">MATCHED</span></td>
+                      <td class="font-mono text-muted" id="verTrajSha">Awaiting Court Record upload</td>
+                      <td id="verTrajStatus"><span class="badge badge-unknown">NOT VERIFIED</span></td>
                     </tr>
                     <tr>
                       <td>Host Event Log Chain</td>
-                      <td class="font-mono" id="verEventChain">18 Events Hash-Linked (Genesis to Head)</td>
-                      <td id="verEventStatus"><span class="badge badge-success">VERIFIED</span></td>
+                      <td class="font-mono text-muted" id="verEventChain">Awaiting Court Record upload</td>
+                      <td id="verEventStatus"><span class="badge badge-unknown">NOT VERIFIED</span></td>
                     </tr>
                     <tr>
                       <td>Physical MuJoCo Replay</td>
-                      <td class="font-mono" id="verReplayDiff">Divergence: 0.00e+00 m (&le; 1.00e-12 m)</td>
-                      <td id="verReplayStatus"><span class="badge badge-success">MATCHED</span></td>
+                      <td class="font-mono text-muted" id="verReplayDiff">Awaiting Court Record upload</td>
+                      <td id="verReplayStatus"><span class="badge badge-unknown">NOT VERIFIED</span></td>
                     </tr>
                   </tbody>
                 </table>
@@ -1386,6 +1385,100 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <!-- COMPREHENSIVE 12-CHAPTER PRODUCT DOCUMENTATION -->
+            <div class="product-docs-section">
+              <h3 class="section-heading">Platform Reference Documentation</h3>
+              <p class="section-subheading">Complete technical reference across simulation, containment, and verification boundaries.</p>
+
+              <div class="docs-chapters-grid">
+                
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">01</div>
+                  <h4 class="chapter-title">Getting Started</h4>
+                  <p class="chapter-desc">Dómnir is designed for instant, frictionless evaluation without requiring account creation. Hackathon judges and flight engineers can configure flight missions, generate neural or heuristic controllers, launch physical trials, inspect 3D trajectories, and verify Court Records directly from the workspace.</p>
+                  <a href="#step1Panel" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Open Mission Workspace &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">02</div>
+                  <h4 class="chapter-title">Creating a Flight Mission</h4>
+                  <p class="chapter-desc">Mission envelopes define physical setpoints for altitude, tolerance margins, safety ceilings, trial duration (up to 10.0 seconds / 5,000 steps), and external atmospheric disturbance forces. Presets provide standardized benchmarks: Nominal Hover (0.10m), High Altitude (1.50m), and Turbulent (&plusmn;0.20N).</p>
+                  <a href="#step1Panel" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Configure Flight Envelope &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">03</div>
+                  <h4 class="chapter-title">Generating and Reviewing Controllers</h4>
+                  <p class="chapter-desc">Control logic is synthesized on demand using Vultr Serverless Inference (api.vultrinference.com/v1). Controllers implement a synchronous observe(obs) function returning normalized motor thrusts. The host inspects syntax and top-level function signatures before staging.</p>
+                  <a href="#step2Panel" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">View AI Synthesis Controls &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">04</div>
+                  <h4 class="chapter-title">MicroVM Execution and Isolation</h4>
+                  <p class="chapter-desc">Generated code executes exclusively inside ephemeral Microsandbox microVMs backed by AMD EPYC nested KVM (/dev/kvm). The guest runs under default-deny egress/ingress network policy, zero host mounts, 512 MiB memory limit, 1 vCPU, and a 0.50s monotonic watchdog ceiling.</p>
+                  <a href="#step3Panel" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Inspect Containment Cage &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">05</div>
+                  <h4 class="chapter-title">MuJoCo Simulation Dynamics</h4>
+                  <p class="chapter-desc">The physical plant uses the official Bitcraze Crazyflie 2 model (cf2.xml, 27g mass, 92mm diagonal). The trusted host harness (Forseti) steps simulation physics at 500 Hz (dt = 0.002s) with RK4 integration. Actuator forces are clamped to the 0.35 N hardware saturation ceiling.</p>
+                  <a href="#droneStageContainer" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Examine Physical Plant &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">06</div>
+                  <h4 class="chapter-title">Understanding Falsification Results</h4>
+                  <p class="chapter-desc">Verdict taxonomy strictly differentiates between FALSIFIED (boundary counterexample detected), NOT_FALSIFIED (no violations found under evaluated conditions), and INVALID (execution fault or divergence). A NOT_FALSIFIED outcome is synthetic qualification under tested parameters, not universal airworthiness proof.</p>
+                  <a href="#resultsWorkspace" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Review Verdict Criteria &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">07</div>
+                  <h4 class="chapter-title">Replay Verification</h4>
+                  <p class="chapter-desc">During flight trials, actuator action vectors are recorded at every timestep. To ensure physical reproducibility and rule out host state tampering, the recorded actions are replayed on a fresh MuJoCo instance. Replay is verified within declared numerical tolerance (&le; 1.00e-12 m).</p>
+                  <a href="#replayDiffValue" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-workspace\']').click();">Inspect Replay Tolerance &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">08</div>
+                  <h4 class="chapter-title">Court Record Integrity</h4>
+                  <p class="chapter-desc">Every experiment generates a self-contained, hash-linked Court Record JSON package. It contains SHA-256 digests of the controller source, plant XML, full trajectory coordinates, and a sequential host event hash chain from Genesis to Head. Verifiable offline without code re-execution.</p>
+                  <a href="#tab-verifier" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-verifier\']').click();">Open Court Record Verifier &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">09</div>
+                  <h4 class="chapter-title">Containment Evidence and Limitations</h4>
+                  <p class="chapter-desc">Containment status is backed by verifiable host broker logs and network denial probes. Truthful disclosures clarify that memory termination is observed without speculative kernel OOM attribution, and event chains are locally hash-linked without external RFC 3161 timestamps.</p>
+                  <a href="#tab-containment" class="doc-context-link" onclick="document.querySelector('[data-tab=\'tab-containment\']').click();">View Containment Audit &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">10</div>
+                  <h4 class="chapter-title">Troubleshooting</h4>
+                  <p class="chapter-desc">If /dev/kvm is unavailable, public execution fails closed to prevent host compromise. If client rate limits are reached, certified historical records and offline verification remain accessible. If WebGL is unavailable, static 2D fallback previews maintain visibility.</p>
+                  <a href="#systemStatusBar" class="doc-context-link">Check System Status &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">11</div>
+                  <h4 class="chapter-title">Platform Glossary</h4>
+                  <p class="chapter-desc">Key terminology: Forseti (trusted simulation harness owning MuJoCo state), Heimdall (immutable host event chain), Microsandbox (lightweight KVM microVM isolation runtime), Court Record (hash-linked provenance package), MjData (MuJoCo integration state vector).</p>
+                  <a href="#tab-architecture" class="doc-context-link">Examine Architectural Map &rarr;</a>
+                </div>
+
+                <div class="doc-chapter-card">
+                  <div class="chapter-num">12</div>
+                  <h4 class="chapter-title">Architecture and Trust Boundaries</h4>
+                  <p class="chapter-desc">The architecture strictly separates untrusted guest execution from trusted host simulation. The browser and guest receive zero host secrets. Anonymous judge access is safeguarded by server-side rate limiters, payload size ceilings, and global resource budgets.</p>
+                  <a href="#tab-architecture" class="doc-context-link">Review Security Invariants &rarr;</a>
+                </div>
+
               </div>
             </div>
 

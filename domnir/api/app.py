@@ -96,7 +96,8 @@ def get_ready() -> ReadyResponse:
     inference_configured = bool(orchestrator.inference_client.api_key)
 
     microvm_available = is_microvm_available()
-    dev_fallback = os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1"
+    is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
+    dev_fallback = (not is_prod) and (os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1")
     execution_permitted = bool(microvm_available or dev_fallback)
 
     if model_loaded and inference_configured and microvm_available:
@@ -316,13 +317,17 @@ def get_containment_status_endpoint() -> ContainmentStatusResponse:
 @app.post("/containment/run", response_model=ContainmentStatusResponse)
 def run_containment_endpoint(request: Request) -> ContainmentStatusResponse:
     operator_token = os.environ.get("DOMNIR_OPERATOR_TOKEN")
-    if operator_token:
-        provided = request.headers.get("x-operator-token") or request.query_params.get("token")
-        if provided != operator_token:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Live containment execution is restricted to operators. Public judges can inspect verified containment proofs via GET /containment/status.",
-            )
+    if not operator_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Live containment execution is disabled: operator authorization token is not configured on this host. Public judges can inspect verified containment proofs via GET /containment/status.",
+        )
+    provided = request.headers.get("x-operator-token") or request.query_params.get("token")
+    if provided != operator_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Live containment execution is restricted to operators. Public judges can inspect verified containment proofs via GET /containment/status.",
+        )
 
     try:
         result = execute_containment_suite()

@@ -143,20 +143,23 @@ class RequestSizeLimitMiddleware:
 
 
 class RateLimiter:
-    """Thread-safe sliding-window rate limiter per client IP."""
+    """Thread-safe sliding-window rate limiter per client IP and global server budget."""
 
     def __init__(
         self,
         default_limit: int = 120,
         heavy_limit: int = 30,
         window_seconds: float = 60.0,
+        global_heavy_limit: int = 120,
     ):
         self.default_limit = default_limit
         self.heavy_limit = heavy_limit
         self.window_seconds = window_seconds
+        self.global_heavy_limit = global_heavy_limit
         self._lock = threading.Lock()
         self._requests: dict[str, list[float]] = defaultdict(list)
         self._heavy_requests: dict[str, list[float]] = defaultdict(list)
+        self._global_heavy_requests: list[float] = []
         self._heavy_paths = {
             "/experiments/run",
             "/controllers/generate",
@@ -175,30 +178,42 @@ class RateLimiter:
                 self._heavy_requests[client_ip] = [
                     t for t in self._heavy_requests[client_ip] if t > cutoff
                 ]
+            if is_heavy:
+                self._global_heavy_requests = [
+                    t for t in self._global_heavy_requests if t > cutoff
+                ]
 
             # Check general limit first (all requests count toward default_limit)
             if len(self._requests[client_ip]) >= self.default_limit:
                 retry_after = max(1.0, self.window_seconds - (now - self._requests[client_ip][0]))
                 return False, self.default_limit, retry_after
 
-            # Check heavy limit if path is heavy
+            # Check per-client heavy limit if path is heavy
             if is_heavy and len(self._heavy_requests[client_ip]) >= self.heavy_limit:
                 retry_after = max(
                     1.0, self.window_seconds - (now - self._heavy_requests[client_ip][0])
                 )
                 return False, self.heavy_limit, retry_after
 
+            # Check global heavy budget limit across all clients
+            if is_heavy and len(self._global_heavy_requests) >= self.global_heavy_limit:
+                retry_after = max(
+                    1.0, self.window_seconds - (now - self._global_heavy_requests[0])
+                )
+                return False, self.global_heavy_limit, retry_after
+
             # Record allowed request
             self._requests[client_ip].append(now)
             if is_heavy:
                 self._heavy_requests[client_ip].append(now)
+                self._global_heavy_requests.append(now)
 
             limit = self.heavy_limit if is_heavy else self.default_limit
             return True, limit, 0.0
 
 
 class RateLimitMiddleware:
-    """Enforce rate limits on incoming HTTP requests."""
+    """Enforce rate limits on incoming HTTP requests with proxy trust boundaries."""
 
     def __init__(
         self,
@@ -216,13 +231,24 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        headers = dict(scope.get("headers", []))
-        forwarded = headers.get(b"x-forwarded-for")
-        if forwarded:
-            client_ip = forwarded.decode("latin1").split(",")[0].strip()
-        else:
-            client = scope.get("client")
-            client_ip = client[0] if client else "unknown"
+        client = scope.get("client")
+        peer_ip = client[0] if client else "unknown"
+
+        # Only trust forwarded headers if immediate peer is a configured reverse proxy or loopback
+        trusted_proxies_env = os.environ.get("DOMNIR_TRUSTED_PROXIES", "127.0.0.1,::1,localhost,testclient")
+        trusted_proxies = {p.strip() for p in trusted_proxies_env.split(",") if p.strip()}
+        trust_forwarded = (peer_ip in trusted_proxies) or (os.environ.get("DOMNIR_TRUST_ALL_PROXIES") == "1")
+
+        client_ip = peer_ip
+        if trust_forwarded:
+            headers = dict(scope.get("headers", []))
+            cf_ip = headers.get(b"cf-connecting-ip")
+            if cf_ip:
+                client_ip = cf_ip.decode("latin1").strip()
+            else:
+                forwarded = headers.get(b"x-forwarded-for")
+                if forwarded:
+                    client_ip = forwarded.decode("latin1").split(",")[0].strip()
 
         if client_ip in {"testclient", "test"} and not self.enforce_testclient:
             await self.app(scope, receive, send)

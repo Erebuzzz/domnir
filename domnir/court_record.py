@@ -187,6 +187,7 @@ def build_court_record(
     verdict_reason: str,
     execution_backend: str = "trusted_simulator",
     cleanup_succeeded: bool = True,
+    containment_checked: bool = False,
     raw_events: list[dict[str, Any]] | None = None,
     record_id: str | None = None,
 ) -> dict[str, Any]:
@@ -221,8 +222,8 @@ def build_court_record(
     )
 
     if execution_backend == "microvm":
-        containment_status = "POLICY_CONFIRMED"
-    elif execution_backend in ("trusted_simulator", "subprocess"):
+        containment_status = "POLICY_CONFIRMED" if containment_checked else "PARTIAL"
+    elif execution_backend in ("trusted_simulator", "subprocess", "subprocess_dev_unisolated"):
         containment_status = "PARTIAL"
     else:
         containment_status = "NOT_TESTED"

@@ -79,16 +79,28 @@ class ContainmentApiTests(unittest.TestCase):
         self.assertTrue(any("Memory" in lim for lim in data["limitations"]))
 
     def test_post_containment_run_handles_host_state(self):
-        response = self.client.post("/containment/run")
-        if not is_microvm_available():
-            self.assertEqual(response.status_code, 503)
-            self.assertIn("MicroVM containment runtime is not available", response.json()["detail"])
-        else:
-            self.assertEqual(response.status_code, 200)
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"DOMNIR_OPERATOR_TOKEN": "test-ops-token-123"}):
+            response = self.client.post("/containment/run", headers={"X-Operator-Token": "test-ops-token-123"})
+            if not is_microvm_available():
+                self.assertEqual(response.status_code, 503)
+                self.assertIn("MicroVM containment runtime is not available", response.json()["detail"])
+            else:
+                self.assertEqual(response.status_code, 200)
 
     def test_operator_token_protection(self):
         import os
         from unittest.mock import patch
+
+        # When DOMNIR_OPERATOR_TOKEN is unset, endpoint must fail closed with 403
+        with patch.dict(os.environ, {}, clear=False):
+            if "DOMNIR_OPERATOR_TOKEN" in os.environ:
+                del os.environ["DOMNIR_OPERATOR_TOKEN"]
+            unconfigured = self.client.post("/containment/run")
+            self.assertEqual(unconfigured.status_code, 403)
+            self.assertIn("operator authorization token is not configured", unconfigured.json()["detail"])
+
         with patch.dict(os.environ, {"DOMNIR_OPERATOR_TOKEN": "secret-ops-key-123"}):
             # Without token: 403 Forbidden
             unauth = self.client.post("/containment/run")
