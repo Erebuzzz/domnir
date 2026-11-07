@@ -41,6 +41,7 @@ from domnir.spec import FlightSpec, GeneratedController
 
 MAX_QUEUED_JOBS = 20
 MAX_CONCURRENT_JOBS = 2
+MAX_RETAINED_JOBS = 50
 
 ALLOWED_TRANSITIONS: dict[ExperimentState, set[ExperimentState]] = {
     ExperimentState.CREATED: {
@@ -423,6 +424,17 @@ class JobOrchestrator:
                 raise RuntimeError(
                     f"Job queue limit reached ({self.max_queue_size} active/queued jobs)"
                 )
+
+            # Cap retained history by pruning oldest terminal jobs
+            if len(self._jobs) >= MAX_RETAINED_JOBS:
+                terminal_keys = [
+                    k for k, j in self._jobs.items()
+                    if j.state in (ExperimentState.COMPLETED, ExperimentState.FAILED, ExperimentState.INCONCLUSIVE)
+                ]
+                terminal_keys.sort(key=lambda k: self._jobs[k].updated_at)
+                while len(self._jobs) >= MAX_RETAINED_JOBS and terminal_keys:
+                    oldest_key = terminal_keys.pop(0)
+                    self._jobs.pop(oldest_key, None)
 
             experiment_id = str(uuid.uuid4())
             resolved_model = resolve_model_id(request.model) if request.model else None

@@ -31,11 +31,16 @@ class RagnarokSearchSpace:
         alt_max = max(alt_min + 0.01, contract.target_altitude_m * 1.5)
         alt_max = min(alt_max, contract.max_allowed_altitude_m - margin_z)
 
+        force_min = getattr(contract, "disturbance_force_z_min", -0.05)
+        force_max = getattr(contract, "disturbance_force_z_max", 0.05)
+        if force_min >= force_max:
+            force_min, force_max = -0.05, 0.05
+
         return cls(
             alt_min_m=alt_min,
             alt_max_m=alt_max,
-            force_min_n=-0.15,
-            force_max_n=0.15,
+            force_min_n=force_min,
+            force_max_n=force_max,
             pulse_start_min_s=0.05,
             pulse_start_max_s=max(0.06, contract.mission_duration_s * 0.6),
             pulse_duration_min_s=0.02,

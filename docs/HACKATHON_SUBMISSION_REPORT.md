@@ -85,7 +85,10 @@ flowchart TD
 ### 3.2 Forseti: Trusted MuJoCo Physics & High-Fidelity Timebase
 - **Plant:** Bitcraze Crazyflie 2.0 quadrotor (`cf2.xml` from official MuJoCo Menagerie, 27.0 g, 92 mm diagonal wheelbase).
 - **Physics Integrator:** MuJoCo 3.3.7 Euler integration at 500 Hz (`dt = 0.002 s`).
-- **Decoupled Controller Tick:** Controller executes at 100 Hz (`decimation = 5`, `dt = 0.010 s`) with Zero-Order Hold (ZOH) on actuator commands.
+- **Controller Frequency & Timing Contract:**
+  - *Production Interactive Execution (`domnir/api/jobs.py`):* The untrusted controller stream advances synchronously with the trusted physics loop at 500 Hz (`dt = 0.002 s`, `decimation = 1`) to eliminate inter-process latency buffering jitter during live guest execution.
+  - *Multi-Step CI & STL Verification (`domnir/ci/gate.py`):* The contract supports decoupled controller ticks down to 100 Hz (`decimation = 5`, `dt = 0.010 s`) with Zero-Order Hold (ZOH) holding rotor thrust commands across intermediate physics substeps.
+  - *Telemetry & Evidence:* In both modes, every observation payload explicitly declares `dt_s` and `sim_time_s`, ensuring bit-for-bit deterministic replay and verification in Court Records.
 - **Sensor Model:** Configurable Gaussian noise, bias drift, barometric altitude quantizer, and FIFO actuator latency queue (`ActuatorDelayQueue`).
 
 ### 3.3 Safety Contracts & STL Quantitative Robustness

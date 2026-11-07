@@ -22,6 +22,7 @@ from domnir.court_record import (
     REPLAY_TOLERANCE,
     SCHEMA_VERSION,
     canonical_json,
+    compute_legacy_trajectory_hash,
     compute_trajectory_hash,
     verify_event_chain,
 )
@@ -279,12 +280,25 @@ class CourtRecordVerifier:
                     integration_states=traj_sec["integration_states"],
                 )
                 if not rec_traj_sha or computed_traj_sha != rec_traj_sha:
-                    tampered = True
-                    errors.append(
-                        f"Trajectory SHA-256 mismatch (modified actions or states): recorded {rec_traj_sha}, computed {computed_traj_sha}"
+                    legacy_traj_sha = compute_legacy_trajectory_hash(
+                        steps=traj_sec["steps"],
+                        timestamps=traj_sec["timestamps"],
+                        position_m=traj_sec["position_m"],
+                        velocity_mps=traj_sec["velocity_mps"],
+                        actions=traj_sec["actions"],
+                        integration_states=traj_sec["integration_states"],
                     )
+                    if rec_traj_sha and legacy_traj_sha == rec_traj_sha:
+                        details["trajectory_hash"] = rec_traj_sha
+                        details["canonicalization"] = "legacy_v1"
+                    else:
+                        tampered = True
+                        errors.append(
+                            f"Trajectory SHA-256 mismatch (modified actions or states): recorded {rec_traj_sha}, computed {computed_traj_sha}"
+                        )
                 else:
                     details["trajectory_hash"] = rec_traj_sha
+                    details["canonicalization"] = "rfc8785_jcs"
             except (KeyError, TypeError, ValueError) as err:
                 tampered = True
                 errors.append(f"Trajectory payload malformed or tampered: {err}")

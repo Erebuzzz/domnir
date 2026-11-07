@@ -887,7 +887,7 @@
                         <span class="badge badge-outline" id="arenaStatusBadge">READY</span>
                       </div>
                       <h3 class="card-title">Adaptive Falsification Search &amp; Failure Atlas</h3>
-                      <p class="card-subtitle">Differential evolution boundary discovery, 1-minimal counterexample reduction, and holdout-gated CEGIS repair</p>
+                      <p class="card-subtitle">Differential evolution boundary discovery, locally reduced counterexample minimization, and holdout-gated CEGIS repair</p>
                     </div>
                   </div>
 
@@ -925,15 +925,20 @@
                             <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                             Launch Adversarial Search
                           </button>
-                          <button type="button" class="btn btn-outline" id="runMinimizeBtn" disabled title="Finds 1-minimal coordinate perturbation for critical witness">
+                          <button type="button" class="btn btn-outline" id="runMinimizeBtn" disabled title="Finds locally reduced coordinate perturbation for critical witness">
                             <span class="btn-spinner hidden" id="minimizeSpinner"></span>
                             <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                            1-Minimal Reduction
+                            Locally Reduced Witness
                           </button>
                           <button type="button" class="btn btn-outline" id="runRepairBtn" disabled title="Autonomous counterexample-guided repair with 5-case holdout suite gating">
                             <span class="btn-spinner hidden" id="repairSpinner"></span>
                             <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                             Autonomous CEGIS Repair
+                          </button>
+                          <button type="button" class="btn btn-outline" id="runArenaBtn" title="Launch bounded autonomous Red/Blue co-evolution campaign">
+                            <span class="btn-spinner hidden" id="arenaSpinner"></span>
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                            Co-Evolve (Arena)
                           </button>
                         </div>
                       </div>
@@ -969,7 +974,7 @@
                         <div class="atlas-legend">
                           <span class="legend-item"><span class="legend-dot dot-satisfied"></span> Satisfied (&rho; &gt; 0)</span>
                           <span class="legend-item"><span class="legend-dot dot-violated"></span> Violated Witness (&rho; &le; 0)</span>
-                          <span class="legend-item"><span class="legend-dot dot-minimized"></span> 1-Minimal Witness</span>
+                          <span class="legend-item"><span class="legend-dot dot-minimized"></span> Locally Reduced Witness</span>
                         </div>
                       </div>
 
@@ -1171,7 +1176,7 @@
             <div class="verifier-actions">
               <button type="button" class="btn btn-primary" id="submitVerifyBtn">
                 <span class="spinner hidden" id="verifySpinner"></span>
-                Verify Replay &amp; Cryptographic Signatures
+                Verify Integrity &amp; Replay
               </button>
               <button type="button" class="btn btn-ghost" id="clearVerifierBtn">Clear</button>
             </div>

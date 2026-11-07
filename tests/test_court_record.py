@@ -2,7 +2,9 @@
 
 import copy
 import hashlib
+import json
 import os
+import subprocess
 import unittest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -237,6 +239,18 @@ class IndependentReplayVerificationTests(unittest.TestCase):
         self.assertTrue(result["controller_hash_matched"])
         self.assertTrue(result["trajectory_hash_matched"])
         self.assertTrue(result["model_hashes_matched"])
+        self.assertTrue(result["event_chain_verified"])
+        self.assertEqual(len(result["errors"]), 0)
+
+    def test_browser_json_roundtrip_verification_passes(self):
+        raw_json_str = json.dumps(self.record)
+        node_cmd = ["node", "-e", "process.stdout.write(JSON.stringify(JSON.parse(process.argv[1])))", raw_json_str]
+        roundtripped_json = subprocess.check_output(node_cmd).decode("utf-8")
+        parsed_record = json.loads(roundtripped_json)
+
+        result = verify_court_record(parsed_record, model_path=self.model_path)
+        self.assertTrue(result["verified"])
+        self.assertTrue(result["trajectory_hash_matched"])
         self.assertTrue(result["event_chain_verified"])
         self.assertEqual(len(result["errors"]), 0)
 

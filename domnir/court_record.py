@@ -14,6 +14,7 @@ from typing import Any
 
 import mujoco
 import numpy as np
+import rfc8785
 
 from domnir.replay import (
     INTEGRATION_SIGNATURE,
@@ -37,7 +38,7 @@ MANDATORY_LIMITATIONS = [
 LIMITATIONS = MANDATORY_LIMITATIONS
 
 
-def canonical_json(value: Any) -> bytes:
+def legacy_canonical_json(value: Any) -> bytes:
     def _default(obj: Any) -> Any:
         if isinstance(obj, np.integer):
             return int(obj)
@@ -56,6 +57,53 @@ def canonical_json(value: Any) -> bytes:
         allow_nan=False,
         default=_default,
     ).encode("utf-8")
+
+
+def canonical_json(value: Any) -> bytes:
+    def _to_native(obj: Any) -> Any:
+        if isinstance(obj, np.ndarray):
+            return [_to_native(x) for x in obj.tolist()]
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            f = float(obj)
+            return int(f) if f.is_integer() and abs(f) < 1e16 else f
+        if isinstance(obj, float):
+            return int(obj) if obj.is_integer() and abs(obj) < 1e16 else obj
+        if isinstance(obj, dict):
+            return {str(k): _to_native(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [_to_native(x) for x in obj]
+        if hasattr(obj, "model_dump"):
+            return _to_native(obj.model_dump())
+        return obj
+
+    try:
+        return rfc8785.dumps(_to_native(value))
+    except Exception:
+        return legacy_canonical_json(value)
+
+
+def compute_legacy_trajectory_hash(
+    steps: int,
+    timestamps: list[float] | np.ndarray,
+    position_m: list[list[float]] | np.ndarray,
+    velocity_mps: list[list[float]] | np.ndarray,
+    actions: list[list[float]] | np.ndarray,
+    integration_states: list[list[float]] | np.ndarray,
+) -> str:
+    def _to_list(val: Any) -> Any:
+        return val.tolist() if isinstance(val, np.ndarray) else val
+
+    payload = {
+        "actions": _to_list(actions),
+        "integration_states": _to_list(integration_states),
+        "position_m": _to_list(position_m),
+        "steps": int(steps),
+        "timestamps": _to_list(timestamps),
+        "velocity_mps": _to_list(velocity_mps),
+    }
+    return hashlib.sha256(legacy_canonical_json(payload)).hexdigest()
 
 
 def compute_trajectory_hash(
@@ -152,7 +200,11 @@ def verify_event_chain(
         copy_item = {k: v for k, v in item.items() if k != "sha256"}
         computed_sha = hashlib.sha256(canonical_json(copy_item)).hexdigest()
         if computed_sha != recorded_sha:
-            return False, f"Event digest mismatch at index {index}"
+            legacy_sha = hashlib.sha256(legacy_canonical_json(copy_item)).hexdigest()
+            if legacy_sha == recorded_sha:
+                computed_sha = recorded_sha
+            else:
+                return False, f"Event digest mismatch at index {index}"
 
         previous = recorded_sha
 
@@ -412,9 +464,20 @@ def verify_court_record(
             )
             trajectory_hash_matched = bool(recorded_traj_sha and computed_traj_sha == recorded_traj_sha)
             if not trajectory_hash_matched:
-                errors.append(
-                    f"Trajectory SHA-256 mismatch: recorded {recorded_traj_sha}, computed {computed_traj_sha}"
+                legacy_traj_sha = compute_legacy_trajectory_hash(
+                    steps=trajectory_section["steps"],
+                    timestamps=trajectory_section["timestamps"],
+                    position_m=trajectory_section["position_m"],
+                    velocity_mps=trajectory_section["velocity_mps"],
+                    actions=trajectory_section["actions"],
+                    integration_states=trajectory_section["integration_states"],
                 )
+                if recorded_traj_sha and legacy_traj_sha == recorded_traj_sha:
+                    trajectory_hash_matched = True
+                else:
+                    errors.append(
+                        f"Trajectory SHA-256 mismatch: recorded {recorded_traj_sha}, computed {computed_traj_sha}"
+                    )
         except (KeyError, TypeError, ValueError) as err:
             trajectory_hash_matched = False
             errors.append(f"Trajectory payload malformed: {err}")

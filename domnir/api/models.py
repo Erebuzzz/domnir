@@ -261,3 +261,26 @@ class RagnarokRepairResponse(BaseModel):
     summary: str
 
 
+class RagnarokArenaRequest(BaseModel):
+    spec: FlightSpec = Field(default_factory=FlightSpec)
+    controller_source: str = Field(min_length=1, max_length=32768)
+    max_rounds: int = Field(default=2, ge=1, le=3)
+    search_budget_per_round: int = Field(default=12, ge=4, le=24)
+    max_repair_revisions: int = Field(default=2, ge=1, le=3)
+
+
+class RagnarokArenaResponse(BaseModel):
+    campaign_id: str
+    target_altitude_m: float
+    total_rounds_executed: int
+    initial_controller_sha256: str
+    final_controller_sha256: str | None = None
+    final_controller_source: str | None = None
+    rounds: list[dict[str, Any]] = Field(default_factory=list)
+    accumulated_regression_suite_size: int = 0
+    summary: str
+    limitation_note: str = (
+        "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
+    )
+
+

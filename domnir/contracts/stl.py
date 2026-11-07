@@ -62,6 +62,8 @@ class SafetyContract(BaseModel):
     physics_dt_s: float = Field(default=0.002, frozen=True)
     controller_dt_s: float = Field(default=0.010, ge=0.002, le=0.100)
     mission_duration_s: float = Field(default=0.40, ge=0.02, le=10.0)
+    disturbance_force_z_min: float = Field(default=-0.15, ge=-1.0, le=0.0)
+    disturbance_force_z_max: float = Field(default=0.15, ge=0.0, le=1.0)
 
     @property
     def physics_steps(self) -> int:
@@ -86,13 +88,18 @@ class SafetyContract(BaseModel):
 
     @classmethod
     def from_flight_spec(cls, spec: Any) -> SafetyContract:
+        mission_duration = getattr(spec, "mission_duration_s", 0.40)
+        settling_time = min(0.15, max(0.01, mission_duration * 0.4))
         return cls(
             target_altitude_m=getattr(spec, "target_altitude_m", 0.10),
             altitude_tolerance_m=getattr(spec, "altitude_tolerance_m", 0.05),
             min_allowed_altitude_m=getattr(spec, "min_allowed_altitude_m", 0.05),
             max_allowed_altitude_m=getattr(spec, "max_allowed_altitude_m", 1.00),
-            mission_duration_s=getattr(spec, "mission_duration_s", 0.40),
+            mission_duration_s=mission_duration,
+            settling_time_s=settling_time,
             physics_dt_s=getattr(spec, "dt_s", 0.002),
+            disturbance_force_z_min=getattr(spec, "disturbance_force_z_min", -0.05),
+            disturbance_force_z_max=getattr(spec, "disturbance_force_z_max", 0.05),
         )
 
 

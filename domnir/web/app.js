@@ -212,8 +212,23 @@
     submitVerifyBtn: document.getElementById("submitVerifyBtn"),
     verifySpinner: document.getElementById("verifySpinner"),
     verifyResultsCard: document.getElementById("verifyResultsCard"),
-    verifyOverallBadge: document.getElementById("verifyOverallBadge") || document.getElementById("overallVerifyBadge"),
-    verifyMetaDetails: document.getElementById("verifyMetaDetails"),
+    verifyOverallBadge: document.getElementById("overallVerifyBadge") || document.getElementById("verifyOverallBadge"),
+    verifyTitle: document.getElementById("verifyTitle"),
+    verifyTimestamp: document.getElementById("verifyTimestamp"),
+    verCtrlSha: document.getElementById("verCtrlSha"),
+    verCtrlStatus: document.getElementById("verCtrlStatus"),
+    verModelSha: document.getElementById("verModelSha"),
+    verModelStatus: document.getElementById("verModelStatus"),
+    verTrajSha: document.getElementById("verTrajSha"),
+    verTrajStatus: document.getElementById("verTrajStatus"),
+    verEventChain: document.getElementById("verEventChain"),
+    verEventStatus: document.getElementById("verEventStatus"),
+    verReplayDiff: document.getElementById("verReplayDiff"),
+    verReplayStatus: document.getElementById("verReplayStatus"),
+    verifyErrorsBox: document.getElementById("verifyErrorsBox"),
+    verifyErrorsList: document.getElementById("verifyErrorsList"),
+    runArenaBtn: document.getElementById("runArenaBtn"),
+    arenaSpinner: document.getElementById("arenaSpinner"),
 
     // 3D Visual Stage & Replay
     plantVisualStage: document.getElementById("plantVisualStage"),
@@ -226,23 +241,6 @@
     replayPlayBtn: document.getElementById("replayPlayBtn"),
     replayTimelineScrub: document.getElementById("replayTimelineScrub"),
     replayTimeText: document.getElementById("replayTimeText"),
-    checkControllerHash: document.getElementById("checkControllerHash"),
-    iconControllerHash: document.getElementById("iconControllerHash"),
-    detailControllerHash: document.getElementById("detailControllerHash"),
-    checkTrajectoryHash: document.getElementById("checkTrajectoryHash"),
-    iconTrajectoryHash: document.getElementById("iconTrajectoryHash"),
-    detailTrajectoryHash: document.getElementById("detailTrajectoryHash"),
-    checkModelHashes: document.getElementById("checkModelHashes"),
-    iconModelHashes: document.getElementById("iconModelHashes"),
-    detailModelHashes: document.getElementById("detailModelHashes"),
-    checkEventChain: document.getElementById("checkEventChain"),
-    iconEventChain: document.getElementById("iconEventChain"),
-    detailEventChain: document.getElementById("detailEventChain"),
-    checkPhysicalReplay: document.getElementById("checkPhysicalReplay"),
-    iconPhysicalReplay: document.getElementById("iconPhysicalReplay"),
-    detailPhysicalReplay: document.getElementById("detailPhysicalReplay"),
-    verifyErrorsBox: document.getElementById("verifyErrorsBox"),
-    verifyErrorsList: document.getElementById("verifyErrorsList"),
 
     // Containment Audit
     containmentOverallBadge: document.getElementById("containmentOverallBadge"),
@@ -2545,9 +2543,18 @@
     }
 
     elements.submitVerifyBtn.disabled = true;
-    elements.verifySpinner.style.display = "inline-block";
-    elements.verifyResultsCard.style.display = "none";
-    elements.verifyErrorsBox.style.display = "none";
+    if (elements.verifySpinner) {
+      elements.verifySpinner.classList.remove("hidden");
+      elements.verifySpinner.style.display = "inline-block";
+    }
+    if (elements.verifyResultsCard) {
+      elements.verifyResultsCard.classList.add("hidden");
+      elements.verifyResultsCard.style.display = "none";
+    }
+    if (elements.verifyErrorsBox) {
+      elements.verifyErrorsBox.classList.add("hidden");
+      elements.verifyErrorsBox.style.display = "none";
+    }
 
     try {
       const res = await fetch("/court-records/verify", {
@@ -2571,64 +2578,116 @@
       toast("Verification Error: " + err.message, "error");
     } finally {
       elements.submitVerifyBtn.disabled = false;
-      elements.verifySpinner.style.display = "none";
+      if (elements.verifySpinner) {
+        elements.verifySpinner.classList.add("hidden");
+        elements.verifySpinner.style.display = "none";
+      }
     }
   }
 
   function displayVerificationResult(res) {
-    elements.verifyResultsCard.style.display = "flex";
-
-    if (res.verified) {
-      elements.verifyOverallBadge.textContent = "COURT RECORD VERIFIED";
-      elements.verifyOverallBadge.className = "verify-verdict-badge";
-    } else {
-      elements.verifyOverallBadge.textContent = "VERIFICATION REJECTED";
-      elements.verifyOverallBadge.className = "verify-verdict-badge badge-fail";
+    if (elements.verifyResultsCard) {
+      elements.verifyResultsCard.classList.remove("hidden");
+      elements.verifyResultsCard.style.display = "block";
     }
 
-    elements.verifyMetaDetails.textContent =
-      "Record ID: " + (res.record_id || "unspecified") + " | Adjudicated: " + (res.timestamp || new Date().toISOString());
+    const badge = elements.verifyOverallBadge;
+    if (badge) {
+      if (res.verified) {
+        badge.textContent = "VERIFIED";
+        badge.className = "verify-overall-badge";
+      } else {
+        badge.textContent = "REJECTED";
+        badge.className = "verify-overall-badge failed";
+      }
+    }
 
-    setCheckStatus(elements.iconControllerHash, elements.detailControllerHash, res.controller_hash_matched, "Controller source SHA-256 matches verified hash", "Controller SHA-256 mismatch");
-    setCheckStatus(elements.iconTrajectoryHash, elements.detailTrajectoryHash, res.trajectory_hash_matched, "Trajectory dataset SHA-256 matches verified hash", "Trajectory hash mismatch");
-    setCheckStatus(elements.iconModelHashes, elements.detailModelHashes, res.model_hashes_matched, "MuJoCo cf2.xml and asset SHA-256 hashes verified", "Model or mesh hash divergence");
-    setCheckStatus(elements.iconEventChain, elements.detailEventChain, res.event_chain_verified, "Host event log hash chain verified", "Host event chain integrity failed");
+    if (elements.verifyTitle) {
+      elements.verifyTitle.textContent = res.verified
+        ? "All Cryptographic and Physical Replay Checks Passed"
+        : "Court Record Verification Failed / Mismatch Detected";
+    }
+
+    if (elements.verifyTimestamp) {
+      elements.verifyTimestamp.textContent =
+        "Record ID: " + (res.record_id || "unspecified") + " | Verified at: " + (res.timestamp || new Date().toISOString());
+    }
+
+    function setRowStatus(shaEl, statusEl, ok, descOk, descFail) {
+      if (shaEl) {
+        shaEl.textContent = ok ? descOk : descFail;
+        shaEl.style.color = ok ? "var(--accent-emerald)" : "var(--accent-rose)";
+      }
+      if (statusEl) {
+        statusEl.innerHTML = ok
+          ? '<span class="status-badge badge-success">PASSED</span>'
+          : '<span class="status-badge badge-danger">FAILED</span>';
+      }
+    }
+
+    setRowStatus(
+      elements.verCtrlSha,
+      elements.verCtrlStatus,
+      Boolean(res.controller_hash_matched),
+      "Controller source SHA-256 matches verified hash",
+      "Controller SHA-256 mismatch / altered code"
+    );
+
+    setRowStatus(
+      elements.verModelSha,
+      elements.verModelStatus,
+      Boolean(res.model_hashes_matched),
+      "MuJoCo cf2.xml and mesh asset hashes verified",
+      "Plant model or asset hash divergence"
+    );
+
+    setRowStatus(
+      elements.verTrajSha,
+      elements.verTrajStatus,
+      Boolean(res.trajectory_hash_matched),
+      "Trajectory dataset SHA-256 matches verified hash",
+      "Trajectory dataset hash mismatch or tampered states"
+    );
+
+    setRowStatus(
+      elements.verEventChain,
+      elements.verEventStatus,
+      Boolean(res.event_chain_verified),
+      "Host event log hash chain validated",
+      "Host event log chain integrity broken"
+    );
 
     const replayDiff = res.replay_max_abs_difference !== undefined ? res.replay_max_abs_difference : 0.0;
     const replayPassed =
       (res.replay_verdict === "MATCHED" || res.replay_verdict === "REPLAY_MATCHED") &&
       replayDiff <= (res.tolerance || 1e-12);
 
-    setCheckStatus(
-      elements.iconPhysicalReplay,
-      elements.detailPhysicalReplay,
+    setRowStatus(
+      elements.verReplayDiff,
+      elements.verReplayStatus,
       replayPassed,
-      "Fresh MuJoCo simulation match: max diff " + Number(replayDiff).toExponential(2) + " m <= " + Number(res.tolerance || 1e-12).toExponential(0) + " m",
-      "Replay divergence: max diff " + Number(replayDiff).toExponential(2) + " m exceeds tolerance"
+      "Deterministic replay match (max diff: " + Number(replayDiff).toExponential(2) + " m <= " + Number(res.tolerance || 1e-12).toExponential(0) + " m)",
+      "Replay divergence (max diff: " + Number(replayDiff).toExponential(2) + " m exceeds tolerance " + Number(res.tolerance || 1e-12).toExponential(0) + " m)"
     );
 
     if (res.errors && res.errors.length > 0) {
-      elements.verifyErrorsList.innerHTML = "";
-      res.errors.forEach(errStr => {
-        const li = document.createElement("li");
-        li.textContent = errStr;
-        elements.verifyErrorsList.appendChild(li);
-      });
-      elements.verifyErrorsBox.style.display = "block";
-    }
-  }
-
-  function setCheckStatus(iconEl, detailEl, isSuccess, successText, failText) {
-    if (isSuccess) {
-      iconEl.textContent = "\u2713";
-      iconEl.className = "check-icon ok";
-      detailEl.textContent = successText;
-      detailEl.style.color = "var(--accent-emerald)";
+      if (elements.verifyErrorsList) {
+        elements.verifyErrorsList.innerHTML = "";
+        res.errors.forEach(errStr => {
+          const li = document.createElement("li");
+          li.textContent = errStr;
+          elements.verifyErrorsList.appendChild(li);
+        });
+      }
+      if (elements.verifyErrorsBox) {
+        elements.verifyErrorsBox.classList.remove("hidden");
+        elements.verifyErrorsBox.style.display = "block";
+      }
     } else {
-      iconEl.textContent = "\u2717";
-      iconEl.className = "check-icon fail";
-      detailEl.textContent = failText;
-      detailEl.style.color = "var(--accent-rose)";
+      if (elements.verifyErrorsBox) {
+        elements.verifyErrorsBox.classList.add("hidden");
+        elements.verifyErrorsBox.style.display = "none";
+      }
     }
   }
 
@@ -3613,7 +3672,7 @@
         <g class="reduction-vector">
           <line x1="${origX}" y1="${origY}" x2="${minX}" y2="${minY}" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,3" />
           <polygon points="${minX},${minY - 7} ${minX + 7},${minY} ${minX},${minY + 7} ${minX - 7},${minY}" fill="#f59e0b" stroke="#ffffff" stroke-width="1.5" />
-          <text x="${minX + 9}" y="${minY + 12}" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="700">1-MINIMAL</text>
+          <text x="${minX + 9}" y="${minY + 12}" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="700">LOCALLY REDUCED</text>
         </g>
       `;
     }
@@ -3797,7 +3856,7 @@
         if (elements.witnessAltitude && cw.scenario) {
           elements.witnessAltitude.textContent = typeof cw.scenario.initial_altitude_m === "number" ? cw.scenario.initial_altitude_m.toFixed(3) + " m" : "---";
         }
-        if (elements.witnessCostReduction) elements.witnessCostReduction.textContent = "Pending 1-minimal reduction";
+        if (elements.witnessCostReduction) elements.witnessCostReduction.textContent = "Pending local reduction";
 
         toast(`Adversarial violation witness found at trial #${cw.iteration || 1}! Predicate: ${cw.critical_predicate}`, "error");
       } else {
@@ -3871,7 +3930,7 @@
 
       renderFailureAtlas(state.ragnarok.candidates, state.ragnarok.criticalWitness, state.ragnarok.minimizedWitness, spec);
 
-      toast(`1-Minimal reduction complete: Perturbation shrunk by ${pct}% while preserving failure predicate.`, "success");
+      toast(`Local counterexample reduction complete: Perturbation shrunk by ${pct}% while preserving failure predicate.`, "success");
     } catch (err) {
       toast("Minimization failed: " + err.message, "error");
     } finally {
@@ -3958,6 +4017,82 @@
     }
   }
 
+  async function runArenaCoEvolution() {
+    const sourceCode = elements.controllerSource ? elements.controllerSource.value.trim() : "";
+    if (!sourceCode) {
+      toast("No controller source code loaded in Step 2.", "warning");
+      return;
+    }
+    const spec = getSpecFromForm();
+
+    if (elements.runArenaBtn) elements.runArenaBtn.disabled = true;
+    if (elements.arenaSpinner) elements.arenaSpinner.classList.remove("hidden");
+    if (elements.arenaStatusBadge) {
+      elements.arenaStatusBadge.textContent = "CO-EVOLVING...";
+      elements.arenaStatusBadge.className = "badge badge-running";
+    }
+
+    try {
+      const payload = {
+        spec: spec,
+        controller_source: sourceCode,
+        max_rounds: 2,
+        search_budget_per_round: state.ragnarok.budget,
+        max_repair_revisions: 2,
+      };
+
+      const res = await fetch("/ragnarok/arena/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Arena co-evolution failed");
+      }
+
+      if (elements.arenaStatusBadge) {
+        elements.arenaStatusBadge.textContent = "CO-EVOLUTION COMPLETE";
+        elements.arenaStatusBadge.className = "badge badge-passed";
+      }
+
+      if (data.final_controller_source) {
+        state.ragnarok.repairedResult = {
+          outcome: "CO_EVOLVED",
+          repaired_controller_source: data.final_controller_source,
+          repaired_source_sha256: data.final_controller_sha256,
+          total_revisions_attempted: data.total_rounds_executed,
+          summary: data.summary,
+        };
+        if (elements.repairedControllerSource) {
+          elements.repairedControllerSource.value = data.final_controller_source;
+        }
+        if (elements.repairSummaryCard) {
+          elements.repairSummaryCard.classList.remove("hidden");
+        }
+        if (elements.repairOutcomeBadge) {
+          elements.repairOutcomeBadge.textContent = "CO-EVOLVED";
+          elements.repairOutcomeBadge.className = "badge badge-passed";
+        }
+        if (elements.repairSummaryText) {
+          elements.repairSummaryText.textContent = data.summary;
+        }
+      }
+
+      toast(data.summary, "success");
+    } catch (err) {
+      toast("Arena co-evolution error: " + err.message, "error");
+      if (elements.arenaStatusBadge) {
+        elements.arenaStatusBadge.textContent = "ARENA ERROR";
+        elements.arenaStatusBadge.className = "badge badge-failed";
+      }
+    } finally {
+      if (elements.runArenaBtn) elements.runArenaBtn.disabled = false;
+      if (elements.arenaSpinner) elements.arenaSpinner.classList.add("hidden");
+    }
+  }
+
   function copyRepairedCode() {
     if (!state.ragnarok.repairedResult || !state.ragnarok.repairedResult.repaired_controller_source) {
       toast("No repaired controller code to copy.", "warning");
@@ -4009,6 +4144,9 @@
     }
     if (elements.runRepairBtn) {
       elements.runRepairBtn.addEventListener("click", runAutonomousRepair);
+    }
+    if (elements.runArenaBtn) {
+      elements.runArenaBtn.addEventListener("click", runArenaCoEvolution);
     }
     if (elements.copyRepairedCodeBtn) {
       elements.copyRepairedCodeBtn.addEventListener("click", copyRepairedCode);

@@ -31,6 +31,8 @@ from domnir.api.models import (
     RagnarokMinimizeResponse,
     RagnarokRepairRequest,
     RagnarokRepairResponse,
+    RagnarokArenaRequest,
+    RagnarokArenaResponse,
     ReadyResponse,
     RunExperimentRequest,
     SpecValidationRequest,
@@ -39,6 +41,7 @@ from domnir.api.models import (
 from domnir.contracts.stl import SafetyContract, STLMonitor, STLRobustnessResult
 from domnir.ragnarok.minimize import CounterexampleMinimizer
 from domnir.ragnarok.repair import AutonomousRepairEngine
+from domnir.ragnarok.arena import RedBlueArenaOrchestrator
 from domnir.ragnarok.search import (
     DifferentialEvolutionFalsifier,
     RagnarokSearchSpace,
@@ -397,15 +400,20 @@ def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsif
 
         if request.strategy == "compare":
             comp = compare_falsification_policies(space, eval_fn, evaluations_budget=request.budget, seed=request.seed)
+            total_evals = sum(
+                comp[k].get("evaluations", request.budget)
+                for k in ("uniform_random", "sobol", "differential_evolution")
+                if k in comp
+            )
             return RagnarokFalsifyResponse(
                 strategy="compare",
-                evaluations_count=request.budget * 2,
+                evaluations_count=total_evals,
                 first_violation_iteration=comp["differential_evolution"]["first_violation"],
                 violations_found=comp["differential_evolution"]["violations_found"],
                 min_robustness=comp["differential_evolution"]["min_robustness"],
                 best_scenario={"strategy": "comparison"},
                 comparison=comp,
-                summary=f"Compared DE vs Sobol on budget {request.budget}. Efficiency ratio: {comp['discovery_efficiency_ratio']}",
+                summary=f"Compared Uniform Random vs Sobol vs Differential Evolution (total {total_evals} evaluations across 3 strategies). DE/Sobol efficiency ratio: {comp.get('discovery_efficiency_ratio', 1.0)}",
             )
         elif request.strategy == "sobol":
             falsifier = SobolBaselineFalsifier(space, seed=request.seed)
@@ -530,6 +538,48 @@ def ragnarok_repair_endpoint(request: RagnarokRepairRequest) -> RagnarokRepairRe
             total_revisions_attempted=res.total_revisions_attempted,
             history=history_records,
             summary=res.summary,
+        )
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@app.post("/ragnarok/arena/run", response_model=RagnarokArenaResponse)
+def ragnarok_arena_run_endpoint(request: RagnarokArenaRequest) -> RagnarokArenaResponse:
+    try:
+        ctrl = GeneratedController.from_source(request.controller_source, model_id="initial-candidate")
+        contract = SafetyContract.from_flight_spec(request.spec)
+
+        def eval_ctrl(c: GeneratedController, s: ScenarioParameter) -> STLRobustnessResult:
+            return _evaluate_scenario_with_orchestrator(request.spec, c.source_code, s)
+
+        arena = RedBlueArenaOrchestrator(
+            contract=contract,
+            evaluator=eval_ctrl,
+            inference_client=orchestrator.inference_client,
+            search_budget_per_round=request.search_budget_per_round,
+            max_repair_revisions=request.max_repair_revisions,
+        )
+        report = arena.run_campaign(
+            initial_controller=ctrl,
+            max_rounds=request.max_rounds,
+        )
+
+        rounds_data = [r.model_dump() for r in report.rounds]
+        final_src = report.final_controller.source_code if report.final_controller else None
+
+        return RagnarokArenaResponse(
+            campaign_id=report.campaign_id,
+            target_altitude_m=report.target_altitude_m,
+            total_rounds_executed=report.total_rounds_executed,
+            initial_controller_sha256=report.initial_controller_sha256,
+            final_controller_sha256=report.final_controller_sha256,
+            final_controller_source=final_src,
+            rounds=rounds_data,
+            accumulated_regression_suite_size=report.accumulated_regression_suite_size,
+            summary=report.summary,
+            limitation_note=report.limitation_note,
         )
     except HTTPException:
         raise

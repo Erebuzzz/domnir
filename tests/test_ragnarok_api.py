@@ -68,3 +68,59 @@ def test_ragnarok_repair_rejects_passing_witness(client: TestClient):
         # If it failed, outcome is reported
         assert response.status_code == 200
         assert "outcome" in response.json()
+
+
+def test_ragnarok_compare_reports_accurate_evaluations_count(client: TestClient):
+    payload = {
+        "spec": {"target_altitude_m": 0.10, "mission_duration_s": 0.10},
+        "controller_source": "def observe(obs):\n    return [0.0, 0.0, 0.0, 0.0]\n",
+        "budget": 2,
+        "strategy": "compare",
+    }
+    response = client.post("/ragnarok/falsify", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["strategy"] == "compare"
+    assert data["evaluations_count"] == 6  # 2 uniform + 2 sobol + 2 DE
+    assert "Uniform Random vs Sobol vs Differential Evolution" in data["summary"]
+    assert "total 6 evaluations" in data["summary"]
+
+
+def test_safety_contract_short_duration_settling_time_adapts():
+    from domnir.contracts.stl import SafetyContract
+    from domnir.spec import FlightSpec
+    spec = FlightSpec(mission_duration_s=0.08)
+    contract = SafetyContract.from_flight_spec(spec)
+    assert contract.settling_time_s < contract.mission_duration_s
+    assert contract.settling_time_s == pytest.approx(0.08 * 0.4)
+
+
+def test_ragnarok_search_space_respects_custom_disturbance_bounds():
+    from domnir.contracts.stl import SafetyContract
+    from domnir.ragnarok.search import RagnarokSearchSpace
+    contract = SafetyContract(
+        disturbance_force_z_min=-0.08,
+        disturbance_force_z_max=0.09,
+    )
+    space = RagnarokSearchSpace.from_contract(contract)
+    assert space.force_min_n == pytest.approx(-0.08)
+    assert space.force_max_n == pytest.approx(0.09)
+
+
+def test_ragnarok_arena_run_endpoint(client: TestClient):
+    payload = {
+        "spec": {"target_altitude_m": 0.10, "mission_duration_s": 0.10},
+        "controller_source": "def observe(obs):\n    return [0.0, 0.0, 0.0, 0.0]\n",
+        "max_rounds": 1,
+        "search_budget_per_round": 4,
+        "max_repair_revisions": 1,
+    }
+    response = client.post("/ragnarok/arena/run", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "campaign_id" in data
+    assert data["total_rounds_executed"] >= 1
+    assert "rounds" in data
+    assert len(data["rounds"]) >= 1
+    assert "limitation_note" in data
+
