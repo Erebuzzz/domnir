@@ -8,15 +8,17 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](pyproject.toml)
 [![MuJoCo 3.3.7](https://img.shields.io/badge/MuJoCo-3.3.7-green.svg)](https://github.com/google-deepmind/mujoco)
 [![Vultr Serverless Inference](https://img.shields.io/badge/Vultr-Serverless%20Inference-007bfc.svg)](https://www.vultr.com/)
-[![Tests: 137 Passed](https://img.shields.io/badge/Tests-137%20Passed-success.svg)](tests/)
+[![Tests: 202 Passed](https://img.shields.io/badge/Tests-202%20Passed-success.svg)](tests/)
 
 ---
 
 ### Quick Links
+- **Hackathon Submission Report**: [docs/HACKATHON_SUBMISSION_REPORT.md](docs/HACKATHON_SUBMISSION_REPORT.md)
 - **Live Edge Observatory (HTTPS)**: [https://domnir.erebuzzz.tech](https://domnir.erebuzzz.tech)
 - **Live Direct Origin**: [http://45.76.48.77:8000/](http://45.76.48.77:8000/) (or [http://45.76.48.77/](http://45.76.48.77/))
 - **Live Readiness API**: [https://domnir.erebuzzz.tech/ready](https://domnir.erebuzzz.tech/ready)
 - **Containment Audit API**: [https://domnir.erebuzzz.tech/containment/status](https://domnir.erebuzzz.tech/containment/status)
+- **Ragnarok Benchmark Report**: [docs/evidence/ragnarok_benchmark_report.json](docs/evidence/ragnarok_benchmark_report.json)
 - **Challenge**: Vultr Agent Rush Hackathon | Challenge 1: Blast Radius Zero
 - **License**: MIT License (MIT-compliant)
 
@@ -344,9 +346,9 @@ echo "VULTR_INFERENCE_API_KEY=your_key_here" > .env
 uv run pytest -v
 ```
 
-All 137 tests run deterministically:
-- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, and containment verification tests pass (126 passed, 11 skipped, 0 failed).
-- On live KVM-enabled Vultr hosts: all 137 tests pass (137 passed, 0 failed).
+All 202 tests run deterministically:
+- On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, contracts, Ragnarok search, minimization, CEGIS repair, uncertainty, Guardian, and CI gate tests pass (202 passed, 11 skipped, 0 failed).
+- On live KVM-enabled Vultr hosts: all 202 tests pass (202 passed, 0 failed).
 
 ### 3. Launch the Web Application
 
