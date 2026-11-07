@@ -1264,8 +1264,10 @@ html.rune-dawn .plant-visual-stage {
   border-radius: var(--radius-md);
   padding: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  user-select: none;
+  outline: none;
 }
 
 .model-card:hover {
@@ -1273,10 +1275,25 @@ html.rune-dawn .plant-visual-stage {
   border-color: var(--border-focus);
 }
 
+.model-card:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Dusk Theme Model Selection */
+.model-card.selected,
 .model-card.active {
-  background: rgba(250, 115, 20, 0.1);
-  border-color: var(--accent-amber);
-  box-shadow: 0 0 16px rgba(250, 115, 20, 0.15);
+  background: rgba(6, 182, 212, 0.12);
+  border: 1.5px solid var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.22), inset 0 0 10px rgba(6, 182, 212, 0.08);
+}
+
+/* Dawn Theme Model Selection */
+html.rune-dawn .model-card.selected,
+html.rune-dawn .model-card.active {
+  background: rgba(234, 88, 12, 0.08);
+  border: 1.5px solid var(--accent-amber);
+  box-shadow: 0 0 16px rgba(234, 88, 12, 0.16), inset 0 0 10px rgba(234, 88, 12, 0.04);
 }
 
 .model-card-header {
@@ -1292,15 +1309,78 @@ html.rune-dawn .plant-visual-stage {
   color: var(--text-main);
 }
 
+.model-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .model-badge {
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
-  color: var(--accent-cyan);
-  background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.badge-default {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+html.rune-dawn .badge-default {
+  color: #475569;
+  background: rgba(71, 85, 105, 0.10);
+  border: 1px solid rgba(71, 85, 105, 0.25);
+}
+
+.badge-selected {
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.20);
+  border: 1px solid rgba(6, 182, 212, 0.50);
+}
+
+html.rune-dawn .badge-selected {
+  color: var(--accent-amber);
+  background: rgba(234, 88, 12, 0.15);
+  border: 1px solid rgba(234, 88, 12, 0.45);
+}
+
+.selected-model-indicator {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  padding: 6px 12px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+}
+
+html.rune-dawn .selected-model-indicator {
+  color: var(--accent-amber);
+  background: rgba(234, 88, 12, 0.08);
+  border-color: rgba(234, 88, 12, 0.28);
+}
+
+#controllerProvenanceBadge {
+  color: var(--accent-cyan);
+  border-color: rgba(6, 182, 212, 0.4);
+  background: rgba(6, 182, 212, 0.08);
+}
+
+html.rune-dawn #controllerProvenanceBadge {
+  color: var(--accent-amber);
+  border-color: rgba(234, 88, 12, 0.4);
+  background: rgba(234, 88, 12, 0.08);
 }
 
 .model-desc {
@@ -4103,6 +4183,258 @@ html.rune-dawn .repaired-code-pre {
   color: #0f172a;
 }
 
+/* Gateway Card in Step 4 */
+.ragnarok-gateway-card {
+  margin-top: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid #f43f5e;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.ragnarok-gateway-card:hover {
+  border-color: rgba(244, 63, 94, 0.5);
+  box-shadow: 0 6px 20px rgba(244, 63, 94, 0.12);
+}
+
+.gateway-body {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.gateway-hex-glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1.5px solid rgba(244, 63, 94, 0.35);
+  color: #f43f5e;
+  flex-shrink: 0;
+}
+
+.gateway-text-col {
+  flex: 1;
+}
+
+.gateway-badge-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.gateway-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-main);
+}
+
+.gateway-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.gateway-action-col {
+  flex-shrink: 0;
+}
+
+/* Dedicated Ragnarok Arena Workspace */
+.arena-workspace-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.arena-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+}
+
+html.rune-dawn .arena-context-bar {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.context-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.context-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.context-pill {
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.arena-experiment-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.context-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arena-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html.rune-dawn .arena-section-header {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.12);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+html.rune-dawn .section-tag {
+  color: var(--accent-amber);
+  background: rgba(234, 88, 12, 0.10);
+  border-color: rgba(234, 88, 12, 0.25);
+}
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-main);
+}
+
+/* Campaign Status Badges */
+.badge-running {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  animation: pulseStatus 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseStatus {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.badge-passed {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-failed {
+  background: rgba(244, 63, 94, 0.18);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+.badge-invalid {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Arena Benchmark Card */
+.arena-benchmark-card {
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.benchmark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.benchmark-stat-card {
+  padding: 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.benchmark-metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.benchmark-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.benchmark-metric-sub {
+  font-size: 10px;
+  color: var(--text-subtle);
+}
+
+.arena-court-bar {
+  margin-top: 10px;
+}
+
+.arena-oracle-assistant {
+  margin-top: 10px;
+}
+
 /* Responsive adjustments for Ragnarok Arena */
 @media (max-width: 1024px) {
   .arena-controls-panel {
@@ -4115,6 +4447,22 @@ html.rune-dawn .repaired-code-pre {
 
   .atlas-metrics-bar {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .benchmark-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .arena-context-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .context-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
@@ -4129,6 +4477,19 @@ html.rune-dawn .repaired-code-pre {
 
   .failure-atlas-wrapper {
     height: 270px;
+  }
+
+  .gateway-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gateway-action-col {
+    width: 100%;
+  }
+
+  .gateway-action-col .btn {
+    width: 100%;
   }
 }
 
@@ -4148,6 +4509,22 @@ html.rune-dawn .repaired-code-pre {
 
   .failure-atlas-wrapper {
     height: 240px;
+  }
+
+  .benchmark-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selected-model-indicator {
+    justify-content: center;
+    width: 100%;
+    white-space: normal;
+    text-align: center;
   }
 }
 

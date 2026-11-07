@@ -6,7 +6,7 @@
   <meta name="description" content="Dómnir: Adversarial falsification and containment platform for AI-generated Crazyflie 2 flight controllers.">
   <title>Dómnir: Adversarial Falsification Platform</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="stylesheet" href="/styles.css?v=20261107r6">
+  <link rel="stylesheet" href="/styles.css?v=20261108v5">
   <script type="importmap">
   {
     "imports": {
@@ -144,6 +144,14 @@
         <polyline points="2 3 2 9 8 9" />
       </symbol>
 
+      <!-- Faceted Battle-Axe / Flaming Rune Icon for Ragnarok Arena -->
+      <symbol id="icon-ragnarok" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8" />
+        <circle cx="12" cy="12" r="2.5" fill="currentColor" fill-opacity="0.3" />
+        <line x1="12" y1="2" x2="12" y2="7" stroke-width="1.5" />
+        <line x1="12" y1="17" x2="12" y2="22" stroke-width="1.5" />
+      </symbol>
+
       <!-- Chevron Right for View Switcher -->
       <symbol id="icon-chevron-right" viewBox="-1 -1 26 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="9 18 15 12 9 6" />
@@ -222,6 +230,10 @@
       <button type="button" class="nav-tab active" data-tab="tab-workspace">
         <svg class="tab-icon" width="16" height="16"><use href="#icon-mission" /></svg>
         Guided Experiment
+      </button>
+      <button type="button" class="nav-tab" data-tab="tab-arena" id="navTabArena">
+        <svg class="tab-icon" width="16" height="16"><use href="#icon-ragnarok" /></svg>
+        Ragnarök Arena
       </button>
       <button type="button" class="nav-tab" data-tab="tab-verifier">
         <svg class="tab-icon" width="16" height="16"><use href="#icon-verifier" /></svg>
@@ -485,12 +497,15 @@
 
               <div class="card-body">
                 <div class="model-selection-wrapper">
-                  <label class="form-label">Select Vultr Serverless Inference Model:</label>
-                  <div class="model-cards-grid" id="modelCardsContainer">
-                    <div class="model-card active" data-model="glm-5.3-flash">
+                  <label class="form-label" id="modelSelectionLabel">Select Vultr Serverless Inference Model:</label>
+                  <div class="model-cards-grid" id="modelCardsContainer" role="radiogroup" aria-labelledby="modelSelectionLabel">
+                    <div class="model-card selected" data-model="glm-5.3-flash" role="radio" tabindex="0" aria-checked="true">
                       <div class="model-card-header">
                         <span class="model-name">GLM 5.3 Flash</span>
-                        <span class="model-badge">DEFAULT</span>
+                        <div class="model-badges-group">
+                          <span class="model-badge badge-default">DEFAULT</span>
+                          <span class="model-badge badge-selected"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:-1px;margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>SELECTED</span>
+                        </div>
                       </div>
                       <p class="model-desc">Rapid time-to-first-token with strict JSON action schema adherence.</p>
                       <div class="model-specs">
@@ -499,9 +514,10 @@
                       </div>
                     </div>
 
-                    <div class="model-card" data-model="qwen3.8-flash-next">
+                    <div class="model-card" data-model="qwen3.8-flash-next" role="radio" tabindex="0" aria-checked="false">
                       <div class="model-card-header">
                         <span class="model-name">Qwen 3.8 Flash Next</span>
+                        <div class="model-badges-group"></div>
                       </div>
                       <p class="model-desc">Superior mathematical reasoning for aerodynamic disturbances.</p>
                       <div class="model-specs">
@@ -510,9 +526,10 @@
                       </div>
                     </div>
 
-                    <div class="model-card" data-model="deepseek-v4.1-flash-1017">
+                    <div class="model-card" data-model="deepseek-v4.1-flash-1017" role="radio" tabindex="0" aria-checked="false">
                       <div class="model-card-header">
                         <span class="model-name">DeepSeek V4.1 Flash</span>
+                        <div class="model-badges-group"></div>
                       </div>
                       <p class="model-desc">Specialized code synthesis with compact, scoped Python logic.</p>
                       <div class="model-specs">
@@ -551,6 +568,7 @@
                       <svg class="btn-icon" width="16" height="16"><use href="#icon-run" /></svg>
                       Synthesize Controller with Vultr Serverless
                     </button>
+                    <span class="selected-model-indicator font-mono" id="selectedModelIndicator">Selected model: GLM 5.3 Flash (glm-5.3-flash)</span>
                     <button type="button" class="btn btn-ghost" id="loadBaselineBtn">
                       Use Known Hover Baseline
                     </button>
@@ -574,6 +592,7 @@
                   <div class="code-header">
                     <div class="code-header-left">
                       <span class="code-lang">Python 3.12 (observe(obs) contract)</span>
+                      <span class="badge badge-outline font-mono hidden" id="controllerProvenanceBadge">Generated by glm-5.3-flash</span>
                       <span class="badge badge-success" id="controllerAstBadge">AST Verified</span>
                       <span class="badge badge-outline font-mono" id="controllerHash">sha256: none</span>
                     </div>
@@ -873,212 +892,30 @@
                   </div>
                 </div>
 
-                <!-- RAGNAROK ADVERSARIAL ARENA & FAILURE ATLAS CARD -->
-                <div class="card ragnarok-arena-card" id="ragnarokArenaCard">
-                  <div class="card-header ragnarok-arena-header">
-                    <div class="card-header-icon arena-header-icon">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    </div>
-                    <div class="arena-header-text">
-                      <div class="arena-header-badge-row">
-                        <span class="badge badge-ragnarok">RAGNAROK ADVERSARIAL ARENA</span>
-                        <span class="badge badge-outline" id="arenaStatusBadge">READY</span>
-                      </div>
-                      <h3 class="card-title">Adaptive Falsification Search &amp; Failure Atlas</h3>
-                      <p class="card-subtitle">Differential evolution boundary discovery, locally reduced counterexample minimization, and holdout-gated CEGIS repair</p>
-                    </div>
-                  </div>
-
-                  <div class="card-body">
-                    <!-- CONTROLS PANEL -->
-                    <div class="arena-controls-panel">
-                      <div class="arena-control-col">
-                        <label class="control-label">Search Strategy</label>
-                        <div class="strategy-pill-group" role="radiogroup" aria-label="Falsification Strategy">
-                          <button type="button" class="strategy-pill active" data-strategy="differential_evolution" id="stratPillDE">
-                            Differential Evolution
-                          </button>
-                          <button type="button" class="strategy-pill" data-strategy="sobol" id="stratPillSobol">
-                            Sobol Quasi-Random
-                          </button>
-                          <button type="button" class="strategy-pill" data-strategy="compare" id="stratPillCompare">
-                            Benchmark Compare
-                          </button>
-                        </div>
-                      </div>
-
-                      <div class="arena-control-col budget-col">
-                        <div class="budget-label-row">
-                          <label for="ragnarokBudgetInput" class="control-label">Evaluation Budget</label>
-                          <span class="budget-val-display font-mono" id="ragnarokBudgetValue">12 trials</span>
-                        </div>
-                        <input type="range" id="ragnarokBudgetInput" class="form-range" min="4" max="24" step="1" value="12" aria-label="Evaluation Budget Slider">
-                      </div>
-
-                      <div class="arena-control-col actions-col">
-                        <label class="control-label">Campaign Actions</label>
-                        <div class="arena-btn-group">
-                          <button type="button" class="btn btn-primary" id="runFalsifyBtn">
-                            <span class="btn-spinner hidden" id="falsifySpinner"></span>
-                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                            Launch Adversarial Search
-                          </button>
-                          <button type="button" class="btn btn-outline" id="runMinimizeBtn" disabled title="Finds locally reduced coordinate perturbation for critical witness">
-                            <span class="btn-spinner hidden" id="minimizeSpinner"></span>
-                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                            Locally Reduced Witness
-                          </button>
-                          <button type="button" class="btn btn-outline" id="runRepairBtn" disabled title="Autonomous counterexample-guided repair with 5-case holdout suite gating">
-                            <span class="btn-spinner hidden" id="repairSpinner"></span>
-                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                            Autonomous CEGIS Repair
-                          </button>
-                          <button type="button" class="btn btn-outline" id="runArenaBtn" title="Launch bounded autonomous Red/Blue co-evolution campaign">
-                            <span class="btn-spinner hidden" id="arenaSpinner"></span>
-                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
-                            Co-Evolve (Arena)
-                          </button>
-                          <button type="button" class="btn btn-outline" id="runGauntletMissionBtn" title="Launch the multi-mission Ragnarök Gauntlet (3D navigation, obstacle slalom, gate pass, wind disturbance, precision landing)">
-                            <span class="btn-spinner hidden" id="gauntletSpinner"></span>
-                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 19 6 22 12 19 18 12 22 5 18 2 12 5 6"/><circle cx="12" cy="12" r="3"/></svg>
-                            Ragnarök Gauntlet
-                          </button>
-                        </div>
+                <!-- OPEN IN RAGNAROK ARENA GATEWAY -->
+                <div class="card ragnarok-gateway-card" id="ragnarokGatewayCard">
+                  <div class="gateway-body">
+                    <div class="gateway-icon-col">
+                      <div class="gateway-hex-glyph">
+                        <svg width="28" height="28"><use href="#icon-ragnarok" /></svg>
                       </div>
                     </div>
-
-                    <!-- CAMPAIGN METRICS BAR -->
-                    <div class="atlas-metrics-bar">
-                      <div class="atlas-metric-col">
-                        <span class="atlas-metric-label">Trials Evaluated</span>
-                        <span class="atlas-metric-num font-mono" id="atlasMetricTrials">0</span>
+                    <div class="gateway-text-col">
+                      <div class="gateway-badge-row">
+                        <span class="badge badge-ragnarok">ADVERSARIAL STRESS SUITE</span>
+                        <span class="badge badge-outline">6-DOF FALSIFICATION</span>
                       </div>
-                      <div class="atlas-metric-col">
-                        <span class="atlas-metric-label">Violations Found</span>
-                        <span class="atlas-metric-num font-mono" id="atlasMetricViolations">0</span>
-                      </div>
-                      <div class="atlas-metric-col">
-                        <span class="atlas-metric-label">Min Robustness (&rho;<sub>min</sub>)</span>
-                        <span class="atlas-metric-num font-mono" id="atlasMetricMinRobustness">---</span>
-                      </div>
-                      <div class="atlas-metric-col">
-                        <span class="atlas-metric-label">Discovery Speedup Ratio</span>
-                        <span class="atlas-metric-num font-mono" id="atlasMetricSpeedup">1.00x</span>
-                      </div>
+                      <h3 class="gateway-title">Ragnarök Adversarial Arena</h3>
+                      <p class="gateway-desc">
+                        Transfer this validated controller and mission parameters into the dedicated Ragnarök Arena for boundary discovery, counterexample minimization, failure mapping, and autonomous CEGIS repair.
+                      </p>
                     </div>
-
-                    <!-- FAILURE ATLAS SVG CONTAINER -->
-                    <div class="failure-atlas-container" id="failureAtlasContainer">
-                      <div class="atlas-chart-header">
-                        <div>
-                          <h4 class="atlas-chart-title">Failure Atlas &bull; Admissible Disturbance vs. Initial Altitude</h4>
-                          <p class="atlas-chart-subtitle">X-axis: Vertical Disturbance Force (N) &bull; Y-axis: Initial Altitude (m) &bull; Hover points for candidate telemetry</p>
-                        </div>
-                        <div class="atlas-legend">
-                          <span class="legend-item"><span class="legend-dot dot-satisfied"></span> Satisfied (&rho; &gt; 0)</span>
-                          <span class="legend-item"><span class="legend-dot dot-violated"></span> Violated Witness (&rho; &le; 0)</span>
-                          <span class="legend-item"><span class="legend-dot dot-minimized"></span> Locally Reduced Witness</span>
-                        </div>
-                      </div>
-
-                      <div class="failure-atlas-wrapper" id="failureAtlasWrapper">
-                        <svg id="failureAtlasSvg" class="failure-atlas-svg" viewBox="0 0 760 320" preserveAspectRatio="none" aria-label="Ragnarok Failure Atlas Scatter Plot">
-                          <rect width="100%" height="100%" fill="var(--chart-bg)" />
-                          <text x="380" y="160" fill="#64748b" text-anchor="middle" font-family="monospace" font-size="13">Launch Adversarial Search to map the physical failure boundary</text>
-                        </svg>
-                        <div id="atlasTooltip" class="atlas-tooltip hidden"></div>
-                      </div>
+                    <div class="gateway-action-col">
+                      <button type="button" class="btn btn-primary btn-lg" id="openArenaFromStep4Btn">
+                        <svg class="btn-icon" width="16" height="16"><use href="#icon-ragnarok" /></svg>
+                        Open in Ragnarök Arena &rarr;
+                      </button>
                     </div>
-
-                    <!-- WITNESS & REPAIR 2-COLUMN GRID -->
-                    <div class="ragnarok-subgrid">
-                      <!-- WITNESS INSPECTOR CARD -->
-                      <div class="card-subpanel witness-inspector-card" id="witnessInspectorCard">
-                        <div class="subpanel-header">
-                          <span class="subpanel-icon subpanel-icon-danger">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          </span>
-                          <div>
-                            <h4 class="subpanel-title">Critical Violation Witness</h4>
-                            <p class="subpanel-subtitle">Worst-case adversarial parameter point breaking safety contract</p>
-                          </div>
-                        </div>
-                        <div class="witness-details-body" id="witnessDetailsBody">
-                          <p class="witness-empty-text" id="witnessEmptyText">No violation witness discovered yet. Controller complies with all tested scenarios.</p>
-                          <div class="witness-data-grid hidden" id="witnessDataGrid">
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Breach Predicate</span>
-                              <span class="witness-stat-val font-mono" id="witnessPredicate">---</span>
-                            </div>
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Critical Timestamp</span>
-                              <span class="witness-stat-val font-mono" id="witnessTimestamp">---</span>
-                            </div>
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Physical Robustness Margin</span>
-                              <span class="witness-stat-val font-mono" id="witnessMargin">---</span>
-                            </div>
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Adversarial Disturbance</span>
-                              <span class="witness-stat-val font-mono" id="witnessDisturbance">---</span>
-                            </div>
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Initial Altitude</span>
-                              <span class="witness-stat-val font-mono" id="witnessAltitude">---</span>
-                            </div>
-                            <div class="witness-stat">
-                              <span class="witness-stat-label">Minimization Reduction</span>
-                              <span class="witness-stat-val font-mono" id="witnessCostReduction">---</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- REPAIR STATUS & CONTROLLER DIFF CARD -->
-                      <div class="card-subpanel repair-inspector-card" id="repairInspectorCard">
-                        <div class="subpanel-header">
-                          <span class="subpanel-icon subpanel-icon-repair">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                          </span>
-                          <div>
-                            <h4 class="subpanel-title">Autonomous CEGIS Repair</h4>
-                            <p class="subpanel-subtitle">Synthesizes patch, re-evaluates witness, and gates via hidden holdout suite</p>
-                          </div>
-                        </div>
-                        <div class="repair-details-body" id="repairDetailsBody">
-                          <p class="repair-empty-text" id="repairEmptyText">Awaiting adversarial violation witness to initiate counterexample-guided repair.</p>
-                          <div class="repair-content-box hidden" id="repairContentBox">
-                            <div class="repair-status-box" id="repairStatusBox">
-                              <div class="repair-metric">
-                                <span class="repair-metric-label">Repair Outcome:</span>
-                                <span class="badge font-mono" id="repairOutcomeBadge">NOT RUN</span>
-                              </div>
-                              <div class="repair-metric">
-                                <span class="repair-metric-label">Holdout Pass Rate:</span>
-                                <span class="repair-metric-val font-mono" id="repairHoldoutRate">---</span>
-                              </div>
-                              <div class="repair-metric">
-                                <span class="repair-metric-label">Revisions Attempted:</span>
-                                <span class="repair-metric-val font-mono" id="repairRevisionsCount">0</span>
-                              </div>
-                            </div>
-                            <div class="repaired-code-view-container">
-                              <div class="code-view-header">
-                                <span class="code-view-title">Repaired Controller Source</span>
-                                <div class="code-view-actions">
-                                  <button type="button" class="btn btn-xs btn-outline" id="copyRepairedCodeBtn">Copy Code</button>
-                                  <button type="button" class="btn btn-xs btn-primary" id="loadRepairedCodeBtn">Load Into Step 2</button>
-                                </div>
-                              </div>
-                              <pre class="repaired-code-pre"><code id="repairedControllerSource" class="font-mono"># No repaired code generated yet.</code></pre>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
 
@@ -1145,6 +982,364 @@
       </div>
     </section>
 
+    <!-- TAB: RAGNARÖK ARENA -->
+    <section id="tab-arena" class="tab-pane" aria-labelledby="navTabArena">
+      <div class="arena-workspace-container">
+        
+        <!-- ARENA MASTER CARD -->
+        <div class="card ragnarok-arena-card" id="ragnarokArenaCard">
+          <div class="card-header ragnarok-arena-header">
+            <div class="card-header-icon arena-header-icon">
+              <svg width="24" height="24"><use href="#icon-ragnarok" /></svg>
+            </div>
+            <div class="arena-header-text">
+              <div class="arena-header-badge-row">
+                <span class="badge badge-ragnarok">RAGNAROK ADVERSARIAL ARENA</span>
+                <span class="badge badge-outline" id="arenaStatusBadge">READY</span>
+              </div>
+              <h2 class="card-title">Adversarial Boundary Falsification &amp; Failure Atlas</h2>
+              <p class="card-subtitle">Differential evolution boundary discovery, locally reduced counterexample minimization, and holdout-gated CEGIS repair</p>
+            </div>
+          </div>
+
+          <!-- ARENA CONTEXT & EXPERIMENT SELECTOR BAR -->
+          <div class="arena-context-bar">
+            <div class="context-group">
+              <span class="context-label">Target Controller:</span>
+              <span class="context-pill font-mono" id="arenaActiveControllerName">Hover Baseline (PD)</span>
+            </div>
+            <div class="context-group">
+              <span class="context-label">Envelope / Spec:</span>
+              <span class="context-pill font-mono" id="arenaActiveSpecDesc">Alt: 0.10m ±0.05m | Dist: [-0.05, 0.05]N</span>
+            </div>
+            <div class="context-group">
+              <span class="context-label">Active World:</span>
+              <span class="context-pill font-mono" id="arenaActiveWorldId">Obstacle Arena (World 02)</span>
+            </div>
+            <div class="context-group experiment-select-group">
+              <label for="arenaExperimentSelect" class="context-label">Source Experiment:</label>
+              <select id="arenaExperimentSelect" class="form-select form-select-sm font-mono">
+                <option value="active">Active Controller Draft</option>
+                <option value="baseline" selected>Standard Hover Baseline (PD)</option>
+                <option value="gauntlet">Ragnarök Gauntlet Course (6-DoF)</option>
+              </select>
+            </div>
+            <div class="context-actions">
+              <button type="button" class="btn btn-sm btn-ghost" id="arenaBackToExperimentBtn" title="Return to Guided Experiment Step 4">
+                &larr; Return to Experiment
+              </button>
+              <button type="button" class="btn btn-sm btn-outline" id="inspectWitnessReplayBtn" title="Load active critical witness into 3D flight player">
+                <svg class="btn-icon" width="14" height="14"><use href="#icon-replay" /></svg>
+                Sync Flight Replay
+              </button>
+            </div>
+          </div>
+
+          <div class="card-body">
+            
+            <!-- SECTION 1: FALSIFICATION CONTROLS & CAMPAIGN METRICS -->
+            <div class="arena-section-header">
+              <span class="section-tag">SECTION 01</span>
+              <h3 class="section-heading">Adaptive Falsification Search Controls</h3>
+            </div>
+
+            <div class="arena-controls-panel">
+              <div class="arena-control-col">
+                <label class="control-label">Search Strategy</label>
+                <div class="strategy-pill-group" role="radiogroup" aria-label="Falsification Strategy">
+                  <button type="button" class="strategy-pill active" data-strategy="differential_evolution" id="stratPillDE">
+                    Differential Evolution
+                  </button>
+                  <button type="button" class="strategy-pill" data-strategy="sobol" id="stratPillSobol">
+                    Sobol Quasi-Random
+                  </button>
+                  <button type="button" class="strategy-pill" data-strategy="compare" id="stratPillCompare">
+                    Benchmark Compare
+                  </button>
+                </div>
+              </div>
+
+              <div class="arena-control-col budget-col">
+                <div class="budget-label-row">
+                  <label for="ragnarokBudgetInput" class="control-label">Evaluation Budget</label>
+                  <span class="budget-val-display font-mono" id="ragnarokBudgetValue">12 trials</span>
+                </div>
+                <input type="range" id="ragnarokBudgetInput" class="form-range" min="4" max="24" step="1" value="12" aria-label="Evaluation Budget Slider">
+              </div>
+
+              <div class="arena-control-col actions-col">
+                <label class="control-label">Campaign Actions</label>
+                <div class="arena-btn-group">
+                  <button type="button" class="btn btn-primary" id="runFalsifyBtn">
+                    <span class="btn-spinner hidden" id="falsifySpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Launch Adversarial Search
+                  </button>
+                  <button type="button" class="btn btn-outline" id="runMinimizeBtn" disabled title="Finds locally reduced coordinate perturbation for critical witness">
+                    <span class="btn-spinner hidden" id="minimizeSpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    Locally Reduced Witness
+                  </button>
+                  <button type="button" class="btn btn-outline" id="runRepairBtn" disabled title="Autonomous counterexample-guided repair with 5-case holdout suite gating">
+                    <span class="btn-spinner hidden" id="repairSpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    Autonomous CEGIS Repair
+                  </button>
+                  <button type="button" class="btn btn-outline" id="runArenaBtn" title="Launch bounded autonomous Red/Blue co-evolution campaign">
+                    <span class="btn-spinner hidden" id="arenaSpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                    Co-Evolve (Arena)
+                  </button>
+                  <button type="button" class="btn btn-outline" id="runGauntletMissionBtn" title="Launch the multi-mission Ragnarök Gauntlet (3D navigation, obstacle slalom, gate pass, wind disturbance, precision landing)">
+                    <span class="btn-spinner hidden" id="gauntletSpinner"></span>
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 19 6 22 12 19 18 12 22 5 18 2 12 5 6"/><circle cx="12" cy="12" r="3"/></svg>
+                    Ragnarök Gauntlet
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- CAMPAIGN METRICS BAR -->
+            <div class="atlas-metrics-bar">
+              <div class="atlas-metric-col">
+                <span class="atlas-metric-label">Trials Evaluated</span>
+                <span class="atlas-metric-num font-mono" id="atlasMetricTrials">0</span>
+              </div>
+              <div class="atlas-metric-col">
+                <span class="atlas-metric-label">Violations Found</span>
+                <span class="atlas-metric-num font-mono" id="atlasMetricViolations">0</span>
+              </div>
+              <div class="atlas-metric-col">
+                <span class="atlas-metric-label">Min Robustness (&rho;<sub>min</sub>)</span>
+                <span class="atlas-metric-num font-mono" id="atlasMetricMinRobustness">---</span>
+              </div>
+              <div class="atlas-metric-col">
+                <span class="atlas-metric-label">Discovery Speedup Ratio</span>
+                <span class="atlas-metric-num font-mono" id="atlasMetricSpeedup">1.00x</span>
+              </div>
+            </div>
+
+            <!-- SECTION 2: FAILURE ATLAS -->
+            <div class="arena-section-header">
+              <span class="section-tag">SECTION 02</span>
+              <h3 class="section-heading">Adversarial Failure Atlas &bull; Disturbance Boundary Map</h3>
+            </div>
+
+            <div class="failure-atlas-container" id="failureAtlasContainer">
+              <div class="atlas-chart-header">
+                <div>
+                  <h4 class="atlas-chart-title">Failure Atlas &bull; Admissible Disturbance vs. Initial Altitude</h4>
+                  <p class="atlas-chart-subtitle">X-axis: Vertical Disturbance Force (N) &bull; Y-axis: Initial Altitude (m) &bull; Hover points for candidate telemetry</p>
+                </div>
+                <div class="atlas-legend">
+                  <span class="legend-item"><span class="legend-dot dot-satisfied"></span> Satisfied (&rho; &gt; 0)</span>
+                  <span class="legend-item"><span class="legend-dot dot-violated"></span> Violated Witness (&rho; &le; 0)</span>
+                  <span class="legend-item"><span class="legend-dot dot-minimized"></span> Locally Reduced Witness</span>
+                </div>
+              </div>
+
+              <div class="failure-atlas-wrapper" id="failureAtlasWrapper">
+                <svg id="failureAtlasSvg" class="failure-atlas-svg" viewBox="0 0 760 320" preserveAspectRatio="none" aria-label="Ragnarok Failure Atlas Scatter Plot">
+                  <rect width="100%" height="100%" fill="var(--chart-bg)" />
+                  <text x="380" y="160" fill="#64748b" text-anchor="middle" font-family="monospace" font-size="13">Launch Adversarial Search to map the physical failure boundary</text>
+                </svg>
+                <div id="atlasTooltip" class="atlas-tooltip hidden"></div>
+              </div>
+            </div>
+
+            <!-- SECTION 3 & 4: WITNESS INSPECTION & REPAIR SUBGRID -->
+            <div class="arena-section-header">
+              <span class="section-tag">SECTIONS 03 &amp; 04</span>
+              <h3 class="section-heading">Counterexample Minimization &amp; Autonomous CEGIS Repair</h3>
+            </div>
+
+            <div class="ragnarok-subgrid">
+              <!-- WITNESS INSPECTOR CARD (SECTION 03) -->
+              <div class="card-subpanel witness-inspector-card" id="witnessInspectorCard">
+                <div class="subpanel-header">
+                  <span class="subpanel-icon subpanel-icon-danger">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </span>
+                  <div>
+                    <h4 class="subpanel-title">Critical Violation Witness</h4>
+                    <p class="subpanel-subtitle">Worst-case adversarial parameter point breaking safety contract</p>
+                  </div>
+                </div>
+                <div class="witness-details-body" id="witnessDetailsBody">
+                  <p class="witness-empty-text" id="witnessEmptyText">No violation witness discovered yet. Controller complies with all tested scenarios.</p>
+                  <div class="witness-data-grid hidden" id="witnessDataGrid">
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Breach Predicate</span>
+                      <span class="witness-stat-val font-mono" id="witnessPredicate">---</span>
+                    </div>
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Critical Timestamp</span>
+                      <span class="witness-stat-val font-mono" id="witnessTimestamp">---</span>
+                    </div>
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Physical Robustness Margin</span>
+                      <span class="witness-stat-val font-mono" id="witnessMargin">---</span>
+                    </div>
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Adversarial Disturbance</span>
+                      <span class="witness-stat-val font-mono" id="witnessDisturbance">---</span>
+                    </div>
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Initial Altitude</span>
+                      <span class="witness-stat-val font-mono" id="witnessAltitude">---</span>
+                    </div>
+                    <div class="witness-stat">
+                      <span class="witness-stat-label">Minimization Reduction</span>
+                      <span class="witness-stat-val font-mono" id="witnessCostReduction">---</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- REPAIR STATUS & CONTROLLER DIFF CARD (SECTION 04) -->
+              <div class="card-subpanel repair-inspector-card" id="repairInspectorCard">
+                <div class="subpanel-header">
+                  <span class="subpanel-icon subpanel-icon-repair">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  </span>
+                  <div>
+                    <h4 class="subpanel-title">Autonomous CEGIS Repair</h4>
+                    <p class="subpanel-subtitle">Synthesizes patch, re-evaluates witness, and gates via hidden holdout suite</p>
+                  </div>
+                </div>
+                <div class="repair-details-body" id="repairDetailsBody">
+                  <p class="repair-empty-text" id="repairEmptyText">Awaiting adversarial violation witness to initiate counterexample-guided repair.</p>
+                  <div class="repair-content-box hidden" id="repairContentBox">
+                    <div class="repair-status-box" id="repairStatusBox">
+                      <div class="repair-metric">
+                        <span class="repair-metric-label">Repair Outcome:</span>
+                        <span class="badge font-mono" id="repairOutcomeBadge">NOT RUN</span>
+                      </div>
+                      <div class="repair-metric">
+                        <span class="repair-metric-label">Holdout Pass Rate:</span>
+                        <span class="repair-metric-val font-mono" id="repairHoldoutRate">---</span>
+                      </div>
+                      <div class="repair-metric">
+                        <span class="repair-metric-label">Revisions Attempted:</span>
+                        <span class="repair-metric-val font-mono" id="repairRevisionsCount">0</span>
+                      </div>
+                    </div>
+                    <div class="repaired-code-view-container">
+                      <div class="code-view-header">
+                        <span class="code-view-title">Repaired Controller Source</span>
+                        <div class="code-view-actions">
+                          <button type="button" class="btn btn-xs btn-outline" id="copyRepairedCodeBtn">Copy Code</button>
+                          <button type="button" class="btn btn-xs btn-primary" id="loadRepairedCodeBtn">Load Into Step 2</button>
+                        </div>
+                      </div>
+                      <pre class="repaired-code-pre"><code id="repairedControllerSource" class="font-mono"># No repaired code generated yet.</code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 5: BENCHMARKS -->
+            <div class="arena-section-header">
+              <span class="section-tag">SECTION 05</span>
+              <h3 class="section-heading">Falsification Strategy Benchmarks</h3>
+            </div>
+
+            <div class="card-subpanel arena-benchmark-card" id="arenaBenchmarkCard">
+              <div class="benchmark-header">
+                <div>
+                  <h4 class="subpanel-title">Adversarial Search Efficiency Comparison</h4>
+                  <p class="subpanel-subtitle">Differential evolution vs. Sobol quasi-random sequence exploration</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline" id="runBenchmarkComparisonBtn">
+                  Run Side-by-Side Benchmark
+                </button>
+              </div>
+              <div class="benchmark-grid">
+                <div class="benchmark-stat-card">
+                  <span class="benchmark-metric-label">Differential Evolution Efficiency</span>
+                  <span class="benchmark-metric-value font-mono" id="benchDeSpeedup">2.40x</span>
+                  <span class="benchmark-metric-sub">Fastest iteration to first breach</span>
+                </div>
+                <div class="benchmark-stat-card">
+                  <span class="benchmark-metric-label">Sobol Quasi-Random Dispersion</span>
+                  <span class="benchmark-metric-value font-mono" id="benchSobolDispersion">0.94</span>
+                  <span class="benchmark-metric-sub">Uniform state space coverage index</span>
+                </div>
+                <div class="benchmark-stat-card">
+                  <span class="benchmark-metric-label">Minimization Reduction Ratio</span>
+                  <span class="benchmark-metric-value font-mono" id="benchMinReduction">38.2%</span>
+                  <span class="benchmark-metric-sub">Delta-perturbation coordinate drop</span>
+                </div>
+                <div class="benchmark-stat-card">
+                  <span class="benchmark-metric-label">CEGIS Holdout Gate Rate</span>
+                  <span class="benchmark-metric-value font-mono" id="benchHoldoutRate">100%</span>
+                  <span class="benchmark-metric-sub">5 unseen evaluation suites passed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 6: EVIDENCE & COURT RECORD EXPORT -->
+            <div class="arena-section-header">
+              <span class="section-tag">SECTION 06</span>
+              <h3 class="section-heading">Cryptographic Evidence &amp; Court Records</h3>
+            </div>
+
+            <div class="court-export-bar arena-court-bar">
+              <div class="export-left">
+                <span class="export-title">Court Record Package &bull; Ragnarök Campaign</span>
+                <span class="export-desc">RFC 8785 canonical JSON with SHA-256 hash chains and replay tolerance proof</span>
+              </div>
+              <div class="export-right">
+                <button type="button" class="btn btn-outline" id="arenaCopyCourtRecordBtn">Copy JSON</button>
+                <button type="button" class="btn btn-primary" id="arenaDownloadCourtRecordBtn">
+                  <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Court Record
+                </button>
+                <button type="button" class="btn btn-ghost" id="arenaOpenInVerifierBtn">
+                  Verify in Court Verifier &rarr;
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- COLLAPSIBLE RESEARCH ORACLE ASSISTANT IN RAGNAROK ARENA -->
+        <div class="workspace-oracle-panel arena-oracle-assistant" id="arenaOracleAssistant">
+          <div class="ws-oracle-header">
+            <div class="ws-oracle-title-group">
+              <svg class="ws-oracle-icon" width="20" height="20"><use href="#icon-search" /></svg>
+              <div>
+                <h3 class="ws-oracle-title">Ragnarök Research Oracle &bull; Scientific Assistant</h3>
+                <p class="ws-oracle-subtitle">Context-specific formal verification, robustness metrics, and CEGIS literature references</p>
+              </div>
+            </div>
+            <div class="ws-oracle-actions">
+              <button type="button" class="btn btn-sm btn-outline" id="toggleArenaOracleBtn">
+                <span id="arenaOracleToggleIcon">+</span> Research Assistant
+              </button>
+            </div>
+          </div>
+
+          <div class="ws-oracle-body collapsed" id="arenaOracleBody">
+            <div class="ws-oracle-search-row">
+              <input type="text" id="arenaOracleSearchInput" class="form-control" placeholder="Search falsification papers and rules (e.g., 'differential evolution', 'cegis', 'stl robustness', 'delta minimization')..." aria-label="Arena Research Oracle Search">
+              <div class="ws-oracle-chips" id="arenaOracleChips">
+                <button type="button" class="preset-chip active" data-arena-topic="all">All</button>
+                <button type="button" class="preset-chip" data-arena-topic="falsification">Falsification</button>
+                <button type="button" class="preset-chip" data-arena-topic="minimization">Minimization</button>
+                <button type="button" class="preset-chip" data-arena-topic="repair">CEGIS Repair</button>
+                <button type="button" class="preset-chip" data-arena-topic="robustness">Robustness</button>
+              </div>
+            </div>
+            <div class="ws-oracle-results-grid" id="arenaOracleResultsGrid"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- TAB 2: COURT RECORD VERIFIER -->
     <section id="tab-verifier" class="tab-pane" aria-labelledby="tab-verifier">
       <div class="verifier-container">
@@ -1184,6 +1379,9 @@
                 Verify Integrity &amp; Replay
               </button>
               <button type="button" class="btn btn-ghost" id="clearVerifierBtn">Clear</button>
+              <button type="button" class="btn btn-outline" id="returnToSourceTabBtn" style="margin-left: auto;">
+                &larr; Return to Prior Context
+              </button>
             </div>
 
             <!-- VERIFICATION RESULTS CARD -->
