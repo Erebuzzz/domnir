@@ -1,0 +1,133 @@
+{
+  "timestamp": "2026-11-07T12:28:56Z",
+  "physics_engine": "MuJoCo 3.3.7 (Bitcraze Crazyflie 2)",
+  "mean_search_speedup": 1.0,
+  "ci_gate_status": "AWAITING_REVIEW",
+  "summary": "Completed multi-dimensional benchmark suite across 6 search campaigns. Mean adaptive discovery speedup: 1.00x faster than Sobol baseline. Counterexample minimization achieved up to 99.4% reduction. Guardian shielded all feasible floor and ceiling breaches while preserving truthful unshielded verdicts. Robotics CI Gate evaluated candidate controller with status AWAITING_REVIEW.",
+  "search_benchmarks": [
+    {
+      "controller_name": "classical_p",
+      "seed": 42,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    },
+    {
+      "controller_name": "classical_p",
+      "seed": 101,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    },
+    {
+      "controller_name": "classical_p",
+      "seed": 2026,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    },
+    {
+      "controller_name": "calibrated_pid",
+      "seed": 42,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    },
+    {
+      "controller_name": "calibrated_pid",
+      "seed": 101,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    },
+    {
+      "controller_name": "calibrated_pid",
+      "seed": 2026,
+      "budget": 15,
+      "sobol_evaluations_to_first": 1,
+      "de_evaluations_to_first": 1,
+      "sobol_min_robustness": -0.05,
+      "de_min_robustness": -0.05,
+      "sobol_violations_found": 15,
+      "de_violations_found": 15,
+      "speedup_ratio": 1.0
+    }
+  ],
+  "minimization_benchmarks": [
+    {
+      "controller_name": "classical_p",
+      "original_force_n": -0.14,
+      "minimized_force_n": -0.0088,
+      "original_cost": 0.014,
+      "minimized_cost": 0.0001,
+      "cost_reduction_ratio": 0.994,
+      "evaluations_used": 9,
+      "predicate_preserved": true
+    }
+  ],
+  "uncertainty_benchmarks": [
+    {
+      "controller_name": "calibrated_pid",
+      "total_variants": 6,
+      "variants_passing": 0,
+      "variants_failing": 6,
+      "min_robustness": -0.05,
+      "worst_variant": "nominal",
+      "most_sensitive_parameter": "heavy_payload"
+    },
+    {
+      "controller_name": "classical_p",
+      "total_variants": 6,
+      "variants_passing": 0,
+      "variants_failing": 6,
+      "min_robustness": -0.05,
+      "worst_variant": "nominal",
+      "most_sensitive_parameter": "heavy_payload"
+    }
+  ],
+  "guardian_benchmarks": [
+    {
+      "controller_name": "open_loop_weak",
+      "unshielded_verdict": "VIOLATED",
+      "unshielded_robustness": -0.1981,
+      "shielded_verdict": "GUARDIAN_INTERVENED",
+      "shielded_robustness": 0.0199,
+      "interventions_count": 100,
+      "infeasible_count": 0
+    },
+    {
+      "controller_name": "overthrust_runaway",
+      "unshielded_verdict": "VIOLATED",
+      "unshielded_robustness": -0.1988,
+      "shielded_verdict": "VIOLATED",
+      "shielded_robustness": -0.1988,
+      "interventions_count": 0,
+      "infeasible_count": 0
+    }
+  ]
+}
