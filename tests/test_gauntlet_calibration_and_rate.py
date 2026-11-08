@@ -37,6 +37,16 @@ def test_default_gauntlet_is_completed_by_the_baseline(gauntlet):
 
 
 @needs_model
+def test_default_open_field_is_completed_with_margin():
+    data = client.post("/missions/run", json={"world_id": "open-field"}).json()
+    assert data["mission_verdict"] == "COMPLETED"
+    assert data["physical_verdict"] == "NOT_FALSIFIED"
+    assert data["stages_completed"] == data["total_stages"] == 3
+    for stage in data["stage_results"]:
+        assert stage["completion_deadline_s"] - stage["completed_at_s"] >= 0.15, stage["stage_id"]
+
+
+@needs_model
 def test_gauntlet_deadlines_keep_margin_over_the_baseline_flight(gauntlet):
     # Deadlines were set from the measured baseline flight with margin. If
     # the baseline gets slower this fails before the demo silently degrades.

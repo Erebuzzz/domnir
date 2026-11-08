@@ -101,6 +101,9 @@ def default_mission(world_id: str) -> tuple[MissionSpecV2, list[float]]:
         )
         init_pos = [0.0, 0.0, 0.05]
     else:
+        # Open field (and any other world without its own default).
+        # Calibrated against the built-in baseline: measured arrivals are
+        # 0.644 / 1.738 / 2.450 s, so each deadline leaves ~26-32% margin.
         stages = [
             MissionStage(
                 id="takeoff",
@@ -108,7 +111,7 @@ def default_mission(world_id: str) -> tuple[MissionSpecV2, list[float]]:
                 target_position_m=[0.0, 0.0, 0.20],
                 tolerance_m=0.06,
                 dwell_s=0.02,
-                completion_deadline_s=0.25,
+                completion_deadline_s=0.85,
             ),
             MissionStage(
                 id="slalom_waypoint",
@@ -116,7 +119,7 @@ def default_mission(world_id: str) -> tuple[MissionSpecV2, list[float]]:
                 target_position_m=[0.10, -0.05, 0.22],
                 tolerance_m=0.08,
                 dwell_s=0.02,
-                completion_deadline_s=0.60,
+                completion_deadline_s=2.20,
             ),
             MissionStage(
                 id="terminal_approach",
@@ -124,7 +127,7 @@ def default_mission(world_id: str) -> tuple[MissionSpecV2, list[float]]:
                 target_position_m=[0.15, 0.0, 0.15],
                 tolerance_m=0.08,
                 dwell_s=0.02,
-                completion_deadline_s=0.90,
+                completion_deadline_s=3.10,
             ),
         ]
         constraints = MissionConstraints(

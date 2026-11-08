@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from domnir.court_record import verify_court_record
 from domnir.provenance import controller_artifacts
+from domnir.signing import get_signer
 from domnir.missions.court_record import MISSION_SCHEMA_VERSION, build_mission_court_record, verify_mission_court_record
 from domnir.api.jobs import (
     JobOrchestrator,
@@ -253,12 +254,15 @@ def generate_controller(request: GenerateControllerRequest) -> GenerateControlle
             prompt_tokens=inference.prompt_tokens,
             completion_tokens=inference.completion_tokens,
         )
+        signed = controller_artifacts.get_signed(artifact.artifact_id)
         return GenerateControllerResponse(
             controller=controller,
             model_id=controller.model_id,
             source_sha256=controller.source_sha256,
             reasoning_effort=request.reasoning_effort,
             artifact_id=artifact.artifact_id,
+            attestation=signed.attestation if signed else None,
+            attestation_signature=signed.signature if signed else None,
             message="Controller generated and statically validated",
         )
     except Exception as error:
@@ -398,7 +402,13 @@ def verify_court_record_endpoint(
             )
         try:
             return CourtRecordVerifyResponse(
-                **verify_mission_court_record(record_data, model_path=orchestrator.model_path)
+                **verify_mission_court_record(
+                    record_data,
+                    model_path=orchestrator.model_path,
+                    # This server trusts its own signing key. Offline
+                    # verifiers pin it via GET /provenance/keys.
+                    trusted_keys={get_signer().info.key_id: get_signer().info.public_key},
+                )
             )
         finally:
             mission_slots.release()
@@ -940,6 +950,20 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
         court_record_id=record_id,
         court_record_url=f"/missions/court-records/{record_id}",
     )
+
+
+@app.get("/provenance/keys")
+def get_provenance_keys() -> dict[str, Any]:
+    """Public key(s) for checking attestations and record seals offline."""
+    info = get_signer().info
+    return {
+        "keys": [info.to_dict()],
+        "note": (
+            "Ephemeral keys change on every server restart and should not be pinned."
+            if info.ephemeral
+            else "Pin this key to verify records offline: python -m domnir.verify record.json --trusted-key <public_key>"
+        ),
+    }
 
 
 @app.get("/missions/court-records/{record_id}")

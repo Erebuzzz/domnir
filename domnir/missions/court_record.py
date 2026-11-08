@@ -9,11 +9,14 @@ verdicts, then compares them with what the record claims.
 
 What verification proves: the recorded actions, applied to the recorded
 world/mission/faults with the pinned model files, reproduce the recorded
-states, contacts, stage results and verdicts. What it does not prove: who ran
-the experiment. Hashes here are integrity checks, not signatures; someone who
-re-runs a different experiment can produce a different self-consistent record.
-Provenance is only server-confirmed when ``provenance.status`` says so, and
-that claim can only be checked against the issuing server's artifact registry.
+states, contacts, stage results and verdicts.
+
+Authenticity: the record is sealed with an Ed25519 signature over
+``content_sha256`` (``record_signature``), and server-confirmed provenance
+carries the signed generation attestation. Both verify offline. A record only
+counts as AUTHENTIC when the signing key is in the verifier's trusted key set
+(e.g. pinned from ``GET /provenance/keys``); anyone can produce a
+self-consistent record signed with a key of their own.
 """
 
 from __future__ import annotations
@@ -30,6 +33,15 @@ import mujoco
 import numpy as np
 
 from domnir.court_record import canonical_json, chain_events, verify_event_chain
+from domnir.provenance import ATTESTATION_TYPE
+from domnir.signing import (
+    AUTHENTIC,
+    INVALID_SIGNATURE,
+    SIGNED_UNTRUSTED_KEY,
+    UNSIGNED,
+    check_signature,
+    get_signer,
+)
 from domnir.faults.schema import MissionFaultSchedule
 from domnir.missions.schema import MissionSpecV2
 from domnir.missions.simulator import (
@@ -54,8 +66,11 @@ MISSION_LIMITATIONS = [
     "Simulated mission completion does not prove real-world hardware safety.",
     "Deterministic replay proves MuJoCo trajectory reproducibility under recorded actions, not physical validity.",
     "Finite scenario testing does not prove universal safety.",
-    "Record hashes are integrity checks, not signatures; they do not authenticate who produced the record.",
+    "The record signature authenticates the issuing server only when its key is pinned by the verifier.",
+    "Generation attestations are the server's signed statement; inference provider responses are not independently signed.",
 ]
+
+SEAL_FIELDS = ("content_sha256", "record_signature")
 
 
 def sha256_of(value: Any) -> str:
@@ -248,7 +263,49 @@ def build_mission_court_record(
         "limitations": list(MISSION_LIMITATIONS),
     }
     record["content_sha256"] = sha256_of(record)
+    record["record_signature"] = get_signer().sign(_seal_payload(record))
     return record
+
+
+def _seal_payload(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": record.get("schema_version"),
+        "record_id": record.get("record_id"),
+        "content_sha256": record.get("content_sha256"),
+    }
+
+
+def _check_provenance(record: dict[str, Any], trusted_keys: dict[str, str] | None) -> tuple[bool, str, str]:
+    """Check the provenance claim against the signed attestation, offline.
+
+    Returns ``(consistent, attestation_authenticity, message)``.
+    """
+    prov = record.get("provenance") or {}
+    controller = record.get("controller") or {}
+    status = prov.get("status")
+    source_sha = controller.get("source_sha256")
+    attestation = prov.get("attestation")
+    if status == "BUILT_IN_BASELINE":
+        ok = controller.get("source_code") is None and prov.get("model_id") == "baseline_3d"
+        return ok, UNSIGNED, "" if ok else "Built-in baseline claim does not match the controller section"
+    if status == "UNVERIFIED_ORIGIN":
+        ok = prov.get("model_id_source") == "client_reported"
+        return ok, UNSIGNED, "" if ok else "Unverified provenance must be marked client_reported"
+    if status not in ("SERVER_CONFIRMED_GENERATION", "USER_MODIFIED"):
+        return False, UNSIGNED, f"Unknown provenance status: {status}"
+    authenticity, reason = check_signature(attestation, prov.get("attestation_signature"), trusted_keys)
+    if authenticity in (INVALID_SIGNATURE, UNSIGNED):
+        return False, authenticity, f"Generation attestation: {reason}"
+    if not isinstance(attestation, dict) or attestation.get("type") != ATTESTATION_TYPE:
+        return False, authenticity, "Generation attestation has the wrong type"
+    if attestation.get("model_id") != prov.get("model_id"):
+        return False, authenticity, "Provenance model_id differs from the signed attestation"
+    matches = attestation.get("source_sha256") == source_sha
+    if status == "SERVER_CONFIRMED_GENERATION" and not matches:
+        return False, authenticity, "Controller source does not match the signed generation attestation"
+    if status == "USER_MODIFIED" and matches:
+        return False, authenticity, "USER_MODIFIED claimed but the source matches the attestation exactly"
+    return True, authenticity, ""
 
 
 def _close(a: Any, b: Any, tol: float) -> bool:
@@ -258,10 +315,21 @@ def _close(a: Any, b: Any, tol: float) -> bool:
         return False
 
 
-def verify_mission_court_record(record: dict[str, Any], *, model_path: Path) -> dict[str, Any]:
-    """Re-fly the recorded mission and check every claim in the record."""
+def verify_mission_court_record(
+    record: dict[str, Any],
+    *,
+    model_path: Path,
+    trusted_keys: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Re-fly the recorded mission and check every claim in the record.
+
+    ``trusted_keys`` maps key IDs to base64 public keys. A record whose seal
+    verifies under a trusted key is reported as AUTHENTIC; a valid seal under
+    any other key is SIGNED_UNTRUSTED_KEY and still passes integrity checks.
+    """
     errors: list[str] = []
     checks: dict[str, bool] = {}
+    seal = {"authenticity": UNSIGNED, "signer_key_id": None}
 
     def check(name: str, ok: bool, message: str) -> bool:
         checks[name] = bool(ok)
@@ -284,6 +352,8 @@ def verify_mission_court_record(record: dict[str, Any], *, model_path: Path) -> 
             "record_id": record.get("record_id") if isinstance(record, dict) else None,
             "experiment_id": (record.get("mission") or {}).get("mission_id") if isinstance(record, dict) else None,
             "checks": checks,
+            "authenticity": seal["authenticity"],
+            "signer_key_id": seal["signer_key_id"],
             "errors": errors,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -292,10 +362,23 @@ def verify_mission_court_record(record: dict[str, Any], *, model_path: Path) -> 
         check("schema", False, "Not a mission Court Record")
         return result()
 
-    # 1. Whole-record integrity.
-    body = {k: v for k, v in record.items() if k != "content_sha256"}
+    # 1. Whole-record integrity and the signed seal.
+    body = {k: v for k, v in record.items() if k not in SEAL_FIELDS}
     check("content_hash", record.get("content_sha256") == sha256_of(body),
           "Record content SHA-256 does not match; the record was modified after it was sealed")
+    authenticity, reason = check_signature(_seal_payload(record), record.get("record_signature"), trusted_keys)
+    seal["authenticity"] = authenticity
+    sig = record.get("record_signature")
+    seal["signer_key_id"] = sig.get("key_id") if isinstance(sig, dict) else None
+    check("record_signature", authenticity in (AUTHENTIC, SIGNED_UNTRUSTED_KEY), f"Record seal: {reason}")
+    prov_ok, att_auth, prov_msg = _check_provenance(record, trusted_keys)
+    if prov_ok and att_auth != UNSIGNED:
+        att_sig = (record.get("provenance") or {}).get("attestation_signature") or {}
+        if att_sig.get("key_id") != seal["signer_key_id"]:
+            # The attestation must come from the same issuer that sealed the
+            # record, so the record's authenticity also covers the provenance.
+            prov_ok, prov_msg = False, "Generation attestation and record seal are signed by different keys"
+    check("provenance", prov_ok, prov_msg or "Provenance claim is inconsistent")
 
     # 2. Parse untrusted specs through the same validated schemas the API uses.
     try:

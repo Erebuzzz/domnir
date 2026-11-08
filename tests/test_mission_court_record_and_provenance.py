@@ -42,7 +42,9 @@ GUEST_SOURCE = (
 
 
 def _reseal(record):
-    body = {k: v for k, v in record.items() if k != "content_sha256"}
+    # Recompute the content hash but keep the original signature, as an
+    # attacker without the server key would have to.
+    body = {k: v for k, v in record.items() if k not in ("content_sha256", "record_signature")}
     record["content_sha256"] = sha256_of(body)
     return record
 

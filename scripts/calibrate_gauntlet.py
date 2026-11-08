@@ -1,12 +1,15 @@
-"""Measure the built-in baseline on the Ragnarök Gauntlet and report deadline margins.
+"""Measure the built-in baseline on a default mission and report deadline margins.
 
 The default Gauntlet deadlines (domnir/missions/defaults.py) are meant to be
 achievable by the trusted baseline with margin. This script flies the same
 course with every deadline relaxed, records when the baseline actually
 reaches each stage, and compares that with the configured deadlines.
 
+The same check works for any registered world with --world (default
+ragnarok-gauntlet).
+
 Usage:
-    python scripts/calibrate_gauntlet.py [--model-path PATH] [--json]
+    python scripts/calibrate_gauntlet.py [--world WORLD_ID] [--model-path PATH] [--json]
 """
 
 from __future__ import annotations
@@ -26,9 +29,9 @@ from domnir.worlds import get_world  # noqa: E402
 RELAXED_STEP_S = 5.0
 
 
-def measure(model_path: Path) -> dict:
-    mission, init_pos = default_mission("ragnarok-gauntlet")
-    world = get_world("ragnarok-gauntlet")
+def measure(model_path: Path, world_id: str = "ragnarok-gauntlet") -> dict:
+    mission, init_pos = default_mission(world_id)
+    world = get_world(world_id)
 
     relaxed = mission.model_copy(deep=True)
     for i, stage in enumerate(relaxed.stages):
@@ -52,6 +55,8 @@ def measure(model_path: Path) -> dict:
         })
     pad_contacts = [c for c in actual.contacts if c.contact_class == "allowed-touchdown"]
     return {
+        "world_id": world_id,
+        "total_stages": len(mission.stages),
         "stages": rows,
         "default_mission_verdict": actual.evaluation.mission_verdict,
         "default_physical_verdict": actual.evaluation.physical_verdict,
@@ -68,13 +73,14 @@ def measure(model_path: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--model-path", default=".cache/mujoco_menagerie/bitcraze_crazyflie_2/cf2.xml")
+    parser.add_argument("--world", default="ragnarok-gauntlet")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     model_path = Path(args.model_path)
     if not model_path.is_file():
         print(f"Model not found: {model_path}", file=sys.stderr)
         return 2
-    report = measure(model_path)
+    report = measure(model_path, args.world)
     if args.json:
         print(json.dumps(report, indent=2))
     else:
@@ -84,7 +90,7 @@ def main() -> int:
             margin = "-" if r["margin_s"] is None else f"{r['margin_s']:+.3f}s ({r['margin_pct']}%)"
             print(f"{r['stage_id']:22s} {arrival:>9s} {r['deadline_s']:>8.2f}s {margin}")
         print(f"default mission: {report['default_mission_verdict']} "
-              f"({report['default_stages_completed']}/5), physical {report['default_physical_verdict']}, "
+              f"({report['default_stages_completed']}/{report['total_stages']}), physical {report['default_physical_verdict']}, "
               f"pad contacts {report['pad_contacts']}, obstacle contacts {report['obstacle_contacts']}")
     ok = report["default_mission_verdict"] == "COMPLETED" and all(
         r["margin_s"] is not None and r["margin_s"] > 0 for r in report["stages"]

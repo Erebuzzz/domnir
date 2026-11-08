@@ -2973,8 +2973,11 @@
     }
 
     if (elements.verifyTimestamp) {
+      const authText = res.authenticity
+        ? " | Authenticity: " + res.authenticity + (res.signer_key_id ? " (key " + res.signer_key_id + ")" : "")
+        : "";
       elements.verifyTimestamp.textContent =
-        "Record ID: " + (res.record_id || "unspecified") + " | Verified at: " + (res.timestamp || new Date().toISOString());
+        "Record ID: " + (res.record_id || "unspecified") + " | Verified at: " + (res.timestamp || new Date().toISOString()) + authText;
     }
 
     function setRowStatus(shaEl, statusEl, ok, descOk, descFail) {

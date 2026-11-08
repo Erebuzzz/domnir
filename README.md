@@ -305,7 +305,7 @@ flowchart TD
   3. Fly through the 0.45 × 0.45 m gate aperture at $(0.70, -0.05, 0.38)$ m (deadline 5.00 s).
   4. Settle directly above the pad at $(1.15, 0, 0.25)$ m (deadline 7.50 s).
   5. Touch down on the pad, with pad contact and a descent speed within limits (deadline 9.00 s).
-- **Calibration:** the deadlines leave 21–48% margin over the measured baseline flight. The built-in baseline completes all five stages (`NOT_FALSIFIED`, no obstacle contact, touchdown at 0.06 m/s). Re-measure with `python scripts/calibrate_gauntlet.py`. See [docs/audits/GAUNTLET_CALIBRATION.md](docs/audits/GAUNTLET_CALIBRATION.md) for the controller fixes, the derivation, and the wind cases the baseline does not survive.
+- **Calibration:** the open-field default (also used by `gate-corridor` and `wind-tunnel`) is calibrated the same way: 0.85 / 2.20 / 3.10 s deadlines against measured arrivals of 0.644 / 1.738 / 2.450 s (`python scripts/calibrate_gauntlet.py --world open-field`). For the Gauntlet, the deadlines leave 21–48% margin over the measured baseline flight. The built-in baseline completes all five stages (`NOT_FALSIFIED`, no obstacle contact, touchdown at 0.06 m/s). Re-measure with `python scripts/calibrate_gauntlet.py`. See [docs/audits/GAUNTLET_CALIBRATION.md](docs/audits/GAUNTLET_CALIBRATION.md) for the controller fixes, the derivation, and the wind cases the baseline does not survive.
 
 ---
 
@@ -404,6 +404,8 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
   - **Controller rate:** `controller_dt_s` (a whole multiple of the 0.002 s physics step) sets how often the controller runs. The action is held between calls (zero-order hold), and the response reports `controller_invocations` and `effective_controller_hz`.
   - **Provenance:** pass the `artifact_id` from `/controllers/generate` as `controller_artifact_id`. The server compares the source hash with its record: `SERVER_CONFIRMED_GENERATION` (exact match, model taken from the server), `USER_MODIFIED` (source changed), or `UNVERIFIED_ORIGIN` (no record). A client-sent `model_id` is never treated as confirmed. The registry is in memory and is lost on restart.
   - **Court Record:** every run seals a mission Court Record and returns `court_record_url`.
+  - **Signed provenance (offline):** generation attestations and mission Court Record seals are Ed25519-signed. Set `DOMNIR_PROVENANCE_SIGNING_KEY` (base64 32-byte seed; create one with `python -m domnir.signing generate-key`) as a deployment secret, for example in `/etc/domnir.env`. Without it the server uses an ephemeral key that changes on restart. Pin the published key and verify offline with `python -m domnir.verify record.json --trusted-key keys.json`. The result is `AUTHENTIC` only for a pinned key; a valid signature under any other key is reported as `SIGNED_UNTRUSTED_KEY`.
+- `GET /provenance/keys`: The server's public signing key (`key_id`, `public_key`, `ephemeral`).
 - `GET /missions/court-records/{record_id}`: Downloads a sealed mission Court Record (the newest 50 are kept in memory).
 
 ### Verification and Containment
@@ -450,6 +452,9 @@ uv run pytest -v
 All 257 tests run deterministically:
 - On non-KVM hosts: microVM-specific integration tests cleanly skip while all simulation, inference, API, replay, security, contracts, mission waypoints, obstacles, faults, precision landing, Ragnarök gauntlet, and Blender asset pipeline tests pass (257 passed, 11 skipped, 34 subtests passed, 0 failed).
 - On live KVM-enabled Vultr hosts: all tests pass.
+
+### Real microVM mission smoke test (KVM host)
+`python scripts/microvm_mission_smoke.py --json-out microvm-smoke.json` runs custom-controller missions through the real Microsandbox path: 500 Hz, 100 Hz, a malformed action, and a guest crash. It checks that each run reports `cleanup_status=SUCCEEDED` and that `msb inspect` no longer finds any sandbox it created, and it verifies each Court Record. It refuses to run without `/dev/kvm`. `--dev-fallback` exercises the script without KVM, and those results are labelled as not microVM evidence.
 
 ### 3. Launch the Web Application
 

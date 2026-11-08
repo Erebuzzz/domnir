@@ -84,6 +84,10 @@ class GenerateControllerResponse(BaseModel):
     # Server-side record of this generation. Pass it as
     # controller_artifact_id to /missions/run to get server-confirmed provenance.
     artifact_id: str | None = None
+    # Ed25519-signed statement of this generation; check it offline with the
+    # key from GET /provenance/keys (see domnir/signing.py).
+    attestation: dict[str, Any] | None = None
+    attestation_signature: dict[str, Any] | None = None
     message: str = "Controller generated successfully"
 
 
@@ -171,6 +175,10 @@ class CourtRecordVerifyResponse(BaseModel):
     record_type: str = "hover"
     # Mission records: individual check results (e.g. world_hash, verdicts).
     checks: dict[str, bool] = Field(default_factory=dict)
+    # Mission records: AUTHENTIC, SIGNED_UNTRUSTED_KEY, INVALID_SIGNATURE or
+    # UNSIGNED for the record seal, and the signing key ID.
+    authenticity: str | None = None
+    signer_key_id: str | None = None
     errors: list[str] = Field(default_factory=list)
     timestamp: str
 

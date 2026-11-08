@@ -58,5 +58,5 @@ Tolerances were tightened, not relaxed, so a stage only counts when the vehicle 
   | −0.015 N | NOT_COMPLETED (1/5) | NOT_FALSIFIED | misses the slalom deadline, 0.004 m pillar clearance |
 
   Even a 0.01 N gust (about 4% of hover thrust) defeats the baseline, so the gust-loaded Gauntlet is an open problem for the controller, not a calibrated pass.
-- The open-field default mission (0.25 s takeoff deadline) is still faster than the baseline can climb, and returns `NOT_COMPLETED`. It was not part of this calibration.
+- The open-field default was recalibrated separately. Its deadlines are now 0.85 / 2.20 / 3.10 s (were 0.25 / 0.60 / 0.90 s), against baseline arrivals of 0.644 / 1.738 / 2.450 s, which leaves 26–32% margin. Targets and tolerances are unchanged. `gate-corridor` and `wind-tunnel` share this default, so their missions never go near the gate or between the walls. They need missions of their own.
 - The gains are derived from an uncalibrated simulation model (see `docs/MODEL_CALIBRATION.md`). They say nothing about the real Crazyflie.

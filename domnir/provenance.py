@@ -13,8 +13,10 @@ Statuses:
 * ``UNVERIFIED_ORIGIN``           no artifact (unknown ID, none supplied, or
                                   the server restarted and lost its registry).
 
-The registry is in memory and bounded. It proves what this server generated;
-it is not a signature that a third party can check offline.
+The registry is in memory and bounded. Each artifact also carries an Ed25519
+signed attestation (see ``domnir/signing.py``), which is copied into mission
+Court Records so the provenance claim can be checked offline against the
+server's published public key, even after the registry entry is gone.
 """
 
 from __future__ import annotations
@@ -27,7 +29,10 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from domnir.signing import get_signer
+
 MAX_ARTIFACTS = 500
+ATTESTATION_TYPE = "domnir-controller-generation-attestation-v1"
 
 BUILT_IN_BASELINE = "BUILT_IN_BASELINE"
 SERVER_CONFIRMED_GENERATION = "SERVER_CONFIRMED_GENERATION"
@@ -53,6 +58,17 @@ class ControllerArtifact:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def attestation(self) -> dict[str, Any]:
+        """The statement the server signs for this generation."""
+        return {"type": ATTESTATION_TYPE, **self.to_dict()}
+
+
+@dataclass(frozen=True)
+class SignedArtifact:
+    artifact: ControllerArtifact
+    attestation: dict[str, Any]
+    signature: dict[str, Any]
+
 
 @dataclass(frozen=True)
 class ProvenanceResolution:
@@ -60,6 +76,7 @@ class ProvenanceResolution:
     model_id: str | None
     model_id_source: str
     artifact: ControllerArtifact | None
+    signed: SignedArtifact | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +84,8 @@ class ProvenanceResolution:
             "model_id": self.model_id,
             "model_id_source": self.model_id_source,
             "artifact": self.artifact.to_dict() if self.artifact else None,
+            "attestation": self.signed.attestation if self.signed else None,
+            "attestation_signature": self.signed.signature if self.signed else None,
         }
 
 
@@ -74,7 +93,7 @@ class ControllerArtifactRegistry:
     def __init__(self, max_artifacts: int = MAX_ARTIFACTS) -> None:
         self.max_artifacts = max_artifacts
         self._lock = threading.Lock()
-        self._artifacts: OrderedDict[str, ControllerArtifact] = OrderedDict()
+        self._artifacts: OrderedDict[str, SignedArtifact] = OrderedDict()
 
     def register(
         self,
@@ -104,15 +123,21 @@ class ControllerArtifactRegistry:
             completion_tokens=int(completion_tokens or 0),
             created_at=datetime.now(timezone.utc).isoformat(),
         )
+        attestation = artifact.attestation()
+        signed = SignedArtifact(artifact, attestation, get_signer().sign(attestation))
         with self._lock:
-            self._artifacts[artifact.artifact_id] = artifact
+            self._artifacts[artifact.artifact_id] = signed
             while len(self._artifacts) > self.max_artifacts:
                 self._artifacts.popitem(last=False)
         return artifact
 
-    def get(self, artifact_id: str) -> ControllerArtifact | None:
+    def get_signed(self, artifact_id: str) -> SignedArtifact | None:
         with self._lock:
             return self._artifacts.get(artifact_id)
+
+    def get(self, artifact_id: str) -> ControllerArtifact | None:
+        signed = self.get_signed(artifact_id)
+        return signed.artifact if signed else None
 
     def resolve(
         self,
@@ -122,13 +147,16 @@ class ControllerArtifactRegistry:
     ) -> ProvenanceResolution:
         if source_code is None:
             return ProvenanceResolution(BUILT_IN_BASELINE, "baseline_3d", "server", None)
-        artifact = self.get(artifact_id) if artifact_id else None
-        if artifact is None:
+        signed = self.get_signed(artifact_id) if artifact_id else None
+        if signed is None:
             return ProvenanceResolution(UNVERIFIED_ORIGIN, client_model_id, "client_reported", None)
+        artifact = signed.artifact
         source_sha = hashlib.sha256(source_code.encode("utf-8")).hexdigest()
         if source_sha == artifact.source_sha256:
-            return ProvenanceResolution(SERVER_CONFIRMED_GENERATION, artifact.model_id, "server_artifact", artifact)
-        return ProvenanceResolution(USER_MODIFIED, artifact.model_id, "server_artifact_modified", artifact)
+            return ProvenanceResolution(
+                SERVER_CONFIRMED_GENERATION, artifact.model_id, "server_artifact", artifact, signed
+            )
+        return ProvenanceResolution(USER_MODIFIED, artifact.model_id, "server_artifact_modified", artifact, signed)
 
 
 controller_artifacts = ControllerArtifactRegistry()
