@@ -165,11 +165,19 @@ def test_precision_landing_contacts_are_capped_with_true_total():
 # --- Input caps --------------------------------------------------------------
 
 
-def test_mission_longer_than_cap_is_rejected_before_running():
-    long_mission = {**SHORT_MISSION, "stages": [{**SHORT_MISSION["stages"][0], "completion_deadline_s": 30.0}]}
+@needs_model
+def test_mission_longer_than_ten_seconds_runs(fresh_slots):
+    fresh_slots()
+    long_mission = {**SHORT_MISSION, "stages": [{**SHORT_MISSION["stages"][0], "completion_deadline_s": 12.0}]}
     resp = client.post("/missions/run", json={"world_id": "open-field", "mission": long_mission})
+    assert resp.status_code == 200
+    assert resp.json()["trajectory_samples_total"] == 6000
+
+
+def test_stage_deadline_over_schema_limit_is_rejected():
+    too_long = {**SHORT_MISSION, "stages": [{**SHORT_MISSION["stages"][0], "completion_deadline_s": 61.0}]}
+    resp = client.post("/missions/run", json={"world_id": "open-field", "mission": too_long})
     assert resp.status_code == 422
-    assert "exceeds" in resp.json()["detail"]
 
 
 def test_too_many_stages_is_rejected():

@@ -21,7 +21,6 @@ from domnir.api.jobs import (
 from domnir.api.mission_runner import (
     CLEANUP_NOT_APPLICABLE,
     MAX_CONTACTS_RETURNED,
-    MAX_MISSION_DURATION_S,
     MAX_MISSION_WALL_TIME_S,
     MAX_QUEUE_WAIT_S,
     MAX_TRAJECTORY_SAMPLES,
@@ -847,15 +846,6 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
         )
     else:
         init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
-
-    if mission.total_mission_duration_s > MAX_MISSION_DURATION_S:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Mission duration {mission.total_mission_duration_s:.2f}s exceeds the "
-                f"{MAX_MISSION_DURATION_S:.0f}s limit for /missions/run"
-            ),
-        )
 
     is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
     is_custom = request.controller_source is not None

@@ -24,9 +24,10 @@ MAX_CONCURRENT_MISSIONS = 2
 MAX_WAITING_MISSIONS = 4
 MAX_QUEUE_WAIT_S = 30.0
 
-# Work caps. 10 s of simulated flight is 5,000 physics steps at 500 Hz, and
-# for custom controllers the same number of guest exchanges.
-MAX_MISSION_DURATION_S = 10.0
+# Work cap. Simulated duration is bounded only by the schema (each stage
+# deadline <= 60 s, i.e. up to 30,000 physics steps and, for custom
+# controllers, guest exchanges); the wall-clock budget stops runs that take
+# too long in practice.
 MAX_MISSION_WALL_TIME_S = 90.0
 # The microVM's own max-duration is a hard backstop past the wall-time budget.
 MICROVM_LEASE_DURATION_S = 120
