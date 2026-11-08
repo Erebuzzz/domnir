@@ -21,15 +21,16 @@ Saved to: `docs/evidence/keys.json`
 }
 ```
 
-## 2. Live Mission Court Record
+## 2. Live Ragnarök Gauntlet Court Record
 
-A full Gauntlet mission was submitted to the production server:
-- Mission ID: `mission-open-field`
-- Preset ID: `gauntlet`
-- Endpoint: `POST https://domnir.erebuzzz.tech/missions/run`
-- Record ID: `mcr-c410b3a9bfed43bd`
-- URL: `https://domnir.erebuzzz.tech/missions/court-records/mcr-c410b3a9bfed43bd`
-- Portable Scene Fingerprint: `b0e1ffffb41b81334870ad9d7d06453b7e4e014cd18c9d19b26f0a277124d5f2`
+A full Ragnarök Gauntlet mission was submitted to the production server:
+- Mission ID: `mission-ragnarok-gauntlet`
+- World ID: `ragnarok-gauntlet`
+- Stages: `takeoff`, `slalom_pillar`, `transit_gate`, `approach_pad`, `precision_touchdown` (5 stages)
+- Endpoint: `POST https://domnir.erebuzzz.tech/missions/run` with `{"world_id": "ragnarok-gauntlet"}`
+- Record ID: `mcr-5d9ab54b8ee34430`
+- URL: `https://domnir.erebuzzz.tech/missions/court-records/mcr-5d9ab54b8ee34430`
+- Portable Scene Fingerprint: `b827522d86a2101d2ed58aefc8a9af02880e31381e366b18843b0bc4fc913b7e`
 - Saved to: `docs/evidence/live_gauntlet_court_record.json`
 
 ## 3. Independent Verification: PASS (Authentic)
@@ -38,15 +39,15 @@ Command executed on an independent machine from a relocated model path:
 ```bash
 python -m domnir.verify docs/evidence/live_gauntlet_court_record.json \
     --trusted-key docs/evidence/keys.json \
-    --model-path .cache/mujoco_menagerie/bitcraze_crazyflie_2/cf2.xml
+    --model-path <relocated_cf2.xml>
 ```
 
 Verifier output:
 ```text
 ============================================================
 DOMNIR MISSION COURT RECORD VERIFICATION REPORT
-Record ID:      mcr-c410b3a9bfed43bd
-Mission ID:     mission-open-field
+Record ID:      mcr-5d9ab54b8ee34430
+Mission ID:     mission-ragnarok-gauntlet
 Overall Result: PASS
 Replay:         MATCHED (max diff 0.00e+00)
 Authenticity:   AUTHENTIC (signer key 175a6cdf9b45d248)
@@ -90,17 +91,17 @@ Command executed:
 ```bash
 python -m domnir.verify docs/evidence/live_gauntlet_court_record_tampered.json \
     --trusted-key docs/evidence/keys.json \
-    --model-path .cache/mujoco_menagerie/bitcraze_crazyflie_2/cf2.xml
+    --model-path <relocated_cf2.xml>
 ```
 
 Verifier output:
 ```text
 ============================================================
 DOMNIR MISSION COURT RECORD VERIFICATION REPORT
-Record ID:      mcr-c410b3a9bfed43bd
-Mission ID:     mission-open-field
+Record ID:      mcr-5d9ab54b8ee34430
+Mission ID:     mission-ragnarok-gauntlet
 Overall Result: FAIL
-Replay:         DIVERGED (max diff 1.09e-02)
+Replay:         DIVERGED (max diff 9.87e+00)
 Authenticity:   AUTHENTIC (signer key 175a6cdf9b45d248)
 ============================================================
 [FAIL] content_hash
@@ -122,18 +123,19 @@ Authenticity:   AUTHENTIC (signer key 175a6cdf9b45d248)
 [PASS] replay
 [FAIL] checkpoints
 [FAIL] trajectory_samples
-[PASS] contacts
+[FAIL] contacts
 [FAIL] stage_results
 [PASS] verdicts
      - ERROR: Record content SHA-256 does not match; the record was modified after it was sealed
-     - ERROR: Integration-state checkpoints diverged from replay (max difference 1.09e-02)
+     - ERROR: Integration-state checkpoints diverged from replay (max difference 9.87e+00)
      - ERROR: Recorded trajectory samples do not match the replayed flight
+     - ERROR: Recorded contact history does not match the replayed flight
      - ERROR: Recorded stage results do not match the replayed flight
 ============================================================
 ```
 
 The verifier detected the tampering across layers:
 1. `content_hash` failed: the SHA-256 seal mismatch proved the record was modified after signing.
-2. Independent physics replay diverged by `1.09e-02`.
-3. Checkpoints, trajectory samples, and stage results all failed against re-flown physics.
+2. Independent physics replay diverged by `9.87e+00`.
+3. Checkpoints, trajectory samples, contacts, and stage results all failed against re-flown physics.
 Overall result: `FAIL`.
