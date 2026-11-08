@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 from datetime import datetime, timezone
@@ -13,7 +15,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from domnir.court_record import verify_court_record
-from domnir.api.jobs import JobOrchestrator, get_default_model_path
+from domnir.api.jobs import (
+    JobOrchestrator,
+    get_default_model_path,
+    _MicroVMGuestStream,
+    _IsolatedSubprocessGuestStream,
+)
+from domnir.sandbox import SandboxLease, validate_controller_source
+from domnir.faults.schema import MissionFaultSchedule, WindGust3D
 from domnir.api.models import (
     ArtifactsResponse,
     ContainmentStatusResponse,
@@ -221,13 +230,21 @@ def run_experiment(
     background_tasks: BackgroundTasks,
 ) -> ExperimentSummary:
     if request.model:
-        try:
-            request.model = resolve_model_id(request.model)
-        except ModelNotFoundError as err:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(err),
-            )
+        if request.controller_source and request.model in {
+            "USER_MODIFIED",
+            "UNVERIFIED_MODEL_ORIGIN",
+            "baseline_proportional_derivative",
+            "user_supplied",
+        }:
+            pass
+        else:
+            try:
+                request.model = resolve_model_id(request.model)
+            except ModelNotFoundError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(err),
+                )
 
     try:
         job = orchestrator.create_job(request)
@@ -618,7 +635,13 @@ async def get_worlds_endpoint() -> list[dict[str, Any]]:
 
 @app.get("/worlds/{world_id}", response_model=dict[str, Any])
 async def get_world_detail_endpoint(world_id: str) -> dict[str, Any]:
-    w = get_world(world_id)
+    try:
+        w = get_world(world_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"World '{world_id}' not found in registry",
+        )
     return {
         "id": w.world_id,
         "name": w.name,
@@ -645,7 +668,13 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
             detail=f"Base MuJoCo model not found at {model_path}",
         )
 
-    world = get_world(request.world_id)
+    try:
+        world = get_world(request.world_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"World '{request.world_id}' not found in registry",
+        )
 
     mission = request.mission
     if mission is None:
@@ -654,18 +683,19 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
                 MissionStage(
                     id="approach",
                     kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.10, 0.0, 0.08],
+                    target_position_m=[0.80, 0.0, 0.08],
                     tolerance_m=0.06,
                     dwell_s=0.02,
-                    completion_deadline_s=0.20,
+                    completion_deadline_s=0.40,
                 ),
                 MissionStage(
                     id="touchdown",
                     kind=MissionStageKind.LANDING,
-                    target_position_m=[0.10, 0.0, 0.02],
+                    target_position_m=[0.80, 0.0, 0.02],
                     tolerance_m=0.08,
                     dwell_s=0.02,
-                    completion_deadline_s=1.00,
+                    completion_deadline_s=1.50,
+                    pad_id="pad-target",
                 ),
             ]
             constraints = MissionConstraints(
@@ -673,7 +703,60 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
                 max_landing_impact_speed_mps=1.0,
                 fail_on_unpermitted_contact=True,
             )
-            init_pos = request.initial_pos_m or [0.10, 0.0, 0.10]
+            init_pos = request.initial_pos_m or [0.80, 0.0, 0.15]
+        elif request.world_id == "ragnarok-gauntlet":
+            stages = [
+                MissionStage(
+                    id="takeoff",
+                    kind=MissionStageKind.TAKEOFF,
+                    target_position_m=[0.0, 0.0, 0.25],
+                    tolerance_m=0.10,
+                    dwell_s=0.0,
+                    completion_deadline_s=0.80,
+                ),
+                MissionStage(
+                    id="slalom_pillar",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[0.35, -0.05, 0.35],
+                    tolerance_m=0.20,
+                    dwell_s=0.0,
+                    completion_deadline_s=1.80,
+                ),
+                MissionStage(
+                    id="transit_gate",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[0.70, -0.05, 0.38],
+                    tolerance_m=0.20,
+                    dwell_s=0.0,
+                    completion_deadline_s=2.80,
+                ),
+                MissionStage(
+                    id="approach_pad",
+                    kind=MissionStageKind.WAYPOINT,
+                    target_position_m=[1.00, -0.02, 0.25],
+                    tolerance_m=0.20,
+                    dwell_s=0.0,
+                    completion_deadline_s=3.60,
+                ),
+                MissionStage(
+                    id="precision_touchdown",
+                    kind=MissionStageKind.LANDING,
+                    target_position_m=[1.15, 0.0, 0.02],
+                    tolerance_m=0.25,
+                    dwell_s=0.01,
+                    completion_deadline_s=4.50,
+                    pad_id="gauntlet-pad",
+                ),
+            ]
+            constraints = MissionConstraints(
+                min_altitude_m=0.01,
+                max_altitude_m=1.20,
+                max_speed_mps=3.5,
+                max_tilt_deg=55.0,
+                fail_on_unpermitted_contact=True,
+                max_landing_impact_speed_mps=1.5,
+            )
+            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
         else:
             stages = [
                 MissionStage(
@@ -718,26 +801,68 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
     else:
         init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
 
+    exec_backend = "host_trusted_kernel"
+    ctrl_type = request.controller_type or "baseline_3d"
+    ctrl_hash = None
+    is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
+    stream = None
+    lease = None
+
     if request.controller_source is not None:
-        if not is_microvm_available():
+        ctrl_hash = hashlib.sha256(request.controller_source.encode("utf-8")).hexdigest()
+        ctrl_type = "custom_controller"
+        try:
+            validate_controller_source(request.controller_source.encode("utf-8"))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid controller source: {exc}",
+            )
+        if is_microvm_available():
+            msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
+            lease = SandboxLease(msb_path, duration_seconds=120)
+            lease.__enter__()
+            lease.install_controller(request.controller_source.encode("utf-8"))
+            stream = _MicroVMGuestStream(lease)
+            exec_backend = "microvm"
+        elif not is_prod and os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1":
+            stream = _IsolatedSubprocessGuestStream(request.controller_source)
+            exec_backend = "subprocess_dev_unisolated"
+        else:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Untrusted controller code execution is disabled when hardware microVM isolation is unavailable.",
             )
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Custom controller source for 3D multi-mission execution requires microVM integration.",
-        )
 
-    ctrl = Baseline3DController()
-    res = run_mission_simulation(
-        model_path,
-        mission,
-        world,
-        lambda obs: ctrl.compute_action(obs),
-        faults=request.faults,
-        initial_pos_m=init_pos,
-    )
+        def guest_callback(obs: dict[str, Any]) -> dict[str, Any]:
+            raw_res = stream.exchange(obs)
+            return json.loads(raw_res)
+
+        controller_callback = guest_callback
+    else:
+        ctrl = Baseline3DController()
+        controller_callback = lambda obs: ctrl.compute_action(obs)
+
+    try:
+        res = run_mission_simulation(
+            model_path,
+            mission,
+            world,
+            controller_callback,
+            faults=request.faults,
+            initial_pos_m=init_pos,
+        )
+    finally:
+        if stream is not None:
+            try:
+                stream.close()
+            except Exception:
+                pass
+        if lease is not None:
+            try:
+                lease.remove()
+            except Exception:
+                pass
 
     stride = max(1, len(res.trajectory) // 250)
     sampled_traj = res.trajectory[::stride]
@@ -758,6 +883,10 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
     return MissionRunResponse(
         mission_id=mission.mission_id,
         world_id=world.world_id,
+        controller_type=ctrl_type,
+        controller_hash=ctrl_hash,
+        model_id=request.model_id,
+        execution_backend=exec_backend,
         physical_verdict=res.evaluation.physical_verdict,
         mission_verdict=res.evaluation.mission_verdict,
         min_robustness=res.evaluation.min_robustness,

@@ -437,7 +437,15 @@ class JobOrchestrator:
                     self._jobs.pop(oldest_key, None)
 
             experiment_id = str(uuid.uuid4())
-            resolved_model = resolve_model_id(request.model) if request.model else None
+            if request.controller_source and request.model in {
+                "USER_MODIFIED",
+                "UNVERIFIED_MODEL_ORIGIN",
+                "baseline_proportional_derivative",
+                "user_supplied",
+            }:
+                resolved_model = request.model
+            else:
+                resolved_model = resolve_model_id(request.model) if request.model else None
             job = ExperimentJob(
                 experiment_id=experiment_id,
                 spec=request.spec,

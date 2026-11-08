@@ -291,6 +291,8 @@ class MissionRunRequest(BaseModel):
     world_id: str = "ragnarok-gauntlet"
     controller_type: str = "baseline_3d"
     controller_source: str | None = None
+    model_id: str | None = None
+    provenance: dict[str, Any] | None = None
     faults: MissionFaultSchedule | None = None
     initial_pos_m: list[float] | None = None
 
@@ -298,6 +300,10 @@ class MissionRunRequest(BaseModel):
 class MissionRunResponse(BaseModel):
     mission_id: str
     world_id: str
+    controller_type: str = "baseline_3d"
+    controller_hash: str | None = None
+    model_id: str | None = None
+    execution_backend: str = "host_trusted_kernel"
     physical_verdict: str
     mission_verdict: str
     min_robustness: float

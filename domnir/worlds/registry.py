@@ -114,8 +114,9 @@ _REGISTRY: dict[str, callable] = {
 
 
 def get_world(world_id: str) -> WorldSpec:
-    factory = _REGISTRY.get(world_id, open_field_world)
-    return factory()
+    if world_id not in _REGISTRY:
+        raise KeyError(f"World '{world_id}' not found in registry")
+    return _REGISTRY[world_id]()
 
 
 def list_worlds() -> list[dict[str, str]]:

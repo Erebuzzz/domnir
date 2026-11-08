@@ -4304,6 +4304,7 @@ html.rune-dawn .arena-context-bar {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .arena-section-header {
@@ -4462,7 +4463,15 @@ html.rune-dawn .section-tag {
   .context-actions {
     margin-left: 0;
     width: 100%;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .context-actions .btn {
+    flex: 1 1 auto;
+    max-width: 100%;
+    white-space: normal;
   }
 }
 
@@ -4525,6 +4534,17 @@ html.rune-dawn .section-tag {
     width: 100%;
     white-space: normal;
     text-align: center;
+  }
+
+  .context-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .context-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 

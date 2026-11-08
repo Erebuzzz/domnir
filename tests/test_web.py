@@ -681,6 +681,42 @@ class WebAppDeliveryTests(unittest.TestCase):
         self.assertIn("runBenchmarkComparison", js)
         self.assertIn("setupArenaOracle", js)
 
+    def test_v6_live_audit_fixes_and_contracts(self):
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        css = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+
+        # P0-1: plantViewer eliminated, droneViewer used, tab navigation
+        self.assertNotIn("plantViewer", js)
+        self.assertIn("droneViewer.loadReplay(missionData.trajectory", js)
+        self.assertIn("switchMainTab(\"tab-workspace\")", js)
+
+        # P0-2: No Math.random in benchmark, real /ragnarok/falsify comparison
+        bench_fn = js[js.find("async function runBenchmarkComparison"):js.find("function setupArenaOracle")]
+        self.assertNotIn("Math.random()", bench_fn)
+        self.assertIn('strategy: "compare"', js)
+        self.assertIn("NOT MEASURED", js)
+
+        # P0-3: Controller provenance decoupled from selectedModel
+        self.assertIn("controllerProvenance", js)
+        self.assertIn("handleControllerSourceInput", js)
+        self.assertIn("USER_MODIFIED", js)
+        self.assertIn("Source: User Modified (Unverified Origin)", js)
+
+        # P1-4: Witness parameters transferred on sync
+        self.assertIn("sc.initial_altitude_m", js)
+        self.assertIn("sc.disturbance_force_z", js)
+        self.assertIn("sc.seed", js)
+
+        # P2-1: Roving tabindex on model cards and responsive wrapping
+        self.assertIn('card.setAttribute("tabindex", isSelected ? "0" : "-1")', js)
+        self.assertIn(".context-actions", css)
+        self.assertIn("flex-wrap: wrap", css)
+
+        # P2-2: Clean scientific copy
+        self.assertIn("All SHA-256 Hash and Physical Replay Checks Passed", html)
+        self.assertNotIn("cryptographic signature", js.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

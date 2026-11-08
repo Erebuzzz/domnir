@@ -107,9 +107,9 @@ class Baseline3DController:
         err_yaw = (target_yaw_rad - current_yaw + math.pi) % (2.0 * math.pi) - math.pi
 
         # 5. Moments with rate damping
-        # Note gear in cf2.xml is negative for moments, so sign convention maps to desired torque
-        mx = self.kp_att[0] * err_roll - self.kd_att[0] * omega[0]
-        my = self.kp_att[1] * err_pitch - self.kd_att[1] * omega[1]
+        # cf2.xml actuator gear is negative (-1e-5), reversing moment direction relative to body frame
+        mx = -(self.kp_att[0] * err_roll - self.kd_att[0] * omega[0])
+        my = -(self.kp_att[1] * err_pitch - self.kd_att[1] * omega[1])
         mz = self.kp_att[2] * err_yaw - self.kd_att[2] * omega[2]
 
         # Clamp moments to [-1.0, 1.0]

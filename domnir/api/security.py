@@ -164,12 +164,14 @@ class RateLimiter:
             "/experiments/run",
             "/controllers/generate",
             "/containment/run",
+            "/missions/run",
         }
         self._heavy_prefixes = (
             "/ragnarok/",
             "/guardian/",
             "/uncertainty/",
             "/ci/",
+            "/missions/",
         )
 
     def is_allowed(self, client_ip: str, path: str) -> tuple[bool, int, float]:
