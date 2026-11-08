@@ -77,6 +77,21 @@ class MissionSpecV2(BaseModel):
     random_seed: int = 42
 
     @model_validator(mode="after")
+    def validate_controller_rate(self) -> MissionSpecV2:
+        # The controller runs as a zero-order hold over whole physics steps.
+        ratio = self.controller_dt_s / self.physics_dt_s
+        if abs(ratio - round(ratio)) > 1e-9:
+            raise ValueError(
+                f"controller_dt_s {self.controller_dt_s} must be a whole multiple of "
+                f"physics_dt_s {self.physics_dt_s}"
+            )
+        return self
+
+    @property
+    def controller_period_steps(self) -> int:
+        return int(round(self.controller_dt_s / self.physics_dt_s))
+
+    @model_validator(mode="after")
     def validate_stage_deadlines(self) -> MissionSpecV2:
         # Stages run in order, so their deadlines must not go backwards. The
         # last deadline is also the scheduled end of the flight.

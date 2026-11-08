@@ -746,6 +746,36 @@ class WebAppDeliveryTests(unittest.TestCase):
                             'id="atlasMetricSpeedup">1.00x'):
             self.assertNotIn(placeholder, html)
 
+    def test_v7_mission_aware_ui_record_export_and_provenance(self):
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+        js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+        gauntlet_fn = js[js.find("async function runGauntletMission"):js.find("function copyRepairedCode")]
+
+        # Altitude chart uses the flown mission, not hover-mission constants.
+        self.assertNotIn("mission_duration_s: 4.50", gauntlet_fn)
+        self.assertNotIn("target_altitude_m: 0.20", gauntlet_fn)
+        self.assertIn("renderAltitudeChart(missionData.trajectory, missionChartSpec(missionData))", gauntlet_fn)
+        self.assertIn("reference_path", js)
+        self.assertIn("completion_deadline_s", js)
+
+        # P2-I: mission timeline, contacts and 3D reference overlay.
+        for el_id in ("missionPanel", "missionStageRows", "missionContactsSummary",
+                      "missionEndState", "missionWorldBadge"):
+            self.assertIn(f'id="{el_id}"', html)
+        self.assertIn("renderMissionPanel(missionData)", gauntlet_fn)
+        self.assertIn("referencePath: missionData.reference_path", gauntlet_fn)
+        self.assertIn("MissionOverlay", js)
+
+        # P1-E: the mission Court Record is fetched for export/verification.
+        self.assertIn("missionData.court_record_url", gauntlet_fn)
+        self.assertIn('id="verifyChecksBox"', html)
+
+        # P1-G: the server artifact ID is kept and sent; statuses are rendered.
+        self.assertIn("artifact_id: data.artifact_id", js)
+        self.assertIn("controller_artifact_id:", gauntlet_fn)
+        for status_name in ("SERVER_CONFIRMED_GENERATION", "USER_MODIFIED", "UNVERIFIED_ORIGIN"):
+            self.assertIn(status_name, gauntlet_fn)
+
 
 if __name__ == "__main__":
     unittest.main()

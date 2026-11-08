@@ -14,6 +14,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from domnir.court_record import verify_court_record
+from domnir.provenance import controller_artifacts
+from domnir.missions.court_record import MISSION_SCHEMA_VERSION, build_mission_court_record, verify_mission_court_record
 from domnir.api.jobs import (
     JobOrchestrator,
     get_default_model_path,
@@ -29,6 +31,7 @@ from domnir.api.mission_runner import (
     MissionCapacityError,
     Stopwatch,
     downsample,
+    mission_records,
     mission_slots,
     start_dev_subprocess_guest,
     start_microvm_guest,
@@ -63,12 +66,9 @@ from domnir.api.models import (
     SpecValidationResponse,
 )
 from domnir.worlds import list_worlds, get_world
+from domnir.missions.defaults import default_mission
 from domnir.missions import (
     MissionCancelledError,
-    MissionConstraints,
-    MissionSpecV2,
-    MissionStage,
-    MissionStageKind,
     MissionWallTimeExceededError,
     run_mission_simulation,
 )
@@ -233,18 +233,32 @@ def generate_controller(request: GenerateControllerRequest) -> GenerateControlle
         )
 
     try:
-        controller = orchestrator.inference_client.generate_controller(
+        controller, inference = orchestrator.inference_client.generate_controller_with_metadata(
             request.spec,
             model=model_id,
             prompt_version=request.prompt_version,
             reasoning_effort=request.reasoning_effort,
             max_tokens=request.max_tokens,
         )
+        # Record what this server generated so later runs can resolve
+        # provenance by artifact ID instead of trusting a client-sent model.
+        artifact = controller_artifacts.register(
+            source_code=controller.source_code,
+            model_id=controller.model_id,
+            requested_model=model_id,
+            prompt_version=request.prompt_version,
+            reasoning_effort=request.reasoning_effort,
+            finish_reason=inference.finish_reason,
+            system_fingerprint=inference.system_fingerprint,
+            prompt_tokens=inference.prompt_tokens,
+            completion_tokens=inference.completion_tokens,
+        )
         return GenerateControllerResponse(
             controller=controller,
             model_id=controller.model_id,
             source_sha256=controller.source_sha256,
             reasoning_effort=request.reasoning_effort,
+            artifact_id=artifact.artifact_id,
             message="Controller generated and statically validated",
         )
     except Exception as error:
@@ -370,6 +384,24 @@ def verify_court_record_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Valid Court Record payload is required",
         )
+
+    if record_data.get("schema_version") == MISSION_SCHEMA_VERSION:
+        # Mission verification re-flies the whole mission, so it shares the
+        # bounded mission execution slots.
+        try:
+            mission_slots.acquire(MAX_QUEUE_WAIT_S)
+        except MissionCapacityError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Verifier busy: {exc}. Retry shortly.",
+                headers={"Retry-After": "10"},
+            )
+        try:
+            return CourtRecordVerifyResponse(
+                **verify_mission_court_record(record_data, model_path=orchestrator.model_path)
+            )
+        finally:
+            mission_slots.release()
 
     try:
         result = verify_court_record(
@@ -724,126 +756,8 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
 
     mission = request.mission
     if mission is None:
-        if request.world_id == "precision-landing":
-            stages = [
-                MissionStage(
-                    id="approach",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.80, 0.0, 0.08],
-                    tolerance_m=0.06,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.40,
-                ),
-                MissionStage(
-                    id="touchdown",
-                    kind=MissionStageKind.LANDING,
-                    target_position_m=[0.80, 0.0, 0.02],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=1.50,
-                    pad_id="pad-target",
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.01,
-                max_landing_impact_speed_mps=1.0,
-                fail_on_unpermitted_contact=True,
-            )
-            init_pos = request.initial_pos_m or [0.80, 0.0, 0.15]
-        elif request.world_id == "ragnarok-gauntlet":
-            stages = [
-                MissionStage(
-                    id="takeoff",
-                    kind=MissionStageKind.TAKEOFF,
-                    target_position_m=[0.0, 0.0, 0.25],
-                    tolerance_m=0.10,
-                    dwell_s=0.0,
-                    completion_deadline_s=0.80,
-                ),
-                MissionStage(
-                    id="slalom_pillar",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.35, -0.05, 0.35],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=1.80,
-                ),
-                MissionStage(
-                    id="transit_gate",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.70, -0.05, 0.38],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=2.80,
-                ),
-                MissionStage(
-                    id="approach_pad",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[1.00, -0.02, 0.25],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=3.60,
-                ),
-                MissionStage(
-                    id="precision_touchdown",
-                    kind=MissionStageKind.LANDING,
-                    target_position_m=[1.15, 0.0, 0.02],
-                    tolerance_m=0.25,
-                    dwell_s=0.01,
-                    completion_deadline_s=4.50,
-                    pad_id="gauntlet-pad",
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.01,
-                max_altitude_m=1.20,
-                max_speed_mps=3.5,
-                max_tilt_deg=55.0,
-                fail_on_unpermitted_contact=True,
-                max_landing_impact_speed_mps=1.5,
-            )
-            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
-        else:
-            stages = [
-                MissionStage(
-                    id="takeoff",
-                    kind=MissionStageKind.TAKEOFF,
-                    target_position_m=[0.0, 0.0, 0.20],
-                    tolerance_m=0.06,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.25,
-                ),
-                MissionStage(
-                    id="slalom_waypoint",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.10, -0.05, 0.22],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.60,
-                ),
-                MissionStage(
-                    id="terminal_approach",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.15, 0.0, 0.15],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.90,
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.02,
-                max_altitude_m=1.00,
-                max_tilt_deg=55.0,
-                fail_on_unpermitted_contact=True,
-            )
-            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
-
-        mission = MissionSpecV2(
-            mission_id=f"mission-{request.world_id}",
-            world_id=request.world_id,
-            stages=stages,
-            constraints=constraints,
-        )
+        mission, default_init = default_mission(request.world_id)
+        init_pos = request.initial_pos_m or default_init
     else:
         init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
 
@@ -950,27 +864,50 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
         for c in res.contacts[:MAX_CONTACTS_RETURNED]
     ]
 
+    provenance = controller_artifacts.resolve(
+        request.controller_source, request.controller_artifact_id, request.model_id
+    )
     if guest is None:
-        exec_backend = "host_trusted_kernel"
-        isolation_status = "NOT_APPLICABLE"
-        cleanup_status = CLEANUP_NOT_APPLICABLE
-        # The built-in baseline is identified by the server, not the client.
-        model_id = "baseline_3d"
+        execution = {
+            "execution_backend": "host_trusted_kernel",
+            "isolation_status": "NOT_APPLICABLE",
+            "cleanup_status": CLEANUP_NOT_APPLICABLE,
+            "cleanup_errors": [],
+            "sandbox_name": None,
+            "controller_exchanges": 0,
+        }
         ctrl_type = "baseline_3d"
     else:
-        exec_backend = guest.backend
-        isolation_status = "MICROVM" if guest.backend == "microvm" else "UNISOLATED"
-        cleanup_status = guest.cleanup_status
-        model_id = request.model_id
+        execution = {
+            "execution_backend": guest.backend,
+            "isolation_status": "MICROVM" if guest.backend == "microvm" else "UNISOLATED",
+            "cleanup_status": guest.cleanup_status,
+            "cleanup_errors": list(guest.cleanup_errors),
+            "sandbox_name": guest.sandbox_name,
+            "controller_exchanges": guest.exchanges,
+        }
         ctrl_type = "custom_controller"
+    wall_time_s = round(stopwatch.elapsed_s, 3)
+    execution["wall_time_s"] = wall_time_s
+
+    record = build_mission_court_record(
+        result=res,
+        model_path=model_path,
+        faults=request.faults,
+        controller_source=request.controller_source,
+        controller_type=ctrl_type,
+        provenance=provenance.to_dict(),
+        execution=execution,
+    )
+    record_id = mission_records.put(record)
 
     return MissionRunResponse(
         mission_id=mission.mission_id,
         world_id=world.world_id,
         controller_type=ctrl_type,
         controller_hash=ctrl_hash,
-        model_id=model_id,
-        execution_backend=exec_backend,
+        model_id=provenance.model_id,
+        execution_backend=execution["execution_backend"],
         physical_verdict=res.evaluation.physical_verdict,
         mission_verdict=res.evaluation.mission_verdict,
         min_robustness=res.evaluation.min_robustness,
@@ -983,17 +920,41 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
         trajectory_samples_total=len(res.trajectory),
         contacts=contacts_data,
         contacts_total=len(res.contacts),
+        contacts_by_class=record["contacts"]["by_class"],
         stage_results=res.evaluation.stage_results,
         stages_completed=res.evaluation.stages_completed,
         total_stages=res.evaluation.total_stages,
         mission_failure_reason=res.evaluation.mission_failure_reason,
-        isolation_status=isolation_status,
-        cleanup_status=cleanup_status,
-        provenance_status="BUILT_IN_BASELINE" if guest is None else "UNVERIFIED_ORIGIN",
-        model_id_source="server" if guest is None else "client_reported",
-        controller_exchanges=0 if guest is None else guest.exchanges,
-        wall_time_s=round(stopwatch.elapsed_s, 3),
+        isolation_status=execution["isolation_status"],
+        cleanup_status=execution["cleanup_status"],
+        provenance_status=provenance.status,
+        model_id_source=provenance.model_id_source,
+        controller_artifact_id=provenance.artifact.artifact_id if provenance.artifact else None,
+        controller_exchanges=execution["controller_exchanges"],
+        controller_invocations=res.controller_invocations,
+        controller_period_steps=res.controller_period_steps,
+        effective_controller_hz=res.effective_controller_hz,
+        wall_time_s=wall_time_s,
+        mission=mission.model_dump(mode="json"),
+        reference_path=res.run.reference_path,
+        court_record_id=record_id,
+        court_record_url=f"/missions/court-records/{record_id}",
     )
+
+
+@app.get("/missions/court-records/{record_id}")
+def get_mission_court_record(record_id: str) -> dict[str, Any]:
+    try:
+        validate_id_param(record_id, "record_id")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    record = mission_records.get(record_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Mission Court Record '{record_id}' not found (records are kept in memory, newest {mission_records.max_records})",
+        )
+    return record
 
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"

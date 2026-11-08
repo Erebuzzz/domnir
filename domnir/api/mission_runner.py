@@ -13,6 +13,7 @@ import os
 import shutil
 import threading
 import time
+from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -132,16 +133,12 @@ class GuestExecution:
     cleanup_errors: list[str] = field(default_factory=list)
     sandbox_name: str | None = None
 
-    def callback(self) -> Callable[[dict[str, Any]], dict[str, Any]]:
-        import json
-
-        def guest_callback(obs: dict[str, Any]) -> dict[str, Any]:
+    def callback(self) -> Callable[[dict[str, Any]], str]:
+        # Return the guest's JSON text unchanged so the protocol parser
+        # validates the exact bytes the guest produced.
+        def guest_callback(obs: dict[str, Any]) -> str:
             self.exchanges += 1
-            raw = self.stream.exchange(obs)
-            action = json.loads(raw)
-            if not isinstance(action, dict):
-                raise ValueError("Controller response must be a JSON object")
-            return action
+            return self.stream.exchange(obs)
 
         return guest_callback
 
@@ -224,6 +221,33 @@ def start_dev_subprocess_guest(controller_source: str) -> GuestExecution:
         guest.teardown()
         raise
     return guest
+
+
+MAX_RETAINED_MISSION_RECORDS = 50
+
+
+class MissionRecordStore:
+    """Bounded in-memory store of mission Court Records, oldest evicted first."""
+
+    def __init__(self, max_records: int = MAX_RETAINED_MISSION_RECORDS) -> None:
+        self.max_records = max_records
+        self._lock = threading.Lock()
+        self._records: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    def put(self, record: dict[str, Any]) -> str:
+        record_id = record["record_id"]
+        with self._lock:
+            self._records[record_id] = record
+            while len(self._records) > self.max_records:
+                self._records.popitem(last=False)
+        return record_id
+
+    def get(self, record_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            return self._records.get(record_id)
+
+
+mission_records = MissionRecordStore()
 
 
 def downsample(items: list[Any], max_items: int) -> list[Any]:

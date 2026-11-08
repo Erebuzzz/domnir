@@ -299,13 +299,13 @@ flowchart TD
 - Distinguishes `COMPLETED` mission status from physical safety status (`NOT_FALSIFIED`, `FALSIFIED`, `INVALID`).
 
 ### 8.5 Showcase: The Ragnarök Gauntlet
-- An integrated flight course combining all four capabilities in one continuous evaluation:
-  1. Takeoff from origin to $z = 0.40$ m.
-  2. Navigate around a 0.80 m slalom pillar obstacle.
-  3. Transit cleanly through the 0.45 x 0.45 m cyan gate at $z = 0.45$ m.
-  4. Withstand an admissible lateral wind gust ($F_y = 0.015$ N).
-  5. Execute controlled descent to a precision touchdown on the landing pad at $(1.10, 0.0, 0.03)$ m.
-- **Current status:** with stage deadlines enforced, the built-in baseline completes takeoff but misses the slalom deadline (1.80 s), so the default Gauntlet returns `mission_verdict=NOT_COMPLETED` (1/5 stages). The physical verdict is still `NOT_FALSIFIED`. The deadlines have not yet been recalibrated against an achievable baseline flight profile.
+- An integrated flight course combining all four capabilities in one continuous evaluation (default mission in `domnir/missions/defaults.py`):
+  1. Take off from the origin to $z = 0.25$ m (deadline 0.80 s).
+  2. Pass south of the slalom pillar at $(0.35, -0.05, 0.35)$ m (deadline 2.80 s).
+  3. Fly through the 0.45 × 0.45 m gate aperture at $(0.70, -0.05, 0.38)$ m (deadline 5.00 s).
+  4. Settle directly above the pad at $(1.15, 0, 0.25)$ m (deadline 7.50 s).
+  5. Touch down on the pad, with pad contact and a descent speed within limits (deadline 9.00 s).
+- **Calibration:** the deadlines leave 21–48% margin over the measured baseline flight. The built-in baseline completes all five stages (`NOT_FALSIFIED`, no obstacle contact, touchdown at 0.06 m/s). Re-measure with `python scripts/calibrate_gauntlet.py`. See [docs/audits/GAUNTLET_CALIBRATION.md](docs/audits/GAUNTLET_CALIBRATION.md) for the controller fixes, the derivation, and the wind cases the baseline does not survive.
 
 ---
 
@@ -386,7 +386,7 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
 
 ### Flight Specs and Code Generation
 - `POST /specs/validate`: Validates flight envelope bounds (`target_altitude_m`, `mission_duration_s`, `dt_s`, step budget).
-- `POST /controllers/generate`: Queries Vultr Serverless Inference to generate a validated Python controller function `observe(obs)`.
+- `POST /controllers/generate`: Queries Vultr Serverless Inference to generate a validated Python controller function `observe(obs)`. The response includes an `artifact_id`: the server's record of the generated source hash and the model Vultr reported.
 
 ### Qualification Experiments
 - `POST /experiments/run`: Submits an experiment for execution. Accepts specification, model, disturbance force, and controller source (maximum 32 KiB). Supports synchronous or asynchronous background execution.
@@ -400,10 +400,14 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
 - `POST /missions/run`: Executes full 6DOF mission simulation across waypoints, obstacles, wind disturbances, and landing targets.
   - **Stage deadlines are enforced.** A stage is `COMPLETED` only if it is reached (and dwelled) at or before its `completion_deadline_s`; otherwise it is `TIMED_OUT`, and stages never attempted are `ABORTED`. `stage_timeout_policy` is `abort` (default: later stages are aborted) or `advance` (move on and judge each later stage on its own deadline). `mission_verdict` is `COMPLETED` only when every stage completed on time.
   - **Limits:** at most 12 stages (each deadline ≤ 60 s), 16 faults of each kind, 90 s of wall time per run, 2 concurrent runs and 4 waiting. Over-limit requests get 422. A full queue gets 503 with `Retry-After`. A run over its wall-time budget gets 504.
-  - **Evidence fields:** `stages_completed`/`total_stages`, `isolation_status` (`NOT_APPLICABLE` for the built-in baseline, `MICROVM`, or `UNISOLATED` for the dev fallback), `cleanup_status` (teardown observed for this run), and `provenance_status` (`BUILT_IN_BASELINE`, or `UNVERIFIED_ORIGIN` for any submitted source, whose `model_id` is client-reported). Sandbox setup or guest failures return 502 with the observed cleanup status rather than a physical verdict.
+  - **Evidence fields:** `stages_completed`/`total_stages`, `isolation_status` (`NOT_APPLICABLE` for the built-in baseline, `MICROVM`, or `UNISOLATED` for the dev fallback), `cleanup_status` (teardown observed for this run), and `provenance_status` (see Provenance below). Sandbox setup or guest failures return 502 with the observed cleanup status rather than a physical verdict.
+  - **Controller rate:** `controller_dt_s` (a whole multiple of the 0.002 s physics step) sets how often the controller runs. The action is held between calls (zero-order hold), and the response reports `controller_invocations` and `effective_controller_hz`.
+  - **Provenance:** pass the `artifact_id` from `/controllers/generate` as `controller_artifact_id`. The server compares the source hash with its record: `SERVER_CONFIRMED_GENERATION` (exact match, model taken from the server), `USER_MODIFIED` (source changed), or `UNVERIFIED_ORIGIN` (no record). A client-sent `model_id` is never treated as confirmed. The registry is in memory and is lost on restart.
+  - **Court Record:** every run seals a mission Court Record and returns `court_record_url`.
+- `GET /missions/court-records/{record_id}`: Downloads a sealed mission Court Record (the newest 50 are kept in memory).
 
 ### Verification and Containment
-- `POST /court-records/verify`: Independent in-memory physical replay verifier. Replays recorded actions on a fresh MuJoCo instance, verifies SHA-256 hashes, and checks event log chaining.
+- `POST /court-records/verify`: Accepts both hover experiment records and mission records (`domnir-mission-court-record-v1`). A mission record is re-flown from its recorded controller actions, and the verifier recomputes the checkpoints, trajectory samples, contacts, stage outcomes and verdicts, then checks the world geometry against the registry. Changing the world, mission, faults, actions, trajectory, stages or verdicts fails verification, even if the hashes are recomputed. The CLI `python -m domnir.verify <record.json>` accepts both formats. Hover records: Replays recorded actions on a fresh MuJoCo instance, verifies SHA-256 hashes, and checks event log chaining.
 - `GET /containment/status`: Returns verified results for the 5 containment fixtures, host event log status, and limitations.
 - `POST /containment/run`: Triggers a live run of the microVM containment suite on KVM-enabled Linux hosts.
 

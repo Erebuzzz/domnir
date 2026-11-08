@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 MAX_REQUEST_BYTES = 65536  # 64 KiB general limit
-MAX_COURT_RECORD_BYTES = 2097152  # 2 MiB limit for court record verification
+MAX_COURT_RECORD_BYTES = 8388608  # 8 MiB: mission records carry every controller action plus state checkpoints
 MAX_CODE_BYTES = 32768     # 32 KiB for code payloads
 
 SAFE_ID_PATTERN = re.compile(r"^[0-9a-zA-Z\-_]{1,64}$")

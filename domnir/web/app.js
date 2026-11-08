@@ -265,6 +265,19 @@
     verReplayDiff: document.getElementById("verReplayDiff"),
     verReplayStatus: document.getElementById("verReplayStatus"),
     verifyErrorsBox: document.getElementById("verifyErrorsBox"),
+    verifyChecksBox: document.getElementById("verifyChecksBox"),
+    verifyChecksList: document.getElementById("verifyChecksList"),
+    missionPanel: document.getElementById("missionPanel"),
+    missionPanelSubtitle: document.getElementById("missionPanelSubtitle"),
+    missionWorldBadge: document.getElementById("missionWorldBadge"),
+    missionVerdictBadge: document.getElementById("missionVerdictBadge"),
+    missionStageRows: document.getElementById("missionStageRows"),
+    missionEndState: document.getElementById("missionEndState"),
+    missionContactsSummary: document.getElementById("missionContactsSummary"),
+    missionContactList: document.getElementById("missionContactList"),
+    chartSubtitle: document.getElementById("chartSubtitle"),
+    chartDtBadge: document.getElementById("chartDtBadge"),
+    chartRateBadge: document.getElementById("chartRateBadge"),
     verifyErrorsList: document.getElementById("verifyErrorsList"),
     runArenaBtn: document.getElementById("runArenaBtn"),
     arenaSpinner: document.getElementById("arenaSpinner"),
@@ -1224,6 +1237,8 @@
         model_id: confirmedModelId,
         source_code: controller.source_code,
         origin: "generated",
+        // Server-side generation record; /missions/run resolves provenance from it.
+        artifact_id: data.artifact_id || null,
       };
 
       // Update provenance badge (backend confirmed)
@@ -1505,6 +1520,12 @@
   }
 
   function resetRunDisplay() {
+    if (elements.missionPanel) elements.missionPanel.classList.add("hidden");
+    if (elements.chartSubtitle) {
+      elements.chartSubtitle.textContent = "Green corridor: Allowed Envelope | Red dashed: Target Altitude (0.10m)";
+    }
+    if (elements.chartDtBadge) elements.chartDtBadge.textContent = "MuJoCo dt = 0.002s";
+    if (elements.chartRateBadge) elements.chartRateBadge.textContent = "500 Hz Closed Loop";
     if (elements.executionErrorBanner) {
       elements.executionErrorBanner.style.display = "none";
     }
@@ -1649,9 +1670,16 @@
     const maxTime = trajectory[trajectory.length - 1].sim_time_s || spec.mission_duration_s || 0.4;
     const minTime = 0.0;
 
-    // Altitude domain
+    // Altitude domain. Mission charts fit the flown and planned altitudes
+    // instead of stretching to a distant ceiling.
     let minAlt = 0.0;
-    let maxAlt = Math.max(spec.max_allowed_altitude_m * 1.05, 0.3);
+    let maxAlt = spec.fit_to_data ? 0.3 : Math.max(spec.max_allowed_altitude_m * 1.05, 0.3);
+    if (spec.fit_to_data && Array.isArray(spec.reference_path)) {
+      for (const r of spec.reference_path) {
+        const z = r.position_m ? r.position_m[2] : undefined;
+        if (Number.isFinite(z) && z * 1.15 > maxAlt) maxAlt = z * 1.15 + 0.02;
+      }
+    }
 
     if (spec.min_allowed_altitude_m < minAlt) {
       minAlt = spec.min_allowed_altitude_m * 0.9;
@@ -1699,7 +1727,9 @@
       svgContent += `<text x="${x}" y="${height - padding.bottom + 18}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="middle">${tVal.toFixed(2)}s</text>`;
     }
 
-    // Tolerance Band
+    // Tolerance Band (single-setpoint hover charts only; missions pass
+    // target_altitude_m: null and show the planned reference instead).
+    const hasSetpoint = spec.target_altitude_m !== null;
     const targetZ = typeof spec.target_altitude_m === "number" ? spec.target_altitude_m : 0.20;
     const tol = typeof spec.altitude_tolerance_m === "number"
       ? spec.altitude_tolerance_m
@@ -1707,7 +1737,9 @@
     const topTolY = scaleY(targetZ + tol);
     const botTolY = scaleY(targetZ - tol);
     const bandHeight = Math.max(1, botTolY - topTolY);
-    svgContent += `<rect x="${padding.left}" y="${topTolY}" width="${chartW}" height="${bandHeight}" fill="#06b6d4" fill-opacity="0.12" clip-path="url(#chartPlotClip)"/>`;
+    if (hasSetpoint) {
+      svgContent += `<rect x="${padding.left}" y="${topTolY}" width="${chartW}" height="${bandHeight}" fill="#06b6d4" fill-opacity="0.12" clip-path="url(#chartPlotClip)"/>`;
+    }
 
     // Safety Ceiling Boundary
     const maxAllowedAlt = typeof spec.max_allowed_altitude_m === "number"
@@ -1730,9 +1762,36 @@
     }
 
     // Target Setpoint Line
-    const targetY = scaleY(targetZ);
-    svgContent += `<line x1="${padding.left}" y1="${targetY}" x2="${width - padding.right}" y2="${targetY}" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>`;
-    svgContent += `<text x="${padding.left + 8}" y="${targetY - 5}" fill="#06b6d4" font-family="monospace" font-size="10">Target Setpoint (${targetZ.toFixed(2)}m)</text>`;
+    if (hasSetpoint) {
+      const targetY = scaleY(targetZ);
+      svgContent += `<line x1="${padding.left}" y1="${targetY}" x2="${width - padding.right}" y2="${targetY}" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+      svgContent += `<text x="${padding.left + 8}" y="${targetY - 5}" fill="#06b6d4" font-family="monospace" font-size="10">Target Setpoint (${targetZ.toFixed(2)}m)</text>`;
+    }
+
+    // Planned reference altitude (missions)
+    if (Array.isArray(spec.reference_path) && spec.reference_path.length > 1) {
+      const refPts = spec.reference_path
+        .filter(r => r.position_m && Number.isFinite(r.sim_time_s))
+        .map(r => `${scaleX(r.sim_time_s).toFixed(1)},${scaleY(r.position_m[2]).toFixed(1)}`)
+        .join(" ");
+      svgContent += `<polyline points="${refPts}" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3" clip-path="url(#chartPlotClip)"/>`;
+      svgContent += `<text x="${padding.left + 8}" y="${padding.top + 12}" fill="#06b6d4" font-family="monospace" font-size="10">Planned reference z(t)</text>`;
+    }
+
+    // Stage deadlines (missions): green = completed on time, red = timed
+    // out, grey = aborted. A dot marks the actual completion time.
+    if (Array.isArray(spec.stages)) {
+      spec.stages.forEach((st, i) => {
+        if (!Number.isFinite(st.completion_deadline_s)) return;
+        const color = st.status === "COMPLETED" ? "#10b981" : st.status === "TIMED_OUT" ? "#f43f5e" : "#64748b";
+        const x = scaleX(Math.min(st.completion_deadline_s, maxTime));
+        svgContent += `<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" stroke="${color}" stroke-width="1" stroke-dasharray="3,3"/>`;
+        svgContent += `<text x="${x - 3}" y="${padding.top + 24 + (i % 3) * 11}" fill="${color}" font-family="monospace" font-size="9" text-anchor="end">${escapeHtml(String(st.stage_id))}</text>`;
+        if (Number.isFinite(st.completed_at_s)) {
+          svgContent += `<circle cx="${scaleX(st.completed_at_s)}" cy="${height - padding.bottom - 4}" r="3.5" fill="${color}"/>`;
+        }
+      });
+    }
 
     // Trajectory Polyline
     let points = "";
@@ -2975,6 +3034,23 @@
       "Replay divergence (max diff: " + Number(replayDiff).toExponential(2) + " m exceeds tolerance " + Number(res.tolerance || 1e-12).toExponential(0) + " m)"
     );
 
+    if (elements.verifyChecksBox && elements.verifyChecksList) {
+      const checks = res.checks || {};
+      const names = Object.keys(checks);
+      elements.verifyChecksList.innerHTML = "";
+      if (res.record_type === "mission" && names.length > 0) {
+        names.forEach(name => {
+          const li = document.createElement("li");
+          li.textContent = (checks[name] ? "PASS  " : "FAIL  ") + name;
+          li.className = checks[name] ? "check-pass" : "check-fail";
+          elements.verifyChecksList.appendChild(li);
+        });
+        elements.verifyChecksBox.classList.remove("hidden");
+      } else {
+        elements.verifyChecksBox.classList.add("hidden");
+      }
+    }
+
     if (res.errors && res.errors.length > 0) {
       if (elements.verifyErrorsList) {
         elements.verifyErrorsList.innerHTML = "";
@@ -3434,6 +3510,7 @@
       let rotorRL = null;
       let rotorRR = null;
       let worldObjectGroup = null;
+      let missionOverlayGroup = null;
 
       let defaultCamPos = new THREE.Vector3(0.18, 0.15, 0.22);
       let defaultTarget = new THREE.Vector3(0, 0, 0);
@@ -3569,9 +3646,17 @@
             : "REPLAY: 1D ALTITUDE PROFILE";
         }
 
-        // Dynamic 3D Follow-Camera tracking keeps Crazyflie in view at all altitudes
+        // Dynamic 3D Follow-Camera tracking keeps Crazyflie in view at all altitudes.
+        // Mission replays also follow horizontally, since the course spans
+        // more than a metre and the drone would otherwise leave the frame.
         controls.target.y = sceneY;
         camera.position.y = defaultCamPos.y + sceneY;
+        if (missionOverlayGroup) {
+          controls.target.x = droneModel.position.x;
+          controls.target.z = droneModel.position.z;
+          camera.position.x = defaultCamPos.x + droneModel.position.x;
+          camera.position.z = defaultCamPos.z + droneModel.position.z;
+        }
         controls.update();
 
         shadowMesh.position.x = droneModel.position.x;
@@ -3686,7 +3771,7 @@
           const sceneY = (targetAltM - 0.10) * 0.8;
           targetRing.position.y = sceneY;
         },
-        loadReplay: (trajectory, worldEntities) => {
+        loadReplay: (trajectory, worldEntities, overlay) => {
           if (!trajectory || trajectory.length === 0) return;
           isReplaying = true;
           replayTrajectory = trajectory;
@@ -3817,6 +3902,47 @@
             scene.add(worldObjectGroup);
           }
 
+          // Mission overlay: planned reference path and stage targets,
+          // using the same world->scene mapping as the drone (x->-Z, y->-X).
+          if (missionOverlayGroup) {
+            scene.remove(missionOverlayGroup);
+            missionOverlayGroup = null;
+          }
+          // The hover target ring has no meaning for multi-stage missions.
+          if (targetRing) targetRing.visible = !overlay;
+          const toScene = p => new THREE.Vector3(-(p[1] || 0) * 0.8, ((p[2] || 0) - 0.10) * 0.8, -(p[0] || 0) * 0.8);
+          if (overlay && ((overlay.referencePath && overlay.referencePath.length > 1) || (overlay.stages && overlay.stages.length))) {
+            missionOverlayGroup = new THREE.Group();
+            missionOverlayGroup.name = "MissionOverlay";
+            if (overlay.referencePath && overlay.referencePath.length > 1) {
+              const pts = overlay.referencePath.map(r => toScene(r.position_m || [0, 0, 0]));
+              const line = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(pts),
+                new THREE.LineDashedMaterial({ color: 0x22d3ee, dashSize: 0.03, gapSize: 0.02, transparent: true, opacity: 0.85 })
+              );
+              line.computeLineDistances();
+              missionOverlayGroup.add(line);
+            }
+            const flown = trajectory.filter(pt => pt.position_m && pt.position_m.length >= 3).map(pt => toScene(pt.position_m));
+            if (flown.length > 1) {
+              missionOverlayGroup.add(new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(flown),
+                new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.7 })
+              ));
+            }
+            (overlay.stages || []).forEach(st => {
+              if (!st.target_position_m) return;
+              const color = st.status === "COMPLETED" ? 0x10b981 : st.status === "TIMED_OUT" ? 0xf43f5e : 0x94a3b8;
+              const marker = new THREE.Mesh(
+                new THREE.SphereGeometry(0.006, 12, 12),
+                new THREE.MeshBasicMaterial({ color })
+              );
+              marker.position.copy(toScene(st.target_position_m));
+              missionOverlayGroup.add(marker);
+            });
+            scene.add(missionOverlayGroup);
+          }
+
           setStep(0, trajectory);
         },
         resetToIdle: () => {
@@ -3839,6 +3965,11 @@
             scene.remove(worldObjectGroup);
             worldObjectGroup = null;
           }
+          if (missionOverlayGroup) {
+            scene.remove(missionOverlayGroup);
+            missionOverlayGroup = null;
+          }
+          if (targetRing) targetRing.visible = true;
           if (droneModel) {
             droneModel.position.set(0, 0, 0);
             droneModel.rotation.set(0, 0, 0);
@@ -4536,6 +4667,121 @@
     }
   }
 
+  function missionChartSpec(missionData) {
+    const mission = missionData.mission || {};
+    const constraints = mission.constraints || {};
+    const stages = Array.isArray(mission.stages) ? mission.stages : [];
+    const duration = stages.length ? stages[stages.length - 1].completion_deadline_s : undefined;
+    return {
+      target_altitude_m: null,
+      fit_to_data: true,
+      min_allowed_altitude_m: constraints.min_altitude_m,
+      max_allowed_altitude_m: constraints.max_altitude_m,
+      mission_duration_s: duration,
+      reference_path: missionData.reference_path || [],
+      stages: missionData.stage_results || [],
+    };
+  }
+
+  function renderMissionMetrics(missionData) {
+    const traj = missionData.trajectory || [];
+    if (!traj.length) return;
+    const zs = traj.map(pt => pt.position_m[2]);
+    const last = traj[traj.length - 1].position_m;
+    const stages = missionData.stage_results || [];
+    const target = stages.length ? stages[stages.length - 1].target_position_m : null;
+    if (elements.metricSteps) elements.metricSteps.textContent = missionData.trajectory_samples_total || traj.length;
+    if (elements.metricFinalAlt) elements.metricFinalAlt.textContent = last[2].toFixed(4) + " m";
+    if (elements.metricAltError) {
+      elements.metricAltError.textContent = target ? Math.abs(last[2] - target[2]).toFixed(4) + " m" : "\u2014";
+    }
+    if (elements.metricMinAlt) elements.metricMinAlt.textContent = Math.min(...zs).toFixed(4) + " m";
+    if (elements.metricMaxAlt) elements.metricMaxAlt.textContent = Math.max(...zs).toFixed(4) + " m";
+  }
+
+  function renderMissionPanel(missionData) {
+    renderMissionMetrics(missionData);
+    if (!elements.missionPanel) return;
+    elements.missionPanel.classList.remove("hidden");
+    const stages = Array.isArray(missionData.stage_results) ? missionData.stage_results : [];
+    const fmt = v => (Number.isFinite(v) ? Number(v).toFixed(3) + " s" : "\u2014");
+
+    if (elements.missionWorldBadge) elements.missionWorldBadge.textContent = "world: " + (missionData.world_id || "---");
+    if (elements.missionVerdictBadge) {
+      elements.missionVerdictBadge.textContent =
+        "mission: " + missionData.mission_verdict + " (" + missionData.stages_completed + "/" + missionData.total_stages + ")";
+      elements.missionVerdictBadge.className =
+        "badge " + (missionData.mission_verdict === "COMPLETED" ? "badge-success" : "badge-danger");
+    }
+    if (elements.missionPanelSubtitle) {
+      elements.missionPanelSubtitle.textContent = missionData.mission_failure_reason
+        ? "First failure: " + missionData.mission_failure_reason
+        : "Every stage completed at or before its deadline.";
+    }
+
+    if (elements.missionStageRows) {
+      elements.missionStageRows.innerHTML = "";
+      stages.forEach(st => {
+        const outcomeTime = Number.isFinite(st.completed_at_s) ? st.completed_at_s
+          : Number.isFinite(st.timed_out_at_s) ? st.timed_out_at_s : null;
+        const met = st.status === "COMPLETED";
+        const badgeClass = met ? "badge-success" : st.status === "TIMED_OUT" ? "badge-danger" : "badge-unknown";
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + escapeHtml(String(st.stage_id)) + "</td>" +
+          "<td>" + escapeHtml(String(st.kind)) + "</td>" +
+          "<td class=\"font-mono\">" + fmt(st.completion_deadline_s) + "</td>" +
+          "<td class=\"font-mono\">" + fmt(outcomeTime) + "</td>" +
+          "<td>" + (met ? "met" : st.status === "ABORTED" ? "not attempted" : "missed") + "</td>" +
+          "<td><span class=\"status-badge " + badgeClass + "\">" + escapeHtml(String(st.status)) + "</span></td>";
+        elements.missionStageRows.appendChild(tr);
+      });
+    }
+
+    const traj = missionData.trajectory || [];
+    const last = traj.length ? traj[traj.length - 1] : null;
+    const finalStage = stages.length ? stages[stages.length - 1] : null;
+    if (elements.missionEndState) {
+      if (last && finalStage && Array.isArray(finalStage.target_position_m)) {
+        const p = last.position_m || [0, 0, 0];
+        const t = finalStage.target_position_m;
+        const dist = Math.hypot(p[0] - t[0], p[1] - t[1], p[2] - t[2]);
+        elements.missionEndState.textContent =
+          "Final position (" + p.map(v => Number(v).toFixed(3)).join(", ") + ") m, " +
+          dist.toFixed(3) + " m from the '" + finalStage.stage_id + "' target.";
+      } else {
+        elements.missionEndState.textContent = "";
+      }
+    }
+
+    const contacts = Array.isArray(missionData.contacts) ? missionData.contacts : [];
+    const total = typeof missionData.contacts_total === "number" ? missionData.contacts_total : contacts.length;
+    // Per-class totals come from the server's full contact list, not the
+    // capped sample sent to the browser.
+    const byClass = missionData.contacts_by_class || {};
+    if (elements.missionContactsSummary) {
+      const parts = Object.keys(byClass).map(k => k + ": " + byClass[k]);
+      elements.missionContactsSummary.textContent = total === 0
+        ? "No contacts recorded."
+        : total + " contact events" + (total > contacts.length ? " (first " + contacts.length + " shown)" : "") +
+          (parts.length ? " | " + parts.join(", ") : "");
+    }
+    if (elements.missionContactList) {
+      elements.missionContactList.innerHTML = "";
+      const firstOfEach = [];
+      const seen = new Set();
+      contacts.forEach(c => {
+        if (!seen.has(c.contact_class)) { seen.add(c.contact_class); firstOfEach.push(c); }
+      });
+      firstOfEach.forEach(c => {
+        const li = document.createElement("li");
+        li.textContent = "First " + c.contact_class + " contact at t=" + Number(c.sim_time_s).toFixed(3) +
+          "s (" + c.geom1 + " / " + c.geom2 + "), speed " + Number(c.impact_velocity_mps).toFixed(3) + " m/s";
+        elements.missionContactList.appendChild(li);
+      });
+    }
+  }
+
   async function runGauntletMission() {
     if (elements.runGauntletMissionBtn) elements.runGauntletMissionBtn.disabled = true;
     if (elements.gauntletSpinner) elements.gauntletSpinner.classList.remove("hidden");
@@ -4549,6 +4795,7 @@
         controller_source: isBaseline ? null : activeCode,
         model_id: isBaseline ? "baseline_3d" : (state.controllerProvenance?.model_id || state.selectedModel),
         controller_type: isBaseline ? "baseline_3d" : "custom_controller",
+        controller_artifact_id: isBaseline ? null : (state.controllerProvenance?.artifact_id || null),
         provenance: state.controllerProvenance || null,
       };
 
@@ -4575,7 +4822,10 @@
       state.activeTrajectory = missionData.trajectory || [];
 
       if (droneViewer && typeof droneViewer.loadReplay === "function") {
-        droneViewer.loadReplay(missionData.trajectory, worldData.entities);
+        droneViewer.loadReplay(missionData.trajectory, worldData.entities, {
+          referencePath: missionData.reference_path || [],
+          stages: missionData.stage_results || [],
+        });
       }
 
       if (elements.replayDiffValue) {
@@ -4641,15 +4891,23 @@
       const provenance = missionData.provenance_status;
       if (provenance === "BUILT_IN_BASELINE") {
         setVerdict(elements.verdictProvenance, "BUILT-IN BASELINE", "pass");
+      } else if (provenance === "SERVER_CONFIRMED_GENERATION") {
+        setVerdict(elements.verdictProvenance, "SERVER-CONFIRMED", "pass");
+      } else if (provenance === "USER_MODIFIED") {
+        setVerdict(elements.verdictProvenance, "USER MODIFIED", "unknown");
       } else {
         setVerdict(elements.verdictProvenance, provenance === "UNVERIFIED_ORIGIN" ? "UNVERIFIED ORIGIN" : "UNKNOWN", "unknown");
       }
       if (elements.verdictProvenanceDesc) {
-        const hashText = missionData.controller_hash ? " SHA-256 " + missionData.controller_hash.slice(0, 10) + "\u2026 identifies the code bytes only." : "";
+        const hashText = missionData.controller_hash ? " SHA-256 " + missionData.controller_hash.slice(0, 10) + "\u2026 identifies the code bytes." : "";
         elements.verdictProvenanceDesc.textContent =
           provenance === "BUILT_IN_BASELINE"
             ? "Server-side built-in baseline controller."
-            : "Model label '" + (missionData.model_id || "none") + "' is client-reported and not verified." + hashText;
+            : provenance === "SERVER_CONFIRMED_GENERATION"
+              ? "Generated on this server by " + (missionData.model_id || "unknown model") + "; source matches the generation record exactly." + hashText
+              : provenance === "USER_MODIFIED"
+                ? "Derived from a " + (missionData.model_id || "generated") + " controller, but the source was changed after generation." + hashText
+                : "No server generation record. Model label '" + (missionData.model_id || "none") + "' is client-reported." + hashText;
       }
 
       const cleanup = missionData.cleanup_status;
@@ -4681,15 +4939,36 @@
           (missionData.limitation_note || "");
       }
 
+      renderMissionPanel(missionData);
+
       if (missionData.trajectory && missionData.trajectory.length > 0) {
-        renderAltitudeChart(missionData.trajectory, {
-          target_altitude_m: 0.20,
-          altitude_tolerance_m: 0.08,
-          min_allowed_altitude_m: 0.02,
-          max_allowed_altitude_m: 1.00,
-          mission_duration_s: 4.50,
-        });
+        renderAltitudeChart(missionData.trajectory, missionChartSpec(missionData));
       }
+      if (elements.chartSubtitle) {
+        elements.chartSubtitle.textContent =
+          "Green: flown altitude | Cyan dashed: planned reference | Vertical lines: stage deadlines (green met, red missed, grey aborted)";
+      }
+      if (elements.chartDtBadge) {
+        const pdt = missionData.mission ? missionData.mission.physics_dt_s : 0.002;
+        elements.chartDtBadge.textContent = "MuJoCo dt = " + pdt + "s";
+      }
+      if (elements.chartRateBadge) {
+        elements.chartRateBadge.textContent =
+          Number(missionData.effective_controller_hz || 0).toFixed(0) + " Hz controller (" + (missionData.controller_invocations || 0) + " calls)";
+      }
+
+      // Portable 3D Court Record for export and independent verification.
+      state.activeCourtRecord = null;
+      if (missionData.court_record_url) {
+        try {
+          const recResp = await fetch(missionData.court_record_url);
+          if (recResp.ok) state.activeCourtRecord = await recResp.json();
+        } catch (_) {
+          state.activeCourtRecord = null;
+        }
+      }
+      [elements.downloadCourtRecordBtn, elements.copyCourtRecordBtn, elements.openInVerifierBtn, elements.arenaDownloadCourtRecordBtn]
+        .forEach(btn => { if (btn) btn.disabled = !state.activeCourtRecord; });
 
       toast(
         "Ragnarök Gauntlet finished. Physical: " + physical + " | Mission: " + missionData.mission_verdict + " (" + stageCountText + ")",

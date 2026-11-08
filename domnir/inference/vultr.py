@@ -298,6 +298,25 @@ class VultrInferenceClient:
         reasoning_effort: str | None = "minimal",
         max_tokens: int = 4096,
     ) -> GeneratedController:
+        controller, _response = self.generate_controller_with_metadata(
+            spec,
+            model=model,
+            prompt_version=prompt_version,
+            reasoning_effort=reasoning_effort,
+            max_tokens=max_tokens,
+        )
+        return controller
+
+    def generate_controller_with_metadata(
+        self,
+        spec: FlightSpec,
+        *,
+        model: str = DEFAULT_MODEL,
+        prompt_version: str = "v1",
+        reasoning_effort: str | None = "minimal",
+        max_tokens: int = 4096,
+    ) -> tuple[GeneratedController, InferenceResponse]:
+        """Generate a controller and also return the raw inference metadata."""
         system_prompt = (
             "You are an expert autonomous control systems engineer for the Bitcraze Crazyflie 2.0 quadrotor "
             "simulated in MuJoCo. Generate a Python flight controller that meets the user's flight specification. "
@@ -349,8 +368,9 @@ Return ONLY valid Python source code defining observe(observation).
         )
         source = clean_python_code(response.content)
 
-        return GeneratedController.from_source(
+        controller = GeneratedController.from_source(
             source,
             model_id=response.model,
             prompt_version=prompt_version,
         )
+        return controller, response

@@ -81,6 +81,9 @@ class GenerateControllerResponse(BaseModel):
     model_id: str
     source_sha256: str
     reasoning_effort: str = "minimal"
+    # Server-side record of this generation. Pass it as
+    # controller_artifact_id to /missions/run to get server-confirmed provenance.
+    artifact_id: str | None = None
     message: str = "Controller generated successfully"
 
 
@@ -164,6 +167,10 @@ class CourtRecordVerifyResponse(BaseModel):
     event_chain_verified: bool
     record_id: str | None = None
     experiment_id: str | None = None
+    # "hover" for legacy experiment records, "mission" for 3D mission records.
+    record_type: str = "hover"
+    # Mission records: individual check results (e.g. world_hash, verdicts).
+    checks: dict[str, bool] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
     timestamp: str
 
@@ -291,7 +298,10 @@ class MissionRunRequest(BaseModel):
     world_id: str = "ragnarok-gauntlet"
     controller_type: str = "baseline_3d"
     controller_source: str | None = None
+    # Client-reported model label. Only used when no server artifact matches.
     model_id: str | None = None
+    # artifact_id returned by /controllers/generate; resolved server-side.
+    controller_artifact_id: str | None = Field(default=None, max_length=64)
     provenance: dict[str, Any] | None = None
     faults: MissionFaultSchedule | None = None
     initial_pos_m: list[float] | None = None
@@ -317,6 +327,8 @@ class MissionRunResponse(BaseModel):
     trajectory_samples_total: int = 0
     contacts: list[dict[str, Any]] = Field(default_factory=list)
     contacts_total: int = 0
+    # Totals per contact class over the full (uncapped) contact list.
+    contacts_by_class: dict[str, int] = Field(default_factory=dict)
     stage_results: list[dict[str, Any]] = Field(default_factory=list)
     stages_completed: int = 0
     total_stages: int = 0
@@ -328,12 +340,23 @@ class MissionRunResponse(BaseModel):
     # Teardown observed for this run: NOT_APPLICABLE (no guest), SUCCEEDED,
     # FAILED, or UNKNOWN.
     cleanup_status: str = "NOT_APPLICABLE"
-    # BUILT_IN_BASELINE, or UNVERIFIED_ORIGIN for any submitted source.
-    # model_id for submitted source is client-reported and not verified.
+    # BUILT_IN_BASELINE, SERVER_CONFIRMED_GENERATION, USER_MODIFIED or
+    # UNVERIFIED_ORIGIN (see domnir/provenance.py). model_id_source says
+    # whether model_id came from the server artifact or the client.
     provenance_status: str = "BUILT_IN_BASELINE"
     model_id_source: str = "server"
+    controller_artifact_id: str | None = None
     controller_exchanges: int = 0
+    controller_invocations: int = 0
+    controller_period_steps: int = 1
+    effective_controller_hz: float = 500.0
     wall_time_s: float = 0.0
+    # The mission actually flown (defaults expanded) and its planned
+    # reference path, for mission-aware charts and the 3D overlay.
+    mission: dict[str, Any] | None = None
+    reference_path: list[dict[str, Any]] = Field(default_factory=list)
+    court_record_id: str | None = None
+    court_record_url: str | None = None
     limitation_note: str = (
         "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
     )
