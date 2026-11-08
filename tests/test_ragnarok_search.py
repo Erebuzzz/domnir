@@ -241,3 +241,66 @@ def test_compare_falsification_policies_contains_three_distinct_strategies():
     assert comp["uniform_random"]["strategy"] == "uniform_random"
     assert comp["sobol"]["strategy"] == "sobol_quasi_random"
     assert comp["differential_evolution"]["strategy"] == "differential_evolution"
+
+
+def _result(rho: float) -> STLRobustnessResult:
+    satisfied = rho >= 0.0
+    return STLRobustnessResult(
+        satisfied=satisfied,
+        verdict="SATISFIED" if satisfied else "VIOLATED",
+        min_robustness=rho,
+        critical_timestamp_s=0.10,
+        critical_step_index=50,
+        critical_predicate="floor",
+        critical_actual_value=0.05,
+        critical_threshold=0.05,
+        summary="Efficiency mock",
+        timeline=[],
+    )
+
+
+def test_efficiency_ratio_is_undefined_when_no_strategy_finds_a_violation():
+    space = RagnarokSearchSpace.from_contract(SafetyContract())
+
+    comp = compare_falsification_policies(space, lambda s: _result(0.5), evaluations_budget=6, seed=1)
+
+    assert comp["discovery_efficiency_status"] == "NO_VIOLATION_DISCOVERED"
+    assert comp["discovery_efficiency_ratio"] is None
+    assert comp["discovery_efficiency_bound"] is None
+    assert comp["falsification_achieved"] is False
+    # Per-strategy measurements are still reported.
+    for key in ("uniform_random", "sobol", "differential_evolution"):
+        assert comp[key]["evaluations"] == 6
+        assert comp[key]["min_robustness"] == pytest.approx(0.5)
+
+
+def test_efficiency_ratio_is_measured_only_when_both_strategies_find_violations():
+    space = RagnarokSearchSpace.from_contract(SafetyContract())
+
+    comp = compare_falsification_policies(space, lambda s: _result(-0.1), evaluations_budget=6, seed=1)
+
+    assert comp["discovery_efficiency_status"] == "MEASURED"
+    sobol_first = comp["sobol"]["first_violation"]
+    de_first = comp["differential_evolution"]["first_violation"]
+    assert comp["discovery_efficiency_ratio"] == pytest.approx(round(sobol_first / de_first, 3))
+    assert comp["discovery_efficiency_bound"] is None
+
+
+def test_efficiency_is_a_bound_when_only_one_strategy_finds_a_violation(monkeypatch):
+    import domnir.ragnarok.search as search_module
+
+    space = RagnarokSearchSpace.from_contract(SafetyContract())
+    real_sobol_run = search_module.SobolBaselineFalsifier.run
+
+    # Sobol sees a safe world; DE and uniform see a violating one.
+    def safe_sobol_run(self, evaluator, max_evaluations):
+        return real_sobol_run(self, lambda s: _result(0.5), max_evaluations=max_evaluations)
+
+    monkeypatch.setattr(search_module.SobolBaselineFalsifier, "run", safe_sobol_run)
+
+    comp = compare_falsification_policies(space, lambda s: _result(-0.1), evaluations_budget=6, seed=1)
+
+    assert comp["discovery_efficiency_status"] == "LOWER_BOUND"
+    assert comp["discovery_efficiency_ratio"] is None
+    de_first = comp["differential_evolution"]["first_violation"]
+    assert comp["discovery_efficiency_bound"] == pytest.approx(round(7 / de_first, 3))

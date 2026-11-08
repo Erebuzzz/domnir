@@ -34,7 +34,7 @@
       criticalWitness: null,
       minimizedWitness: null,
       repairedResult: null,
-      discoverySpeedup: 1.0,
+      discoverySpeedup: null,
     },
   };
 
@@ -386,6 +386,31 @@
     // Feedback
     toastContainer: document.getElementById("toastContainer"),
   };
+
+  // Discovery efficiency is Sobol/DE first-violation index. It is only a
+  // measurement when both strategies found a violation; otherwise the server
+  // reports a one-sided bound or that no violation was found.
+  function formatDiscoveryEfficiency(comp) {
+    if (!comp) return "NOT MEASURED";
+    switch (comp.discovery_efficiency_status) {
+      case "MEASURED":
+        return typeof comp.discovery_efficiency_ratio === "number"
+          ? comp.discovery_efficiency_ratio.toFixed(2) + "x"
+          : "NOT MEASURED";
+      case "LOWER_BOUND":
+        return typeof comp.discovery_efficiency_bound === "number"
+          ? "\u2265 " + comp.discovery_efficiency_bound.toFixed(2) + "x (Sobol found none)"
+          : "NOT MEASURED";
+      case "UPPER_BOUND":
+        return typeof comp.discovery_efficiency_bound === "number"
+          ? "\u2264 " + comp.discovery_efficiency_bound.toFixed(2) + "x (DE found none)"
+          : "NOT MEASURED";
+      case "NO_VIOLATION_DISCOVERED":
+        return "N/A: no violation discovered";
+      default:
+        return "NOT MEASURED";
+    }
+  }
 
   // Toast Notification System with Deduplication and Throttling
   function toast(message, type = "info") {
@@ -4234,19 +4259,16 @@
           typeof data.min_robustness === "number" ? data.min_robustness.toFixed(4) + " m" : "---";
       }
 
-      if (data.comparison && data.comparison.discovery_efficiency_ratio) {
-        state.ragnarok.discoverySpeedup = data.comparison.discovery_efficiency_ratio;
-        if (elements.atlasMetricSpeedup) {
-          elements.atlasMetricSpeedup.textContent = state.ragnarok.discoverySpeedup.toFixed(2) + "x";
-        }
-      } else if (data.strategy === "differential_evolution" && data.violations_found > 0) {
-        const speedup = (data.evaluations_count / (data.first_violation_iteration || 1));
-        state.ragnarok.discoverySpeedup = Math.max(1.0, speedup);
-        if (elements.atlasMetricSpeedup) {
-          elements.atlasMetricSpeedup.textContent = state.ragnarok.discoverySpeedup.toFixed(2) + "x";
-        }
-      } else {
-        if (elements.atlasMetricSpeedup) elements.atlasMetricSpeedup.textContent = "1.00x";
+      // Efficiency is a comparison between strategies; a single-strategy run
+      // has nothing to compare against, so it is not measured.
+      state.ragnarok.discoverySpeedup =
+        data.comparison && typeof data.comparison.discovery_efficiency_ratio === "number"
+          ? data.comparison.discovery_efficiency_ratio
+          : null;
+      if (elements.atlasMetricSpeedup) {
+        elements.atlasMetricSpeedup.textContent = data.comparison
+          ? formatDiscoveryEfficiency(data.comparison)
+          : "NOT MEASURED";
       }
 
       if (data.violations_found > 0 && data.critical_witness) {
@@ -4560,55 +4582,103 @@
         elements.replayDiffValue.textContent = Number(missionData.replay_max_abs_diff).toExponential(3);
       }
       if (elements.replayBadge) {
-        elements.replayBadge.textContent = missionData.replay_matched ? "MATCHED (1e-12)" : "DIVERGED";
+        const tol = typeof missionData.replay_tolerance === "number" ? missionData.replay_tolerance : null;
+        elements.replayBadge.textContent = missionData.replay_matched
+          ? "MATCHED" + (tol !== null ? " (\u2264 " + tol.toExponential(0) + ")" : "")
+          : "DIVERGED";
         elements.replayBadge.className = "badge " + (missionData.replay_matched ? "badge-success" : "badge-danger");
       }
 
-      // Separate Physical Stability and Mission Goal verdicts
-      if (elements.verdictFlight) {
-        const isSafe = missionData.physical_verdict === "NOT_FALSIFIED";
-        elements.verdictFlight.textContent = isSafe ? "NOT FALSIFIED" : "FALSIFIED";
-        elements.verdictFlight.className = "verdict-badge " + (isSafe ? "verdict-pass" : "verdict-fail");
-      }
+      // Every card below is driven by a server-reported field. Anything the
+      // server did not observe is shown as N/A or UNKNOWN, never as a pass.
+      const setVerdict = (el, text, tone) => {
+        if (!el) return;
+        el.textContent = text;
+        el.className = "verdict-badge " + (tone === "pass" ? "verdict-pass" : tone === "fail" ? "verdict-fail" : "verdict-unknown");
+      };
+      const stagesCompleted = typeof missionData.stages_completed === "number" ? missionData.stages_completed : null;
+      const totalStages = typeof missionData.total_stages === "number" ? missionData.total_stages : null;
+      const stageCountText = stagesCompleted !== null && totalStages
+        ? stagesCompleted + "/" + totalStages + " stages completed on time"
+        : "stage count not reported";
+      const missionCompleted = missionData.mission_verdict === "COMPLETED";
+
+      // Physical constraint verdict and mission objective are separate results.
+      const physical = missionData.physical_verdict;
+      setVerdict(
+        elements.verdictFlight,
+        physical === "NOT_FALSIFIED" ? "NOT FALSIFIED" : physical === "FALSIFIED" ? "FALSIFIED" : (physical || "UNKNOWN"),
+        physical === "NOT_FALSIFIED" ? "pass" : physical === "FALSIFIED" ? "fail" : "unknown"
+      );
       if (elements.verdictFlightDesc) {
         elements.verdictFlightDesc.textContent =
-          "Physical bounds: " + missionData.physical_verdict + " (" + (missionData.violation_reason || "Nominal dynamics") + "). " +
-          "Mission: " + missionData.mission_verdict + " (" + (missionData.stages_completed || 0) + "/" + (missionData.total_stages || 0) + " stages completed).";
+          "Physical bounds: " + physical + ". " +
+          "Mission: " + missionData.mission_verdict + " (" + stageCountText + ")" +
+          (missionData.mission_failure_reason ? ". " + missionData.mission_failure_reason : "") + ".";
       }
 
-      if (elements.verdictContainment) {
-        elements.verdictContainment.textContent = "CONTAINED (" + (missionData.execution_backend || "trusted") + ")";
-        elements.verdictContainment.className = "verdict-badge verdict-pass";
+      const isolation = missionData.isolation_status;
+      if (isolation === "MICROVM") {
+        setVerdict(elements.verdictContainment, "MICROVM", "pass");
+      } else if (isolation === "UNISOLATED") {
+        setVerdict(elements.verdictContainment, "UNISOLATED (DEV)", "fail");
+      } else if (isolation === "NOT_APPLICABLE") {
+        setVerdict(elements.verdictContainment, "N/A", "unknown");
+      } else {
+        setVerdict(elements.verdictContainment, "UNKNOWN", "unknown");
       }
       if (elements.verdictContainmentDesc) {
         elements.verdictContainmentDesc.textContent =
-          "Execution verified in sandbox boundary via " + (missionData.execution_backend || "trusted kernel") + ".";
+          isolation === "MICROVM"
+            ? "Custom controller ran in a hardware-isolated microVM (" + missionData.controller_exchanges + " guest exchanges)."
+            : isolation === "UNISOLATED"
+              ? "Development subprocess fallback. The controller was NOT isolated."
+              : isolation === "NOT_APPLICABLE"
+                ? "Trusted built-in baseline ran on the host. No guest microVM was used."
+                : "The server did not report isolation status.";
       }
 
-      if (elements.verdictProvenance) {
-        elements.verdictProvenance.textContent = (missionData.model_id || missionData.controller_type || "VERIFIED").toUpperCase();
-        elements.verdictProvenance.className = "verdict-badge verdict-pass";
+      const provenance = missionData.provenance_status;
+      if (provenance === "BUILT_IN_BASELINE") {
+        setVerdict(elements.verdictProvenance, "BUILT-IN BASELINE", "pass");
+      } else {
+        setVerdict(elements.verdictProvenance, provenance === "UNVERIFIED_ORIGIN" ? "UNVERIFIED ORIGIN" : "UNKNOWN", "unknown");
       }
       if (elements.verdictProvenanceDesc) {
+        const hashText = missionData.controller_hash ? " SHA-256 " + missionData.controller_hash.slice(0, 10) + "\u2026 identifies the code bytes only." : "";
         elements.verdictProvenanceDesc.textContent =
-          "Controller: " + (missionData.controller_type || "baseline") +
-          (missionData.controller_hash ? " (SHA-256: " + missionData.controller_hash.slice(0, 10) + "...)" : "");
+          provenance === "BUILT_IN_BASELINE"
+            ? "Server-side built-in baseline controller."
+            : "Model label '" + (missionData.model_id || "none") + "' is client-reported and not verified." + hashText;
       }
 
-      if (elements.verdictCleanup) {
-        elements.verdictCleanup.textContent = "TERMINATED";
-        elements.verdictCleanup.className = "verdict-badge verdict-pass";
+      const cleanup = missionData.cleanup_status;
+      if (cleanup === "SUCCEEDED") {
+        setVerdict(elements.verdictCleanup, "SUCCEEDED", "pass");
+      } else if (cleanup === "FAILED") {
+        setVerdict(elements.verdictCleanup, "FAILED", "fail");
+      } else if (cleanup === "NOT_APPLICABLE") {
+        setVerdict(elements.verdictCleanup, "N/A", "unknown");
+      } else {
+        setVerdict(elements.verdictCleanup, "UNKNOWN", "unknown");
       }
       if (elements.verdictCleanupDesc) {
-        elements.verdictCleanupDesc.textContent = "Sandboxed execution resources safely stopped and reclaimed.";
+        elements.verdictCleanupDesc.textContent =
+          cleanup === "SUCCEEDED"
+            ? "Guest teardown was observed by the server for this run."
+            : cleanup === "FAILED"
+              ? "Guest teardown reported an error. Resources may not have been reclaimed."
+              : cleanup === "NOT_APPLICABLE"
+                ? "No guest process or microVM was created for this run."
+                : "Teardown was not observed for this run.";
       }
 
       if (elements.adjudicationText) {
         elements.adjudicationText.textContent =
-          "Gauntlet Adjudication: Physical safety " + missionData.physical_verdict +
+          "Gauntlet Adjudication: Physical safety " + physical +
           ", Mission navigation " + missionData.mission_verdict +
-          " (" + (missionData.stages_completed || 0) + "/" + (missionData.total_stages || 0) + " stages completed). " +
-          (missionData.limitation_note || "Deterministic 500 Hz replay matched within 1e-12.");
+          " (" + stageCountText + "). " +
+          (missionData.limitation_note || "");
       }
 
       if (missionData.trajectory && missionData.trajectory.length > 0) {
@@ -4621,7 +4691,10 @@
         });
       }
 
-      toast("Ragnarök Gauntlet executed. Physical: " + missionData.physical_verdict + " | Mission: " + missionData.mission_verdict, "success");
+      toast(
+        "Ragnarök Gauntlet finished. Physical: " + physical + " | Mission: " + missionData.mission_verdict + " (" + stageCountText + ")",
+        missionCompleted && physical === "NOT_FALSIFIED" ? "success" : "warning"
+      );
     } catch (err) {
       toast("Gauntlet execution failed: " + err.message, "error");
     } finally {
@@ -4784,11 +4857,7 @@
       const comp = data.comparison || {};
 
       if (elements.benchDeSpeedup) {
-        if (typeof comp.discovery_efficiency_ratio === "number") {
-          elements.benchDeSpeedup.textContent = comp.discovery_efficiency_ratio.toFixed(2) + "x";
-        } else {
-          elements.benchDeSpeedup.textContent = "1.00x";
-        }
+        elements.benchDeSpeedup.textContent = formatDiscoveryEfficiency(comp);
       }
 
       if (elements.benchSobolDispersion) {
@@ -4817,8 +4886,8 @@
         }
       }
 
-      const ratioStr = comp.discovery_efficiency_ratio ? comp.discovery_efficiency_ratio.toFixed(2) + "x" : "measured";
-      toast("Benchmark comparison completed (" + (data.evaluations_count || 18) + " total evaluations across 3 strategies). DE efficiency ratio: " + ratioStr + ".", "success");
+      const evalCount = typeof data.evaluations_count === "number" ? data.evaluations_count : "unknown";
+      toast("Benchmark comparison completed (" + evalCount + " total evaluations across 3 strategies). DE efficiency: " + formatDiscoveryEfficiency(comp) + ".", "success");
     } catch (err) {
       toast("Benchmark failed: " + err.message, "error");
     } finally {

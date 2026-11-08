@@ -44,6 +44,25 @@ class MissionConstraints(BaseModel):
     fail_on_unpermitted_contact: bool = True
 
 
+class StageTimeoutPolicy(str, Enum):
+    """What the tracker does when the active stage misses its deadline.
+
+    ABORT: the stage is TIMED_OUT, every later stage is ABORTED, and the
+    controller keeps receiving the timed-out stage's target until the
+    scheduled end of the flight so physical safety is still evaluated over
+    the whole window.
+    ADVANCE: the stage is TIMED_OUT and the tracker moves on to the next
+    stage, so later stages can still be attempted (and judged on their own
+    deadlines). The mission verdict is NOT_COMPLETED either way.
+    """
+
+    ABORT = "abort"
+    ADVANCE = "advance"
+
+
+MAX_MISSION_STAGES = 12
+
+
 class MissionSpecV2(BaseModel):
     schema_version: str = "mission-v2"
     mission_id: str
@@ -51,10 +70,25 @@ class MissionSpecV2(BaseModel):
     coordinate_frame: str = "world-z-up-right-handed"
     physics_dt_s: float = Field(default=0.002, frozen=True)
     controller_dt_s: float = Field(default=0.002, ge=0.002, le=0.02)
-    stages: list[MissionStage] = Field(min_length=1)
+    stages: list[MissionStage] = Field(min_length=1, max_length=MAX_MISSION_STAGES)
+    stage_timeout_policy: StageTimeoutPolicy = StageTimeoutPolicy.ABORT
     constraints: MissionConstraints = Field(default_factory=MissionConstraints)
     allowed_scenario_variations: dict[str, Any] = Field(default_factory=dict)
     random_seed: int = 42
+
+    @model_validator(mode="after")
+    def validate_stage_deadlines(self) -> MissionSpecV2:
+        # Stages run in order, so their deadlines must not go backwards. The
+        # last deadline is also the scheduled end of the flight.
+        previous = 0.0
+        for stage in self.stages:
+            if stage.completion_deadline_s < previous:
+                raise ValueError(
+                    f"Stage '{stage.id}' deadline {stage.completion_deadline_s}s is earlier "
+                    f"than the previous stage deadline {previous}s; deadlines must be non-decreasing"
+                )
+            previous = stage.completion_deadline_s
+        return self
 
     @property
     def total_mission_duration_s(self) -> float:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 from pydantic import BaseModel, Field
+from domnir.missions.progress import DEADLINE_EPSILON_S
 from domnir.missions.schema import MissionSpecV2, MissionStageKind
 from domnir.worlds.schema import EntityKind, WorldSpec
 
@@ -29,6 +30,9 @@ class MissionSafetyEvaluation(BaseModel):
     critical_step_index: int
     contacts_detected: list[ContactEvent] = Field(default_factory=list)
     stage_results: list[dict[str, Any]] = Field(default_factory=list)
+    stages_completed: int = 0
+    total_stages: int = 0
+    mission_failure_reason: str | None = None
     summary: str
 
 
@@ -51,6 +55,8 @@ class MissionSafetyMonitor:
                 critical_predicate="empty_trajectory",
                 critical_timestamp_s=0.0,
                 critical_step_index=0,
+                total_stages=len(mission.stages),
+                mission_failure_reason="No telemetry recorded",
                 summary="Trajectory is empty. No telemetry recorded.",
             )
 
@@ -167,16 +173,51 @@ class MissionSafetyMonitor:
                     f"Landing impact speed {lc.impact_velocity_mps:.3f} m/s exceeded max allowed {constraints.max_landing_impact_speed_mps:.3f} m/s"
                 )
 
-        # 4. Mission completion check
-        all_completed = len(stage_history) >= len(mission.stages) and all(
-            st.get("status") == "COMPLETED" for st in stage_history
+        # 4. Mission completion check. A stage only counts if it was marked
+        # COMPLETED *and* its recorded completion time is within its deadline,
+        # so a tracker bug cannot turn a late arrival into mission success.
+        stage_by_id = {st.id: st for st in mission.stages}
+        stages_completed = 0
+        first_failed_stage: dict[str, Any] | None = None
+        for entry in stage_history:
+            spec_stage = stage_by_id.get(entry.get("stage_id"))
+            completed_at = entry.get("completed_at_s")
+            on_time = (
+                entry.get("status") == "COMPLETED"
+                and spec_stage is not None
+                and completed_at is not None
+                and completed_at <= spec_stage.completion_deadline_s + DEADLINE_EPSILON_S
+            )
+            if on_time:
+                stages_completed += 1
+            elif first_failed_stage is None:
+                first_failed_stage = entry
+        total_stages = len(mission.stages)
+        all_completed = (
+            len(stage_history) == total_stages
+            and stages_completed == total_stages
         )
 
         physical_verdict = "FALSIFIED" if physical_falsified else "NOT_FALSIFIED"
         mission_verdict = "COMPLETED" if all_completed else "NOT_COMPLETED"
 
+        mission_failure_reason = None
+        if not all_completed:
+            if first_failed_stage is not None:
+                mission_failure_reason = (
+                    f"Stage '{first_failed_stage.get('stage_id')}' {first_failed_stage.get('status')}"
+                    + (f": {first_failed_stage['reason']}" if first_failed_stage.get("reason") else "")
+                )
+            else:
+                mission_failure_reason = (
+                    f"Only {len(stage_history)} of {total_stages} stages have a recorded outcome"
+                )
+
         summary = (
-            f"Physical verdict: {physical_verdict}. Mission state: {mission_verdict}. "
+            f"Physical verdict: {physical_verdict}. Mission state: {mission_verdict} "
+            f"({stages_completed}/{total_stages} stages completed on time"
+            + (f"; {mission_failure_reason}" if mission_failure_reason else "")
+            + "). "
             f"Min robustness: {min_rob:.4f} ({crit_pred}). "
         )
         if reasons:
@@ -194,5 +235,8 @@ class MissionSafetyMonitor:
             critical_step_index=crit_step,
             contacts_detected=contacts,
             stage_results=stage_history,
+            stages_completed=stages_completed,
+            total_stages=total_stages,
+            mission_failure_reason=mission_failure_reason,
             summary=summary,
         )

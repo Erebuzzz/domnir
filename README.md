@@ -305,6 +305,7 @@ flowchart TD
   3. Transit cleanly through the 0.45 x 0.45 m cyan gate at $z = 0.45$ m.
   4. Withstand an admissible lateral wind gust ($F_y = 0.015$ N).
   5. Execute controlled descent to a precision touchdown on the landing pad at $(1.10, 0.0, 0.03)$ m.
+- **Current status:** with stage deadlines enforced, the built-in baseline completes takeoff but misses the slalom deadline (1.80 s), so the default Gauntlet returns `mission_verdict=NOT_COMPLETED` (1/5 stages). The physical verdict is still `NOT_FALSIFIED`. The deadlines have not yet been recalibrated against an achievable baseline flight profile.
 
 ---
 
@@ -397,6 +398,9 @@ The FastAPI service exposes structured, type-safe REST endpoints with Pydantic s
 - `GET /worlds`: Lists available physical worlds (`arena-gate-v1`, `gauntlet-v1`) with entity counts and asset IDs.
 - `GET /worlds/{id}`: Retrieves detailed world configuration, colliders, aperture geometry, and asset manifest hashes.
 - `POST /missions/run`: Executes full 6DOF mission simulation across waypoints, obstacles, wind disturbances, and landing targets.
+  - **Stage deadlines are enforced.** A stage is `COMPLETED` only if it is reached (and dwelled) at or before its `completion_deadline_s`; otherwise it is `TIMED_OUT`, and stages never attempted are `ABORTED`. `stage_timeout_policy` is `abort` (default: later stages are aborted) or `advance` (move on and judge each later stage on its own deadline). `mission_verdict` is `COMPLETED` only when every stage completed on time.
+  - **Limits:** at most 10 s of simulated flight (5,000 physics steps), 12 stages, 16 faults of each kind, 90 s of wall time per run, 2 concurrent runs and 4 waiting. Over-limit requests get 422. A full queue gets 503 with `Retry-After`. A run over its wall-time budget gets 504.
+  - **Evidence fields:** `stages_completed`/`total_stages`, `isolation_status` (`NOT_APPLICABLE` for the built-in baseline, `MICROVM`, or `UNISOLATED` for the dev fallback), `cleanup_status` (teardown observed for this run), and `provenance_status` (`BUILT_IN_BASELINE`, or `UNVERIFIED_ORIGIN` for any submitted source, whose `model_id` is client-reported). Sandbox setup or guest failures return 502 with the observed cleanup status rather than a physical verdict.
 
 ### Verification and Containment
 - `POST /court-records/verify`: Independent in-memory physical replay verifier. Replays recorded actions on a fresh MuJoCo instance, verifies SHA-256 hashes, and checks event log chaining.

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 import mujoco
@@ -18,6 +20,14 @@ from domnir.protocol import ActionBounds, parse_action
 from domnir.safety.mission_monitor import ContactEvent, MissionSafetyEvaluation, MissionSafetyMonitor
 from domnir.worlds.compiler import MJCFWorldCompiler
 from domnir.worlds.schema import WorldSpec
+
+
+class MissionCancelledError(RuntimeError):
+    """Raised when a caller cancels a mission run before it finishes."""
+
+
+class MissionWallTimeExceededError(RuntimeError):
+    """Raised when a mission run exceeds its wall-clock budget."""
 
 
 class MissionSimulationResult:
@@ -53,8 +63,17 @@ def run_mission_simulation(
     faults: MissionFaultSchedule | None = None,
     seed: int = 42,
     initial_pos_m: list[float] | None = None,
+    max_wall_time_s: float | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> MissionSimulationResult:
-    """Execute complete 3D mission in trusted MuJoCo physics engine."""
+    """Execute complete 3D mission in trusted MuJoCo physics engine.
+
+    ``max_wall_time_s`` and ``cancel_event`` are checked before every control
+    step; when either trips, the run stops with ``MissionWallTimeExceededError``
+    or ``MissionCancelledError`` and no partial verdict is produced. The caller
+    owns any guest resources and must tear them down.
+    """
+    started = time.monotonic()
     effective_faults = fault_schedule if fault_schedule is not None else faults
     # 1. Compile world geometry into MuJoCo MJCF XML
     compiled_xml = MJCFWorldCompiler.compile(base_model_path, world)
@@ -94,6 +113,12 @@ def run_mission_simulation(
     contacts: list[ContactEvent] = []
 
     for step_idx in range(steps):
+        if cancel_event is not None and cancel_event.is_set():
+            raise MissionCancelledError(f"Mission cancelled at step {step_idx} of {steps}")
+        if max_wall_time_s is not None and time.monotonic() - started > max_wall_time_s:
+            raise MissionWallTimeExceededError(
+                f"Mission exceeded wall-time budget of {max_wall_time_s:.1f}s at step {step_idx} of {steps}"
+            )
         sim_time = float(data.time)
         pos = data.qpos[:3].tolist()
         vel = data.qvel[:3].tolist()
@@ -217,6 +242,9 @@ def run_mission_simulation(
             "effective_action": list(effective_action),
             "wind_force_n": wind_f,
         })
+
+    # Any stage still active when the flight ends did not finish in time.
+    progress.finalize(float(data.time))
 
     # Evaluate safety and mission completion
     evaluation = MissionSafetyMonitor.evaluate(

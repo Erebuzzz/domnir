@@ -311,10 +311,29 @@ class MissionRunResponse(BaseModel):
     critical_timestamp_s: float
     replay_matched: bool
     replay_max_abs_diff: float
+    replay_tolerance: float = 1e-12
     summary: str
     trajectory: list[dict[str, Any]] = Field(default_factory=list)
+    trajectory_samples_total: int = 0
     contacts: list[dict[str, Any]] = Field(default_factory=list)
+    contacts_total: int = 0
     stage_results: list[dict[str, Any]] = Field(default_factory=list)
+    stages_completed: int = 0
+    total_stages: int = 0
+    mission_failure_reason: str | None = None
+    # Isolation: "NOT_APPLICABLE" for the trusted built-in baseline (no guest
+    # code runs), "MICROVM" for hardware isolation, "UNISOLATED" for the
+    # development subprocess fallback.
+    isolation_status: str = "NOT_APPLICABLE"
+    # Teardown observed for this run: NOT_APPLICABLE (no guest), SUCCEEDED,
+    # FAILED, or UNKNOWN.
+    cleanup_status: str = "NOT_APPLICABLE"
+    # BUILT_IN_BASELINE, or UNVERIFIED_ORIGIN for any submitted source.
+    # model_id for submitted source is client-reported and not verified.
+    provenance_status: str = "BUILT_IN_BASELINE"
+    model_id_source: str = "server"
+    controller_exchanges: int = 0
+    wall_time_s: float = 0.0
     limitation_note: str = (
         "Passing a finite collection of test scenarios does not constitute a formal proof of universal flight safety."
     )
