@@ -14,13 +14,21 @@ class Baseline3DController:
         *,
         mass_kg: float = 0.027,
         gravity_mps2: float = 9.81,
-        kp_pos: tuple[float, float, float] = (4.0, 4.0, 6.5),
-        kd_pos: tuple[float, float, float] = (2.2, 2.2, 3.2),
-        kp_att: tuple[float, float, float] = (0.35, 0.35, 0.15),
-        kd_att: tuple[float, float, float] = (0.04, 0.04, 0.02),
+        # Gains are derived from the pinned cf2.xml model: each moment command
+        # in [-1, 1] produces 1e-5 N*m (actuator gear), and the body inertia
+        # is Ixx = Iyy = 2.3951e-5, Izz = 3.2347e-5 kg*m^2. The full-scale
+        # angular acceleration is therefore only ~0.42 rad/s^2 (roll/pitch),
+        # so the attitude loop is tuned to wn = 4 rad/s, zeta = 0.9
+        # (kp = wn^2 * I / 1e-5, kd = 2 * zeta * wn * I / 1e-5) and yaw to
+        # wn = 1.5 rad/s. The horizontal position loop (wn = 1.2 rad/s) and
+        # tilt limit (0.30 rad) keep the outer loop slower than attitude.
+        kp_pos: tuple[float, float, float] = (1.44, 1.44, 6.5),
+        kd_pos: tuple[float, float, float] = (2.16, 2.16, 3.2),
+        kp_att: tuple[float, float, float] = (38.32, 38.32, 7.278),
+        kd_att: tuple[float, float, float] = (17.245, 17.245, 8.734),
         max_thrust_n: float = 0.35,
         min_thrust_n: float = 0.0,
-        max_tilt_rad: float = 0.60,
+        max_tilt_rad: float = 0.30,
     ) -> None:
         self.mass = mass_kg
         self.g = gravity_mps2
@@ -107,10 +115,13 @@ class Baseline3DController:
         err_yaw = (target_yaw_rad - current_yaw + math.pi) % (2.0 * math.pi) - math.pi
 
         # 5. Moments with rate damping
-        # cf2.xml actuator gear is negative (-1e-5), reversing moment direction relative to body frame
+        # cf2.xml actuator gear is negative (-1e-5) on all three moment axes,
+        # reversing moment direction relative to the body frame. Yaw needs the
+        # same sign flip as roll and pitch; without it the yaw loop is
+        # positive feedback and diverges once pad contact disturbs yaw.
         mx = -(self.kp_att[0] * err_roll - self.kd_att[0] * omega[0])
         my = -(self.kp_att[1] * err_pitch - self.kd_att[1] * omega[1])
-        mz = self.kp_att[2] * err_yaw - self.kd_att[2] * omega[2]
+        mz = -(self.kp_att[2] * err_yaw - self.kd_att[2] * omega[2])
 
         # Clamp moments to [-1.0, 1.0]
         mx = max(-1.0, min(1.0, mx))

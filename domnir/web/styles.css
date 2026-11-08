@@ -4548,3 +4548,47 @@ html.rune-dawn .section-tag {
   }
 }
 
+
+/* Mission timeline panel and mission-record verifier checks */
+.mission-panel {
+  margin-top: 16px;
+}
+
+.mission-stage-table td,
+.mission-stage-table th {
+  white-space: nowrap;
+}
+
+.mission-panel-note {
+  margin: 10px 0 0;
+  padding: 0 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.mission-contact-list {
+  margin: 8px 0 0;
+  padding: 0 16px 12px 34px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.mission-contact-list li {
+  margin-bottom: 3px;
+}
+
+.verify-checks-box {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.check-pass {
+  color: var(--accent-emerald);
+}
+
+.check-fail {
+  color: var(--accent-rose);
+}

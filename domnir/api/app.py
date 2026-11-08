@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
-import shutil
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -15,13 +14,30 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from domnir.court_record import verify_court_record
+from domnir.provenance import controller_artifacts
+from domnir.signing import get_signer
+from domnir.missions.court_record import MISSION_SCHEMA_VERSION, build_mission_court_record, verify_mission_court_record
 from domnir.api.jobs import (
     JobOrchestrator,
     get_default_model_path,
-    _MicroVMGuestStream,
-    _IsolatedSubprocessGuestStream,
 )
-from domnir.sandbox import SandboxLease, validate_controller_source
+from domnir.api.mission_runner import (
+    CLEANUP_NOT_APPLICABLE,
+    MAX_CONTACTS_RETURNED,
+    MAX_MISSION_WALL_TIME_S,
+    MAX_QUEUE_WAIT_S,
+    MAX_TRAJECTORY_SAMPLES,
+    GuestExecution,
+    GuestSetupError,
+    MissionCapacityError,
+    Stopwatch,
+    downsample,
+    mission_records,
+    mission_slots,
+    start_dev_subprocess_guest,
+    start_microvm_guest,
+)
+from domnir.sandbox import validate_controller_source
 from domnir.faults.schema import MissionFaultSchedule, WindGust3D
 from domnir.api.models import (
     ArtifactsResponse,
@@ -51,7 +67,12 @@ from domnir.api.models import (
     SpecValidationResponse,
 )
 from domnir.worlds import list_worlds, get_world
-from domnir.missions import run_mission_simulation, MissionSpecV2, MissionStage, MissionStageKind, MissionConstraints
+from domnir.missions.defaults import default_mission
+from domnir.missions import (
+    MissionCancelledError,
+    MissionWallTimeExceededError,
+    run_mission_simulation,
+)
 from domnir.controls import Baseline3DController
 from domnir.contracts.stl import SafetyContract, STLMonitor, STLRobustnessResult
 from domnir.ragnarok.minimize import CounterexampleMinimizer
@@ -86,10 +107,20 @@ from domnir.inference.vultr import (
 )
 from domnir.spec import FlightSpec
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    mission_slots.shutdown_event.clear()
+    yield
+    # On shutdown, stop in-flight missions at their next control step so their
+    # guest microVMs are torn down instead of running to max-duration.
+    mission_slots.shutdown_event.set()
+
+
 app = FastAPI(
     title="Dómnir Orchestrator API",
     description="Adversarial qualification and containment platform for AI-generated flight controllers.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -203,18 +234,35 @@ def generate_controller(request: GenerateControllerRequest) -> GenerateControlle
         )
 
     try:
-        controller = orchestrator.inference_client.generate_controller(
+        controller, inference = orchestrator.inference_client.generate_controller_with_metadata(
             request.spec,
             model=model_id,
             prompt_version=request.prompt_version,
             reasoning_effort=request.reasoning_effort,
             max_tokens=request.max_tokens,
         )
+        # Record what this server generated so later runs can resolve
+        # provenance by artifact ID instead of trusting a client-sent model.
+        artifact = controller_artifacts.register(
+            source_code=controller.source_code,
+            model_id=controller.model_id,
+            requested_model=model_id,
+            prompt_version=request.prompt_version,
+            reasoning_effort=request.reasoning_effort,
+            finish_reason=inference.finish_reason,
+            system_fingerprint=inference.system_fingerprint,
+            prompt_tokens=inference.prompt_tokens,
+            completion_tokens=inference.completion_tokens,
+        )
+        signed = controller_artifacts.get_signed(artifact.artifact_id)
         return GenerateControllerResponse(
             controller=controller,
             model_id=controller.model_id,
             source_sha256=controller.source_sha256,
             reasoning_effort=request.reasoning_effort,
+            artifact_id=artifact.artifact_id,
+            attestation=signed.attestation if signed else None,
+            attestation_signature=signed.signature if signed else None,
             message="Controller generated and statically validated",
         )
     except Exception as error:
@@ -341,6 +389,30 @@ def verify_court_record_endpoint(
             detail="Valid Court Record payload is required",
         )
 
+    if record_data.get("schema_version") == MISSION_SCHEMA_VERSION:
+        # Mission verification re-flies the whole mission, so it shares the
+        # bounded mission execution slots.
+        try:
+            mission_slots.acquire(MAX_QUEUE_WAIT_S)
+        except MissionCapacityError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Verifier busy: {exc}. Retry shortly.",
+                headers={"Retry-After": "10"},
+            )
+        try:
+            return CourtRecordVerifyResponse(
+                **verify_mission_court_record(
+                    record_data,
+                    model_path=orchestrator.model_path,
+                    # This server trusts its own signing key. Offline
+                    # verifiers pin it via GET /provenance/keys.
+                    trusted_keys={get_signer().info.key_id: get_signer().info.public_key},
+                )
+            )
+        finally:
+            mission_slots.release()
+
     try:
         result = verify_court_record(
             record_data, model_path=orchestrator.model_path
@@ -411,6 +483,17 @@ def _evaluate_scenario_with_orchestrator(
     return STLMonitor.evaluate_trajectory(contract, job.trajectory)
 
 
+def _describe_discovery_efficiency(comp: dict[str, Any]) -> str:
+    status_ = comp.get("discovery_efficiency_status")
+    if status_ == "MEASURED":
+        return f"Sobol/DE first-violation ratio: {comp['discovery_efficiency_ratio']}x."
+    if status_ == "LOWER_BOUND":
+        return f"Only DE found a violation; ratio is at least {comp['discovery_efficiency_bound']}x."
+    if status_ == "UPPER_BOUND":
+        return f"Only Sobol found a violation; ratio is at most {comp['discovery_efficiency_bound']}x."
+    return "No strategy found a violation within the budget, so the efficiency ratio is undefined."
+
+
 @app.post("/ragnarok/falsify", response_model=RagnarokFalsifyResponse)
 def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsifyResponse:
     try:
@@ -436,7 +519,10 @@ def ragnarok_falsify_endpoint(request: RagnarokFalsifyRequest) -> RagnarokFalsif
                 min_robustness=comp["differential_evolution"]["min_robustness"],
                 best_scenario={"strategy": "comparison"},
                 comparison=comp,
-                summary=f"Compared Uniform Random vs Sobol vs Differential Evolution (total {total_evals} evaluations across 3 strategies). DE/Sobol efficiency ratio: {comp.get('discovery_efficiency_ratio', 1.0)}",
+                summary=(
+                    f"Compared Uniform Random vs Sobol vs Differential Evolution (total {total_evals} "
+                    f"evaluations across 3 strategies). {_describe_discovery_efficiency(comp)}"
+                ),
             )
         elif request.strategy == "sobol":
             falsifier = SobolBaselineFalsifier(space, seed=request.seed)
@@ -660,7 +746,9 @@ async def get_world_detail_endpoint(world_id: str) -> dict[str, Any]:
 
 
 @app.post("/missions/run", response_model=MissionRunResponse)
-async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
+def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
+    # Plain ``def``: FastAPI runs this in its worker threadpool, so the
+    # synchronous MuJoCo/microVM loop never blocks the ASGI event loop.
     model_path = get_default_model_path()
     if not model_path.exists():
         raise HTTPException(
@@ -678,139 +766,16 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
 
     mission = request.mission
     if mission is None:
-        if request.world_id == "precision-landing":
-            stages = [
-                MissionStage(
-                    id="approach",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.80, 0.0, 0.08],
-                    tolerance_m=0.06,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.40,
-                ),
-                MissionStage(
-                    id="touchdown",
-                    kind=MissionStageKind.LANDING,
-                    target_position_m=[0.80, 0.0, 0.02],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=1.50,
-                    pad_id="pad-target",
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.01,
-                max_landing_impact_speed_mps=1.0,
-                fail_on_unpermitted_contact=True,
-            )
-            init_pos = request.initial_pos_m or [0.80, 0.0, 0.15]
-        elif request.world_id == "ragnarok-gauntlet":
-            stages = [
-                MissionStage(
-                    id="takeoff",
-                    kind=MissionStageKind.TAKEOFF,
-                    target_position_m=[0.0, 0.0, 0.25],
-                    tolerance_m=0.10,
-                    dwell_s=0.0,
-                    completion_deadline_s=0.80,
-                ),
-                MissionStage(
-                    id="slalom_pillar",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.35, -0.05, 0.35],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=1.80,
-                ),
-                MissionStage(
-                    id="transit_gate",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.70, -0.05, 0.38],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=2.80,
-                ),
-                MissionStage(
-                    id="approach_pad",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[1.00, -0.02, 0.25],
-                    tolerance_m=0.20,
-                    dwell_s=0.0,
-                    completion_deadline_s=3.60,
-                ),
-                MissionStage(
-                    id="precision_touchdown",
-                    kind=MissionStageKind.LANDING,
-                    target_position_m=[1.15, 0.0, 0.02],
-                    tolerance_m=0.25,
-                    dwell_s=0.01,
-                    completion_deadline_s=4.50,
-                    pad_id="gauntlet-pad",
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.01,
-                max_altitude_m=1.20,
-                max_speed_mps=3.5,
-                max_tilt_deg=55.0,
-                fail_on_unpermitted_contact=True,
-                max_landing_impact_speed_mps=1.5,
-            )
-            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
-        else:
-            stages = [
-                MissionStage(
-                    id="takeoff",
-                    kind=MissionStageKind.TAKEOFF,
-                    target_position_m=[0.0, 0.0, 0.20],
-                    tolerance_m=0.06,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.25,
-                ),
-                MissionStage(
-                    id="slalom_waypoint",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.10, -0.05, 0.22],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.60,
-                ),
-                MissionStage(
-                    id="terminal_approach",
-                    kind=MissionStageKind.WAYPOINT,
-                    target_position_m=[0.15, 0.0, 0.15],
-                    tolerance_m=0.08,
-                    dwell_s=0.02,
-                    completion_deadline_s=0.90,
-                ),
-            ]
-            constraints = MissionConstraints(
-                min_altitude_m=0.02,
-                max_altitude_m=1.00,
-                max_tilt_deg=55.0,
-                fail_on_unpermitted_contact=True,
-            )
-            init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
-
-        mission = MissionSpecV2(
-            mission_id=f"mission-{request.world_id}",
-            world_id=request.world_id,
-            stages=stages,
-            constraints=constraints,
-        )
+        mission, default_init = default_mission(request.world_id)
+        init_pos = request.initial_pos_m or default_init
     else:
         init_pos = request.initial_pos_m or [0.0, 0.0, 0.05]
 
-    exec_backend = "host_trusted_kernel"
-    ctrl_type = request.controller_type or "baseline_3d"
-    ctrl_hash = None
     is_prod = os.environ.get("DOMNIR_ENV", os.environ.get("ENV", "")).lower() in {"production", "prod", "live"}
-    stream = None
-    lease = None
-
-    if request.controller_source is not None:
+    is_custom = request.controller_source is not None
+    ctrl_hash = None
+    if is_custom:
         ctrl_hash = hashlib.sha256(request.controller_source.encode("utf-8")).hexdigest()
-        ctrl_type = "custom_controller"
         try:
             validate_controller_source(request.controller_source.encode("utf-8"))
         except ValueError as exc:
@@ -818,54 +783,83 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid controller source: {exc}",
             )
-        if is_microvm_available():
-            msb_path = Path(os.environ.get("DOMNIR_MSB") or shutil.which("msb"))
-            lease = SandboxLease(msb_path, duration_seconds=120)
-            lease.__enter__()
-            lease.install_controller(request.controller_source.encode("utf-8"))
-            stream = _MicroVMGuestStream(lease)
-            exec_backend = "microvm"
-        elif not is_prod and os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1":
-            stream = _IsolatedSubprocessGuestStream(request.controller_source)
-            exec_backend = "subprocess_dev_unisolated"
-        else:
+        use_microvm = is_microvm_available()
+        use_dev_subprocess = (
+            not use_microvm
+            and not is_prod
+            and os.environ.get("DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK") == "1"
+        )
+        if not (use_microvm or use_dev_subprocess):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Untrusted controller code execution is disabled when hardware microVM isolation is unavailable.",
             )
 
-        def guest_callback(obs: dict[str, Any]) -> dict[str, Any]:
-            raw_res = stream.exchange(obs)
-            return json.loads(raw_res)
-
-        controller_callback = guest_callback
-    else:
-        ctrl = Baseline3DController()
-        controller_callback = lambda obs: ctrl.compute_action(obs)
-
     try:
-        res = run_mission_simulation(
-            model_path,
-            mission,
-            world,
-            controller_callback,
-            faults=request.faults,
-            initial_pos_m=init_pos,
+        mission_slots.acquire(MAX_QUEUE_WAIT_S)
+    except MissionCapacityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Mission runner busy: {exc}. Retry shortly.",
+            headers={"Retry-After": "10"},
         )
-    finally:
-        if stream is not None:
-            try:
-                stream.close()
-            except Exception:
-                pass
-        if lease is not None:
-            try:
-                lease.remove()
-            except Exception:
-                pass
 
-    stride = max(1, len(res.trajectory) // 250)
-    sampled_traj = res.trajectory[::stride]
+    stopwatch = Stopwatch()
+    guest: GuestExecution | None = None
+    try:
+        if is_custom:
+            try:
+                guest = (
+                    start_microvm_guest(request.controller_source)
+                    if use_microvm
+                    else start_dev_subprocess_guest(request.controller_source)
+                )
+            except GuestSetupError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Controller sandbox setup failed: {exc}. Guest cleanup: {exc.cleanup_status}.",
+                )
+            controller_callback = guest.callback()
+        else:
+            ctrl = Baseline3DController()
+            controller_callback = lambda obs: ctrl.compute_action(obs)
+
+        run_error: HTTPException | None = None
+        res = None
+        try:
+            res = run_mission_simulation(
+                model_path,
+                mission,
+                world,
+                controller_callback,
+                faults=request.faults,
+                initial_pos_m=init_pos,
+                max_wall_time_s=MAX_MISSION_WALL_TIME_S,
+                cancel_event=mission_slots.shutdown_event,
+            )
+        except MissionWallTimeExceededError as exc:
+            run_error = HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc))
+        except MissionCancelledError as exc:
+            run_error = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+        except Exception as exc:
+            if guest is None:
+                raise
+            # A guest crash, timeout or malformed action is a failed run,
+            # not a physical falsification of the controller.
+            run_error = HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Controller execution failed ({type(exc).__name__}: {str(exc)[:200]})",
+            )
+        finally:
+            if guest is not None:
+                guest.teardown()
+
+        if run_error is not None:
+            if guest is not None:
+                run_error.detail = f"{run_error.detail}. Guest cleanup: {guest.cleanup_status}."
+            raise run_error
+    finally:
+        mission_slots.release()
 
     contacts_data = [
         {
@@ -877,16 +871,53 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
             "impact_velocity_mps": c.impact_velocity_mps,
             "position_m": c.position_m,
         }
-        for c in res.contacts
+        for c in res.contacts[:MAX_CONTACTS_RETURNED]
     ]
+
+    provenance = controller_artifacts.resolve(
+        request.controller_source, request.controller_artifact_id, request.model_id
+    )
+    if guest is None:
+        execution = {
+            "execution_backend": "host_trusted_kernel",
+            "isolation_status": "NOT_APPLICABLE",
+            "cleanup_status": CLEANUP_NOT_APPLICABLE,
+            "cleanup_errors": [],
+            "sandbox_name": None,
+            "controller_exchanges": 0,
+        }
+        ctrl_type = "baseline_3d"
+    else:
+        execution = {
+            "execution_backend": guest.backend,
+            "isolation_status": "MICROVM" if guest.backend == "microvm" else "UNISOLATED",
+            "cleanup_status": guest.cleanup_status,
+            "cleanup_errors": list(guest.cleanup_errors),
+            "sandbox_name": guest.sandbox_name,
+            "controller_exchanges": guest.exchanges,
+        }
+        ctrl_type = "custom_controller"
+    wall_time_s = round(stopwatch.elapsed_s, 3)
+    execution["wall_time_s"] = wall_time_s
+
+    record = build_mission_court_record(
+        result=res,
+        model_path=model_path,
+        faults=request.faults,
+        controller_source=request.controller_source,
+        controller_type=ctrl_type,
+        provenance=provenance.to_dict(),
+        execution=execution,
+    )
+    record_id = mission_records.put(record)
 
     return MissionRunResponse(
         mission_id=mission.mission_id,
         world_id=world.world_id,
         controller_type=ctrl_type,
         controller_hash=ctrl_hash,
-        model_id=request.model_id,
-        execution_backend=exec_backend,
+        model_id=provenance.model_id,
+        execution_backend=execution["execution_backend"],
         physical_verdict=res.evaluation.physical_verdict,
         mission_verdict=res.evaluation.mission_verdict,
         min_robustness=res.evaluation.min_robustness,
@@ -895,10 +926,59 @@ async def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse
         replay_matched=res.replay_matched,
         replay_max_abs_diff=res.replay_max_abs_diff,
         summary=res.evaluation.summary,
-        trajectory=sampled_traj,
+        trajectory=downsample(res.trajectory, MAX_TRAJECTORY_SAMPLES),
+        trajectory_samples_total=len(res.trajectory),
         contacts=contacts_data,
+        contacts_total=len(res.contacts),
+        contacts_by_class=record["contacts"]["by_class"],
         stage_results=res.evaluation.stage_results,
+        stages_completed=res.evaluation.stages_completed,
+        total_stages=res.evaluation.total_stages,
+        mission_failure_reason=res.evaluation.mission_failure_reason,
+        isolation_status=execution["isolation_status"],
+        cleanup_status=execution["cleanup_status"],
+        provenance_status=provenance.status,
+        model_id_source=provenance.model_id_source,
+        controller_artifact_id=provenance.artifact.artifact_id if provenance.artifact else None,
+        controller_exchanges=execution["controller_exchanges"],
+        controller_invocations=res.controller_invocations,
+        controller_period_steps=res.controller_period_steps,
+        effective_controller_hz=res.effective_controller_hz,
+        wall_time_s=wall_time_s,
+        mission=mission.model_dump(mode="json"),
+        reference_path=res.run.reference_path,
+        court_record_id=record_id,
+        court_record_url=f"/missions/court-records/{record_id}",
     )
+
+
+@app.get("/provenance/keys")
+def get_provenance_keys() -> dict[str, Any]:
+    """Public key(s) for checking attestations and record seals offline."""
+    info = get_signer().info
+    return {
+        "keys": [info.to_dict()],
+        "note": (
+            "Ephemeral keys change on every server restart and should not be pinned."
+            if info.ephemeral
+            else "Pin this key to verify records offline: python -m domnir.verify record.json --trusted-key <public_key>"
+        ),
+    }
+
+
+@app.get("/missions/court-records/{record_id}")
+def get_mission_court_record(record_id: str) -> dict[str, Any]:
+    try:
+        validate_id_param(record_id, "record_id")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    record = mission_records.get(record_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Mission Court Record '{record_id}' not found (records are kept in memory, newest {mission_records.max_records})",
+        )
+    return record
 
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"

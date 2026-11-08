@@ -30,14 +30,15 @@ class SecurityDefensesTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 413)
         self.assertIn("exceeds limit", resp.json()["detail"])
 
-    def test_court_record_size_limit_allows_large_payload_up_to_2mib(self):
+    def test_court_record_size_limit_allows_large_payload_up_to_8mib(self):
         # 100 KiB should be rejected on /specs/validate but allowed through middleware on /court-records/verify
         huge_headers = {"content-length": "100000"}
         resp_specs = self.client.post("/specs/validate", json={"spec": {}}, headers=huge_headers)
         self.assertEqual(resp_specs.status_code, 413)
 
-        # > 2 MiB should be rejected even on /court-records/verify
-        excessive_headers = {"content-length": "2500000"}
+        # > 8 MiB should be rejected even on /court-records/verify. Mission
+        # records carry every controller action plus state checkpoints.
+        excessive_headers = {"content-length": "8500000"}
         resp_court = self.client.post("/court-records/verify", json={}, headers=excessive_headers)
         self.assertEqual(resp_court.status_code, 413)
 

@@ -1,79 +1,133 @@
-"""Trusted 3D multi-mission simulation and replay kernel."""
+"""Trusted 3D multi-mission simulation and replay kernel.
+
+One flight loop (``fly``) is used for the live run, the in-process replay
+check and independent Court Record verification. It either asks a controller
+for actions or replays recorded ones; everything else (physics, wind,
+actuator derating, contact classification, stage tracking) is identical.
+
+Controller rate: the controller is invoked once every
+``mission.controller_period_steps`` physics steps and its action is held
+(zero-order hold) in between. ``recorded_controller_actions`` therefore has
+one entry per invocation, not per physics step.
+"""
 
 from __future__ import annotations
 
+import json
 import math
+import threading
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
+
 import mujoco
 import numpy as np
 
-from domnir.controls.baseline_3d import Baseline3DController
 from domnir.faults.injector import FaultInjector
 from domnir.faults.schema import MissionFaultSchedule
 from domnir.missions.planner import ReferenceTrajectory
 from domnir.missions.progress import MissionProgressTracker
-from domnir.missions.schema import MissionSpecV2, MissionStageKind
-from domnir.protocol import ActionBounds, parse_action
+from domnir.missions.schema import MissionSpecV2
+from domnir.protocol import ActionBounds, InvalidFrame, parse_action
+from domnir.replay import capture_integration_state
 from domnir.safety.mission_monitor import ContactEvent, MissionSafetyEvaluation, MissionSafetyMonitor
 from domnir.worlds.compiler import MJCFWorldCompiler
 from domnir.worlds.schema import WorldSpec
 
-
-class MissionSimulationResult:
-    def __init__(
-        self,
-        *,
-        mission: MissionSpecV2,
-        world: WorldSpec,
-        trajectory: list[dict[str, Any]],
-        actions: list[list[float]],
-        contacts: list[ContactEvent],
-        evaluation: MissionSafetyEvaluation,
-        replay_max_abs_diff: float,
-        replay_matched: bool,
-    ) -> None:
-        self.mission = mission
-        self.world = world
-        self.trajectory = trajectory
-        self.actions = actions
-        self.contacts = contacts
-        self.evaluation = evaluation
-        self.replay_max_abs_diff = replay_max_abs_diff
-        self.replay_matched = replay_matched
+REPLAY_TOLERANCE = 1e-12
+CHECKPOINT_INTERVAL_STEPS = 25
+REFERENCE_PATH_SAMPLES = 120
 
 
-def run_mission_simulation(
-    base_model_path: Path,
+class MissionCancelledError(RuntimeError):
+    """Raised when a caller cancels a mission run before it finishes."""
+
+
+class MissionWallTimeExceededError(RuntimeError):
+    """Raised when a mission run exceeds its wall-clock budget."""
+
+
+def encode_action_payload(raw: Any) -> bytes:
+    """Turn a controller's return value into the bytes ``parse_action`` checks.
+
+    Guests return JSON text, which is validated as-is (so duplicate keys or
+    NaN are rejected by the protocol parser). In-process controllers return a
+    dict, which is encoded with a real JSON encoder.
+    """
+    if isinstance(raw, (bytes, bytearray)):
+        return bytes(raw)
+    if isinstance(raw, str):
+        return raw.encode("utf-8")
+    try:
+        return json.dumps(raw, allow_nan=False, separators=(",", ":")).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise InvalidFrame(f"Action is not a JSON-serializable frame: {exc}") from exc
+
+
+def compile_world_xml(base_model_path: Path, world: WorldSpec) -> str:
+    return MJCFWorldCompiler.compile(base_model_path, world)
+
+
+def classify_contact(pair_name: str) -> str:
+    if "landingpad" in pair_name:
+        return "allowed-touchdown"
+    if "obstacle" in pair_name or "gate" in pair_name or "wall" in pair_name:
+        return "obstacle"
+    return "floor"
+
+
+@dataclass
+class FlightRun:
+    trajectory: list[dict[str, Any]]
+    step_actions: list[list[float]]
+    controller_actions: list[list[float]]
+    contacts: list[ContactEvent]
+    stage_history: list[dict[str, Any]]
+    evaluation: MissionSafetyEvaluation
+    states: np.ndarray
+    checkpoint_steps: list[int]
+    controller_period_steps: int
+    controller_invocations: int
+    reference_path: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _set_initial_state(data: mujoco.MjData, p0: list[float]) -> None:
+    data.qpos[0] = float(p0[0])
+    data.qpos[1] = float(p0[1])
+    data.qpos[2] = float(p0[2])
+    data.qpos[3] = 1.0
+    data.qpos[4] = 0.0
+    data.qpos[5] = 0.0
+    data.qpos[6] = 0.0
+
+
+def fly(
+    compiled_xml: str,
     mission: MissionSpecV2,
     world: WorldSpec,
-    controller_fn: Callable[[dict[str, Any]], dict[str, Any]],
     *,
-    fault_schedule: MissionFaultSchedule | None = None,
+    controller_fn: Callable[[dict[str, Any]], Any] | None = None,
+    recorded_controller_actions: list[list[float]] | None = None,
     faults: MissionFaultSchedule | None = None,
     seed: int = 42,
     initial_pos_m: list[float] | None = None,
-) -> MissionSimulationResult:
-    """Execute complete 3D mission in trusted MuJoCo physics engine."""
-    effective_faults = fault_schedule if fault_schedule is not None else faults
-    # 1. Compile world geometry into MuJoCo MJCF XML
-    compiled_xml = MJCFWorldCompiler.compile(base_model_path, world)
+    max_wall_time_s: float | None = None,
+    cancel_event: threading.Event | None = None,
+    checkpoint_interval_steps: int = CHECKPOINT_INTERVAL_STEPS,
+) -> FlightRun:
+    if (controller_fn is None) == (recorded_controller_actions is None):
+        raise ValueError("Provide exactly one of controller_fn or recorded_controller_actions")
+
+    started = time.monotonic()
     model = mujoco.MjModel.from_xml_string(compiled_xml)
     data = mujoco.MjData(model)
-
     cf2_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "cf2")
     if cf2_body_id < 0:
         raise ValueError("Crazyflie body 'cf2' not found in model")
 
-    # Initial position
-    p0 = initial_pos_m or [0.0, 0.0, 0.05]
-    data.qpos[0] = float(p0[0])
-    data.qpos[1] = float(p0[1])
-    data.qpos[2] = float(p0[2])
-    data.qpos[3] = 1.0  # w
-    data.qpos[4] = 0.0  # x
-    data.qpos[5] = 0.0  # y
-    data.qpos[6] = 0.0  # z
+    p0 = list(initial_pos_m or [0.0, 0.0, 0.05])
+    _set_initial_state(data, p0)
     mujoco.mj_forward(model, data)
 
     bounds = ActionBounds(
@@ -83,96 +137,96 @@ def run_mission_simulation(
 
     progress = MissionProgressTracker(mission)
     planner = ReferenceTrajectory(mission, initial_position_m=p0)
-    injector = FaultInjector(effective_faults, seed=seed)
+    injector = FaultInjector(faults, seed=seed)
 
     steps = mission.physics_steps
     dt = mission.physics_dt_s
+    period = mission.controller_period_steps
+    expected_invocations = -(-steps // period)
+    if recorded_controller_actions is not None and len(recorded_controller_actions) != expected_invocations:
+        raise ValueError(
+            f"Recorded controller actions: expected {expected_invocations}, got {len(recorded_controller_actions)}"
+        )
 
     trajectory: list[dict[str, Any]] = []
-    recorded_actions: list[list[float]] = []
-    recorded_states: list[np.ndarray] = [np.concatenate((data.qpos, data.qvel))]
+    step_actions: list[list[float]] = []
+    controller_actions: list[list[float]] = []
     contacts: list[ContactEvent] = []
+    states = np.empty((steps + 1, mujoco.mj_stateSize(model, mujoco.mjtState.mjSTATE_INTEGRATION)))
+    states[0] = capture_integration_state(model, data)
+    held_action: tuple[float, float, float, float] | None = None
+    invocation = 0
 
     for step_idx in range(steps):
+        if cancel_event is not None and cancel_event.is_set():
+            raise MissionCancelledError(f"Mission cancelled at step {step_idx} of {steps}")
+        if max_wall_time_s is not None and time.monotonic() - started > max_wall_time_s:
+            raise MissionWallTimeExceededError(
+                f"Mission exceeded wall-time budget of {max_wall_time_s:.1f}s at step {step_idx} of {steps}"
+            )
         sim_time = float(data.time)
         pos = data.qpos[:3].tolist()
         vel = data.qvel[:3].tolist()
         quat = data.qpos[3:7].tolist()
         omega = data.qvel[3:6].tolist()
 
-        # Check contact with pad
         pad_contact = any(
             c.contact_class == "allowed-touchdown" and c.step_index == step_idx - 1
             for c in contacts
         )
+        prog_info = progress.update(sim_time, step_idx, pos, vel, pad_contact=pad_contact, dt_s=dt)
 
-        # Update stage progress
-        prog_info = progress.update(
-            sim_time,
-            step_idx,
-            pos,
-            vel,
-            pad_contact=pad_contact,
-            dt_s=dt,
-        )
+        if step_idx % period == 0:
+            if controller_fn is not None:
+                ref_sample = planner.sample(sim_time)
+                true_observation = {
+                    "schema_version": "1.0",
+                    "trial_id": f"mission-{mission.mission_id}",
+                    "step_index": step_idx,
+                    "sim_time_s": sim_time,
+                    "dt_s": mission.controller_dt_s,
+                    "position_m": pos,
+                    "velocity_mps": vel,
+                    "orientation_quat_wxyz": quat,
+                    "body_angular_velocity_rps": omega,
+                    "target_position_m": prog_info["target_position_m"],
+                    "target_velocity_mps": ref_sample["velocity_mps"],
+                    "target_yaw_rad": ref_sample["yaw_rad"],
+                    "active_stage_id": prog_info["active_stage_id"],
+                    "stage_kind": prog_info["stage_kind"],
+                }
+                guest_obs = injector.apply_sensor_faults(true_observation, sim_time)
+                raw_action = controller_fn(guest_obs)
+                held_action = parse_action(
+                    encode_action_payload(raw_action),
+                    trial_id=f"mission-{mission.mission_id}",
+                    step_index=step_idx,
+                    bounds=bounds,
+                )
+            else:
+                recorded = recorded_controller_actions[invocation]
+                if len(recorded) != 4 or not all(
+                    isinstance(v, (int, float)) and math.isfinite(v) and lo <= v <= hi
+                    for v, lo, hi in zip(recorded, bounds.lower, bounds.upper)
+                ):
+                    raise ValueError(f"Recorded controller action {invocation} is outside actuator bounds")
+                held_action = tuple(float(v) for v in recorded)
+            controller_actions.append(list(held_action))
+            invocation += 1
 
-        ref_sample = planner.sample(sim_time)
-
-        # Build true observation
-        true_observation = {
-            "schema_version": "1.0",
-            "trial_id": f"mission-{mission.mission_id}",
-            "step_index": step_idx,
-            "sim_time_s": sim_time,
-            "dt_s": dt,
-            "position_m": pos,
-            "velocity_mps": vel,
-            "orientation_quat_wxyz": quat,
-            "body_angular_velocity_rps": omega,
-            "target_position_m": prog_info["target_position_m"],
-            "target_velocity_mps": ref_sample["velocity_mps"],
-            "target_yaw_rad": ref_sample["yaw_rad"],
-            "active_stage_id": prog_info["active_stage_id"],
-            "stage_kind": prog_info["stage_kind"],
-        }
-
-        # Fault injection on guest observation
-        guest_obs = injector.apply_sensor_faults(true_observation, sim_time)
-
-        # Call controller
-        raw_action_dict = controller_fn(guest_obs)
-
-        # Validate action
-        raw_bytes = str(raw_action_dict).replace("'", '"').encode("utf-8")
-        parsed = parse_action(
-            raw_bytes,
-            trial_id=f"mission-{mission.mission_id}",
-            step_index=step_idx,
-            bounds=bounds,
-        )
-
-        # Apply actuator derating if active
-        effective_action = injector.apply_actuator_derating(parsed, sim_time)
-        recorded_actions.append(list(parsed))
-
-        # Apply action to MuJoCo
+        effective_action = injector.apply_actuator_derating(held_action, sim_time)
+        step_actions.append(list(held_action))
         data.ctrl[:] = effective_action
-
-        # Apply 3D wind disturbance to Crazyflie body
         wind_f = injector.get_applied_wind_force_n(sim_time)
         data.xfrc_applied[cf2_body_id, :3] = wind_f
 
-        # Step physics
         mujoco.mj_step(model, data)
-        recorded_states.append(np.concatenate((data.qpos, data.qvel)))
+        states[step_idx + 1] = capture_integration_state(model, data)
 
-        # Detect contacts
         for c_idx in range(data.ncon):
             con = data.contact[c_idx]
             g1_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, con.geom1) or f"geom_{con.geom1}"
             g2_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, con.geom2) or f"geom_{con.geom2}"
-
-            # Determine if contact involves Crazyflie
             is_cf2 = (
                 model.geom_bodyid[con.geom1] == cf2_body_id
                 or model.geom_bodyid[con.geom2] == cf2_body_id
@@ -181,17 +235,6 @@ def run_mission_simulation(
             )
             if not is_cf2:
                 continue
-
-            pair_name = f"{g1_name} {g2_name}".lower()
-            if "landingpad" in pair_name:
-                c_class = "allowed-touchdown"
-            elif "obstacle" in pair_name or "gate" in pair_name or "wall" in pair_name:
-                c_class = "obstacle"
-            elif "floor" in pair_name:
-                c_class = "floor"
-            else:
-                c_class = "floor"
-
             impact_v = math.sqrt(vel[0] ** 2 + vel[1] ** 2 + vel[2] ** 2)
             contacts.append(
                 ContactEvent(
@@ -199,7 +242,7 @@ def run_mission_simulation(
                     sim_time_s=sim_time,
                     geom1=g1_name,
                     geom2=g2_name,
-                    contact_class=c_class,
+                    contact_class=classify_contact(f"{g1_name} {g2_name}".lower()),
                     impact_velocity_mps=round(impact_v, 4),
                     position_m=pos,
                 )
@@ -213,55 +256,134 @@ def run_mission_simulation(
             "orientation_quat_wxyz": quat,
             "active_stage_id": prog_info["active_stage_id"],
             "distance_to_target_m": prog_info["distance_to_target_m"],
-            "action": list(parsed),
+            "action": list(held_action),
             "effective_action": list(effective_action),
             "wind_force_n": wind_f,
         })
 
-    # Evaluate safety and mission completion
-    evaluation = MissionSafetyMonitor.evaluate(
-        mission,
-        world,
-        trajectory,
-        contacts,
-        progress.stage_history,
+    progress.finalize(float(data.time))
+    evaluation = MissionSafetyMonitor.evaluate(mission, world, trajectory, contacts, progress.stage_history)
+
+    checkpoint_steps = list(range(0, steps + 1, max(1, checkpoint_interval_steps)))
+    if checkpoint_steps[-1] != steps:
+        checkpoint_steps.append(steps)
+
+    duration = mission.total_mission_duration_s
+    reference_path = [
+        {"sim_time_s": round(t, 6), "position_m": planner.sample(t)["position_m"]}
+        for t in (duration * i / (REFERENCE_PATH_SAMPLES - 1) for i in range(REFERENCE_PATH_SAMPLES))
+    ]
+
+    return FlightRun(
+        trajectory=trajectory,
+        step_actions=step_actions,
+        controller_actions=controller_actions,
+        contacts=contacts,
+        stage_history=progress.stage_history,
+        evaluation=evaluation,
+        states=states,
+        checkpoint_steps=checkpoint_steps,
+        controller_period_steps=period,
+        controller_invocations=invocation,
+        reference_path=reference_path,
     )
 
-    # Independent physical replay verification
-    replay_model = mujoco.MjModel.from_xml_string(compiled_xml)
-    replay_data = mujoco.MjData(replay_model)
-    replay_data.qpos[0] = float(p0[0])
-    replay_data.qpos[1] = float(p0[1])
-    replay_data.qpos[2] = float(p0[2])
-    replay_data.qpos[3] = 1.0
-    mujoco.mj_forward(replay_model, replay_data)
 
-    max_diff = 0.0
-    for s_idx, act in enumerate(recorded_actions):
-        t_now = float(replay_data.time)
-        # Re-apply wind force
-        w_f = injector.get_applied_wind_force_n(t_now)
-        replay_data.xfrc_applied[cf2_body_id, :3] = w_f
-        # Re-apply effective derated action
-        eff_act = injector.apply_actuator_derating(tuple(act), t_now)
-        replay_data.ctrl[:] = eff_act
-        mujoco.mj_step(replay_model, replay_data)
+class MissionSimulationResult:
+    def __init__(
+        self,
+        *,
+        mission: MissionSpecV2,
+        world: WorldSpec,
+        run: FlightRun,
+        compiled_xml: str,
+        initial_pos_m: list[float],
+        seed: int,
+        replay_max_abs_diff: float,
+        replay_matched: bool,
+    ) -> None:
+        self.mission = mission
+        self.world = world
+        self.run = run
+        self.compiled_xml = compiled_xml
+        self.initial_pos_m = initial_pos_m
+        self.seed = seed
+        self.trajectory = run.trajectory
+        self.actions = run.step_actions
+        self.controller_actions = run.controller_actions
+        self.contacts = run.contacts
+        self.evaluation = run.evaluation
+        self.replay_max_abs_diff = replay_max_abs_diff
+        self.replay_matched = replay_matched
 
-        orig_st = recorded_states[s_idx + 1]
-        rep_st = np.concatenate((replay_data.qpos, replay_data.qvel))
-        diff = float(np.max(np.abs(orig_st - rep_st)))
-        if diff > max_diff:
-            max_diff = diff
+    @property
+    def controller_invocations(self) -> int:
+        return self.run.controller_invocations
 
-    replay_matched = max_diff <= 1e-12
+    @property
+    def controller_period_steps(self) -> int:
+        return self.run.controller_period_steps
+
+    @property
+    def effective_controller_hz(self) -> float:
+        return 1.0 / (self.mission.physics_dt_s * self.run.controller_period_steps)
+
+
+def run_mission_simulation(
+    base_model_path: Path,
+    mission: MissionSpecV2,
+    world: WorldSpec,
+    controller_fn: Callable[[dict[str, Any]], Any],
+    *,
+    fault_schedule: MissionFaultSchedule | None = None,
+    faults: MissionFaultSchedule | None = None,
+    seed: int = 42,
+    initial_pos_m: list[float] | None = None,
+    max_wall_time_s: float | None = None,
+    cancel_event: threading.Event | None = None,
+) -> MissionSimulationResult:
+    """Execute a complete 3D mission in the trusted MuJoCo kernel, then replay it.
+
+    ``max_wall_time_s`` and ``cancel_event`` are checked before every physics
+    step; when either trips, the run stops with ``MissionWallTimeExceededError``
+    or ``MissionCancelledError`` and no partial verdict is produced. The caller
+    owns any guest resources and must tear them down.
+    """
+    effective_faults = fault_schedule if fault_schedule is not None else faults
+    p0 = list(initial_pos_m or [0.0, 0.0, 0.05])
+    compiled_xml = compile_world_xml(base_model_path, world)
+
+    run = fly(
+        compiled_xml,
+        mission,
+        world,
+        controller_fn=controller_fn,
+        faults=effective_faults,
+        seed=seed,
+        initial_pos_m=p0,
+        max_wall_time_s=max_wall_time_s,
+        cancel_event=cancel_event,
+    )
+
+    # Independent replay of the recorded actions on a fresh model instance.
+    replay = fly(
+        compiled_xml,
+        mission,
+        world,
+        recorded_controller_actions=run.controller_actions,
+        faults=effective_faults,
+        seed=seed,
+        initial_pos_m=p0,
+    )
+    max_diff = float(np.max(np.abs(run.states - replay.states)))
 
     return MissionSimulationResult(
         mission=mission,
         world=world,
-        trajectory=trajectory,
-        actions=recorded_actions,
-        contacts=contacts,
-        evaluation=evaluation,
+        run=run,
+        compiled_xml=compiled_xml,
+        initial_pos_m=p0,
+        seed=seed,
         replay_max_abs_diff=max_diff,
-        replay_matched=replay_matched,
+        replay_matched=max_diff <= REPLAY_TOLERANCE,
     )

@@ -45,7 +45,11 @@ class ActuatorFaultSchedule(BaseModel):
         return self.start_s <= t <= (self.start_s + self.duration_s)
 
 
+MAX_FAULTS_PER_KIND = 16
+
+
 class MissionFaultSchedule(BaseModel):
-    wind_gusts: list[WindGust3D] = Field(default_factory=list)
-    sensor_faults: list[SensorFaultSchedule] = Field(default_factory=list)
-    actuator_faults: list[ActuatorFaultSchedule] = Field(default_factory=list)
+    # Each fault is evaluated on every physics step, so the lists are capped.
+    wind_gusts: list[WindGust3D] = Field(default_factory=list, max_length=MAX_FAULTS_PER_KIND)
+    sensor_faults: list[SensorFaultSchedule] = Field(default_factory=list, max_length=MAX_FAULTS_PER_KIND)
+    actuator_faults: list[ActuatorFaultSchedule] = Field(default_factory=list, max_length=MAX_FAULTS_PER_KIND)

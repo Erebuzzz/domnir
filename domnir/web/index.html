@@ -792,11 +792,11 @@
                   <div class="chart-header">
                     <div>
                       <h3 class="chart-title">Altitude Trajectory (z) vs. Time (t)</h3>
-                      <p class="chart-subtitle">Green corridor: Allowed Envelope | Red dashed: Target Altitude (0.10m)</p>
+                      <p class="chart-subtitle" id="chartSubtitle">Green corridor: Allowed Envelope | Red dashed: Target Altitude (0.10m)</p>
                     </div>
                     <div class="chart-meta">
-                      <span class="badge badge-outline">MuJoCo dt = 0.002s</span>
-                      <span class="badge badge-outline">500 Hz Closed Loop</span>
+                      <span class="badge badge-outline" id="chartDtBadge">MuJoCo dt = 0.002s</span>
+                      <span class="badge badge-outline" id="chartRateBadge">500 Hz Closed Loop</span>
                     </div>
                   </div>
 
@@ -839,6 +839,38 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- MISSION TIMELINE (3D missions only) -->
+              <div class="telemetry-chart-card mission-panel hidden" id="missionPanel">
+                <div class="chart-header">
+                  <div>
+                    <h3 class="chart-title">Mission Timeline</h3>
+                    <p class="chart-subtitle" id="missionPanelSubtitle">Stage deadlines, outcomes and contacts</p>
+                  </div>
+                  <div class="chart-meta">
+                    <span class="badge badge-outline" id="missionWorldBadge">world: ---</span>
+                    <span class="badge badge-outline" id="missionVerdictBadge">mission: ---</span>
+                  </div>
+                </div>
+                <div class="verify-table-wrapper">
+                  <table class="verify-table mission-stage-table">
+                    <thead>
+                      <tr>
+                        <th>Stage</th>
+                        <th>Kind</th>
+                        <th>Deadline</th>
+                        <th>Outcome time</th>
+                        <th>Result</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="missionStageRows"></tbody>
+                  </table>
+                </div>
+                <p class="mission-panel-note" id="missionEndState"></p>
+                <p class="mission-panel-note" id="missionContactsSummary"></p>
+                <ul class="mission-contact-list" id="missionContactList"></ul>
               </div>
 
               <!-- ADJUDICATION & DETERMINISTIC REPLAY CARD -->
@@ -1115,7 +1147,7 @@
               </div>
               <div class="atlas-metric-col">
                 <span class="atlas-metric-label">Discovery Speedup Ratio</span>
-                <span class="atlas-metric-num font-mono" id="atlasMetricSpeedup">1.00x</span>
+                <span class="atlas-metric-num font-mono" id="atlasMetricSpeedup">NOT RUN</span>
               </div>
             </div>
 
@@ -1258,23 +1290,23 @@
               <div class="benchmark-grid">
                 <div class="benchmark-stat-card">
                   <span class="benchmark-metric-label">Differential Evolution Efficiency</span>
-                  <span class="benchmark-metric-value font-mono" id="benchDeSpeedup">2.40x</span>
-                  <span class="benchmark-metric-sub">Fastest iteration to first breach</span>
+                  <span class="benchmark-metric-value font-mono" id="benchDeSpeedup">NOT RUN</span>
+                  <span class="benchmark-metric-sub">Sobol / DE first-breach index (needs a breach from both)</span>
                 </div>
                 <div class="benchmark-stat-card">
                   <span class="benchmark-metric-label">Sobol Quasi-Random Dispersion</span>
-                  <span class="benchmark-metric-value font-mono" id="benchSobolDispersion">0.94</span>
-                  <span class="benchmark-metric-sub">Uniform state space coverage index</span>
+                  <span class="benchmark-metric-value font-mono" id="benchSobolDispersion">NOT RUN</span>
+                  <span class="benchmark-metric-sub">First breach index within the shared budget</span>
                 </div>
                 <div class="benchmark-stat-card">
                   <span class="benchmark-metric-label">Minimization Reduction Ratio</span>
-                  <span class="benchmark-metric-value font-mono" id="benchMinReduction">38.2%</span>
+                  <span class="benchmark-metric-value font-mono" id="benchMinReduction">NOT RUN</span>
                   <span class="benchmark-metric-sub">Delta-perturbation coordinate drop</span>
                 </div>
                 <div class="benchmark-stat-card">
                   <span class="benchmark-metric-label">CEGIS Holdout Gate Rate</span>
-                  <span class="benchmark-metric-value font-mono" id="benchHoldoutRate">100%</span>
-                  <span class="benchmark-metric-sub">5 unseen evaluation suites passed</span>
+                  <span class="benchmark-metric-value font-mono" id="benchHoldoutRate">NOT RUN</span>
+                  <span class="benchmark-metric-sub">Holdout gate result after repair</span>
                 </div>
               </div>
             </div>
@@ -1431,6 +1463,11 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <div id="verifyChecksBox" class="verify-checks-box hidden">
+                <h4 class="errors-heading">Mission Record Checks (re-flown from recorded actions):</h4>
+                <ul id="verifyChecksList" class="mission-contact-list"></ul>
               </div>
 
               <div id="verifyErrorsBox" class="verify-errors-box hidden">

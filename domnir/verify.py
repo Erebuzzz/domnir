@@ -17,6 +17,8 @@ import mujoco
 import numpy as np
 from pydantic import BaseModel, Field
 
+from domnir.missions.court_record import MISSION_SCHEMA_VERSION, verify_mission_court_record
+from domnir.signing import parse_trusted_keys
 from domnir.court_record import (
     LIMITATIONS,
     REPLAY_TOLERANCE,
@@ -712,6 +714,15 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
     parser.add_argument("--model-path", "-m", help="Path to MuJoCo cf2.xml model")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON report")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose verification details")
+    parser.add_argument(
+        "--trusted-key",
+        action="append",
+        default=[],
+        help=(
+            "Pinned Ed25519 public key (base64), or a JSON file saved from GET /provenance/keys. "
+            "Repeatable. Mission records signed by a pinned key are reported as AUTHENTIC."
+        ),
+    )
 
     parsed = parser.parse_args(args)
     target_path = parsed.record_opt or parsed.record_pos
@@ -734,6 +745,9 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
     except Exception as err:
         sys.stderr.write(f"Error reading {p}: {err}\n")
         return 2
+
+    if isinstance(data, dict) and data.get("schema_version") == MISSION_SCHEMA_VERSION:
+        return _verify_mission_record_cli(data, parsed)
 
     verifier = CourtRecordVerifier(model_path=parsed.model_path)
     report = verifier.verify(data)
@@ -771,6 +785,43 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
     if report.verified and not report.tampered:
         return 0
     return 1
+
+
+def _verify_mission_record_cli(data: dict[str, Any], parsed: argparse.Namespace) -> int:
+    model_path = resolve_model_path(parsed.model_path)
+    if model_path is None:
+        sys.stderr.write("Error: MuJoCo cf2.xml model not found. Use --model-path.\n")
+        return 2
+    try:
+        key_values = [
+            Path(v).read_text(encoding="utf-8") if Path(v).is_file() else v
+            for v in parsed.trusted_key
+        ]
+        trusted = parse_trusted_keys(key_values)
+    except (ValueError, KeyError, json.JSONDecodeError) as err:
+        sys.stderr.write(f"Error: invalid --trusted-key: {err}\n")
+        return 2
+    result = verify_mission_court_record(data, model_path=model_path, trusted_keys=trusted)
+    if parsed.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print("=" * 60)
+        print("DOMNIR MISSION COURT RECORD VERIFICATION REPORT")
+        print(f"Record ID:      {result.get('record_id') or 'unknown'}")
+        print(f"Mission ID:     {result.get('experiment_id') or 'unknown'}")
+        print(f"Overall Result: {'PASS' if result['verified'] else 'FAIL'}")
+        print(f"Replay:         {result['replay_verdict']} (max diff {result['replay_max_abs_difference']:.2e})")
+        print(f"Authenticity:   {result['authenticity']} (signer key {result['signer_key_id'] or 'none'})")
+        if result["authenticity"] == "SIGNED_UNTRUSTED_KEY":
+            print("                Integrity checks passed, but the signing key is not pinned.")
+            print("                Pass --trusted-key with the issuer's public key to authenticate the record.")
+        print("=" * 60)
+        for name, ok in result["checks"].items():
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}")
+        for err in result["errors"]:
+            print(f"     - ERROR: {err}")
+        print("=" * 60)
+    return 0 if result["verified"] else 1
 
 
 def main() -> None:

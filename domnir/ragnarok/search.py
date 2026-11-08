@@ -454,11 +454,27 @@ def compare_falsification_policies(
     de = DifferentialEvolutionFalsifier(search_space, seed=seed)
     de_res = de.run(evaluator, max_evaluations=evaluations_budget)
 
-    # Calculate empirical discovery efficiency
-    sobol_first = sobol_res.first_violation_iteration or (evaluations_budget + 1)
-    de_first = de_res.first_violation_iteration or (evaluations_budget + 1)
-
-    speedup = (sobol_first / de_first) if de_first > 0 else 1.0
+    # Discovery efficiency = Sobol first-violation index / DE first-violation
+    # index (>1 means DE found a violation sooner). It is only a measurement
+    # when both strategies found one. If only one did, the other's index is
+    # censored at the budget, so we report a one-sided bound. If neither did,
+    # the ratio is undefined.
+    sobol_first = sobol_res.first_violation_iteration
+    de_first = de_res.first_violation_iteration
+    censored = evaluations_budget + 1
+    ratio: float | None = None
+    bound: float | None = None
+    if sobol_first and de_first:
+        efficiency_status = "MEASURED"
+        ratio = round(sobol_first / de_first, 3)
+    elif de_first:
+        efficiency_status = "LOWER_BOUND"
+        bound = round(censored / de_first, 3)
+    elif sobol_first:
+        efficiency_status = "UPPER_BOUND"
+        bound = round(sobol_first / censored, 3)
+    else:
+        efficiency_status = "NO_VIOLATION_DISCOVERED"
 
     return {
         "budget": evaluations_budget,
@@ -486,6 +502,8 @@ def compare_falsification_policies(
             "min_robustness": de_res.min_robustness,
             "summary": de_res.summary,
         },
-        "discovery_efficiency_ratio": round(speedup, 3),
+        "discovery_efficiency_ratio": ratio,
+        "discovery_efficiency_status": efficiency_status,
+        "discovery_efficiency_bound": bound,
         "falsification_achieved": de_res.violations_found > 0 or sobol_res.violations_found > 0 or uniform_res.violations_found > 0,
     }
