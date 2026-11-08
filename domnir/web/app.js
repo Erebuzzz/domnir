@@ -1949,7 +1949,7 @@
       topic: "bounds",
       topicLabel: "Physical Bounds",
       title: "Bitcraze Crazyflie 2 Dynamic Envelopes & Closed-Loop Rate",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 3",
+      citation: "docs/MODEL_CALIBRATION.md & docs/audits/PHYSICS_CONTRACT.md",
       summary: "Physical flight boundary rules for the Bitcraze Crazyflie 2.0 quadrotor under MuJoCo 3.3.7 simulation. Gravity equilibrium hover thrust is calibrated at 0.26487 N for the 27.0 gram airframe. Actuators saturate strictly at 0.35 N per arm. Control loops advance at 500 Hz (dt = 0.002s). Any breach below the safety floor (0.05m) or above the ceiling (1.00m) triggers instant FALSIFIED physical adjudication.",
       snippet: "# Crazyflie 2 Physics Invariants\nPLANT_MASS_KG = 0.027\nGRAVITY_THRUST_EQUILIBRIUM_N = 0.26487\nACTUATOR_MAX_THRUST_N = 0.35\nSIMULATION_TIMESTEP_S = 0.002  # 500 Hz closed loop\nFLOOR_BOUNDARY_M = 0.05\nCEILING_BOUNDARY_M = 1.00",
       lang: "python"
@@ -1999,7 +1999,7 @@
       topic: "microvm",
       topicLabel: "Resource Quotas",
       title: "RES-TIME-001 & RES-MEM-001: Wall-Clock Watchdog & Memory Quotas",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 2",
+      citation: "docs/ADR/ADR-001-sandboxing.md & docs/audits/TRUST_BOUNDARY_AUDIT.md",
       summary: "Host enforces a strict 0.50s monotonic watchdog ceiling and 256MB memory cap. Unbounded loops or memory floods are terminated and cleaned up deterministically.",
       snippet: "# Resource Limits\nWATCHDOG_WALLCLOCK_CEILING_S = 0.50\nMEMORY_LIMIT_MB = 256\nTERMINATION_ACTION = 'SIGKILL_AND_RECLAIM'",
       lang: "python"
@@ -2019,7 +2019,7 @@
       topic: "replay",
       topicLabel: "Deterministic Replay",
       title: "Physical Replay within Declared Numerical Tolerance (<= 1.00e-12 m)",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 4",
+      citation: "docs/ADR/ADR-001-sandboxing.md Section 4",
       summary: "During simulation, control action vectors emitted by the caged guest are recorded step-by-step. To verify the absence of host state tampering or stochastic divergence, the entire action sequence is independently replayed on a fresh, pristine MuJoCo simulation instance. Replay trajectory matched within declared numerical tolerance (<= 1.00e-12 meters) under pinned environment conditions.",
       snippet: "# Replay Mathematical Verification within Numerical Tolerance\nmax_diff = max(abs(traj_original[t].z - traj_replay[t].z) for t in steps)\nassert max_diff <= 1.00e-12, f'Replay diverged: {max_diff:.3e} m'\nverdict = 'MATCHED within declared numerical tolerance (<= 1.00e-12 m)'",
       lang: "python"
@@ -2029,7 +2029,7 @@
       topic: "court",
       topicLabel: "Court Record Proof",
       title: "SHA-256 Hash-Linked Court Record (Schema v1.0)",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Milestone 5",
+      citation: "docs/HACKATHON_SUBMISSION_REPORT.md Section 4",
       summary: "Every experiment generates a hash-linked, self-contained Court Record JSON artifact with locally verifiable integrity. It contains SHA-256 digests of the controller source code, the MuJoCo XML plant model, recorded trajectory vectors, and an unbroken SHA-256 host event chain linking Genesis to Head. Anyone can independently verify the record via POST /court-records/verify without re-executing untrusted code.",
       snippet: "{\n  \"schema_version\": \"1.0\",\n  \"record_id\": \"cr-a7f49c01b2\",\n  \"controller_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n  \"event_log_hash_head\": \"67ff6282bf5943982cc0674c980170240571e52f8ec8f425ddcd6cec53101c80\",\n  \"replay_max_abs_difference\": 0.0\n}",
       lang: "json"
@@ -2039,7 +2039,7 @@
       topic: "adjudication",
       topicLabel: "Adjudication Ethics",
       title: "Mandatory Adjudication Ethics & Limitations Disclosure",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 6",
+      citation: "docs/HACKATHON_SUBMISSION_REPORT.md Section 5",
       summary: "Dómnir enforces strict truthfulness in qualification reporting. A verdict of NOT_FALSIFIED confirms that no safety constraints were breached under the specific tested disturbances, but remains INCONCLUSIVE regarding universal safety or physical airworthiness. Real-world Crazyflie 2 flight dynamics involve unmodeled aerodynamic turbulence and battery drop that simulation does not fully capture.",
       snippet: "# Mandatory Falsification Disclosure\nVerdict: NOT_FALSIFIED\nClaim Limit: Synthetic qualification under tested perturbation.\nDisclaimer: INCONCLUSIVE regarding universal safety.\nActuator Dynamics: Uncalibrated research approximation.",
       lang: "text"
@@ -2069,7 +2069,7 @@
       topic: "bounds",
       topicLabel: "Guided Flow",
       title: "Quick Start: Guided Four-Stage Falsification Workflow",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 1",
+      citation: "README.md Section 4",
       summary: "Stage 1: Define physical flight envelope and presets. Stage 2: Synthesize or review Python controller code via Vultr Serverless. Stage 3: Confirm hardware microVM containment readiness. Stage 4: Run 500 Hz MuJoCo physical trial, inspect trajectory and replay verification.",
       snippet: "# Guided Workflow Steps\n1. Envelope -> 2. Controller -> 3. MicroVM Cage -> 4. Flight & Replay",
       lang: "text"
@@ -2079,7 +2079,7 @@
       topic: "adjudication",
       topicLabel: "Troubleshooting",
       title: "Troubleshooting: KVM Readiness, Quotas, and Fallbacks",
-      citation: "docs/DOMNIR_IMPLEMENTATION_PLAN.md Section 4 & AGENTS.md",
+      citation: "docs/HACKATHON_SUBMISSION_REPORT.md Section 2",
       summary: "If KVM is unavailable, public execution strictly fails closed without host execution fallback. If WebGL fails, 2D fallback stills are displayed. If rate limit is reached, certified baseline evidence remains accessible.",
       snippet: "# Fail-Closed Invariant\nif not is_microvm_available():\n    raise RuntimeError('BLOCKED: ISOLATION_UNAVAILABLE')\n# Fallback: display certified baseline court records",
       lang: "python"

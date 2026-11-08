@@ -1,8 +1,4 @@
-"""Standardized research benchmark suite for adversarial falsification, repair, and uncertainty.
-
-Implements evaluation methodology from Upgrade_Plan.md (U11).
-Zero em dashes. Low emoji.
-"""
+"""Standardized research benchmark suite for adversarial falsification, repair, and uncertainty."""
 
 from __future__ import annotations
 

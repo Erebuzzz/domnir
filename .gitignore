@@ -10,18 +10,27 @@ __pycache__/
 # Environment secrets and credentials
 .env
 *.env
+*.tar
 *.tar.gz
 *.zip
 
 # Agent instructions and internal planning files
 AGENTS.md
-docs/DOMNIR_IMPLEMENTATION_PLAN.md
+brain/
 *IMPLEMENTATION_PLAN*.md
+*Upgrade_Plan*.md
+*UPGRADE_PLAN*.md
+*EXECUTION_LOOP*.md
 *AGENT_HANDOFF*.md
 *START_HERE*.md
-
-# Agent brain (strictly developer and agent reference)
-brain/
+*TASK_GRAPH*.md
+*INTEGRATION_LEDGER*.md
+docs/*Plan*.md
+docs/*plan*.md
+docs/audits/TASK_GRAPH.md
+docs/audits/INTEGRATION_LEDGER.md
+docs/audits/G0_BASELINE.md
+docs/audits/G5_PRODUCTION_PROOF.md
 
 # Cloudflare Wrangler build cache
 .wrangler/

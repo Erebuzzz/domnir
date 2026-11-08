@@ -305,7 +305,7 @@ flowchart TD
   3. Fly through the 0.45 × 0.45 m gate aperture at $(0.70, -0.05, 0.38)$ m (deadline 5.00 s).
   4. Settle directly above the pad at $(1.15, 0, 0.25)$ m (deadline 7.50 s).
   5. Touch down on the pad, with pad contact and a descent speed within limits (deadline 9.00 s).
-- **Calibration:** the open-field default (also used by `gate-corridor` and `wind-tunnel`) is calibrated the same way: 0.85 / 2.20 / 3.10 s deadlines against measured arrivals of 0.644 / 1.738 / 2.450 s (`python scripts/calibrate_gauntlet.py --world open-field`). For the Gauntlet, the deadlines leave 21–48% margin over the measured baseline flight. The built-in baseline completes all five stages (`NOT_FALSIFIED`, no obstacle contact, touchdown at 0.06 m/s). Re-measure with `python scripts/calibrate_gauntlet.py`. See [docs/audits/GAUNTLET_CALIBRATION.md](docs/audits/GAUNTLET_CALIBRATION.md) for the controller fixes, the derivation, and the wind cases the baseline does not survive.
+- **Calibration:** the open-field default (also used by `gate-corridor` and `wind-tunnel`) is calibrated the same way: 0.85 / 2.20 / 3.10 s deadlines against measured arrivals of 0.644 / 1.738 / 2.450 s (`python scripts/calibrate_gauntlet.py --world open-field`). For the Gauntlet, the deadlines leave 21-48% margin over the measured baseline flight. The built-in baseline completes all five stages (`NOT_FALSIFIED`, no obstacle contact, touchdown at 0.06 m/s). Re-measure with `python scripts/calibrate_gauntlet.py`. See [docs/audits/GAUNTLET_CALIBRATION.md](docs/audits/GAUNTLET_CALIBRATION.md) for the controller fixes, the derivation, and the wind cases the baseline does not survive.
 
 ---
 
