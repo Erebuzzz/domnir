@@ -590,8 +590,9 @@ def verify_court_record(
         model_hashes_matched = False
         errors.append("MuJoCo model file could not be found for verification")
     else:
-        current_hashes = model_hashes(resolved_model_path)
-        model_hashes_matched = bool(expected_model_hashes and current_hashes == expected_model_hashes)
+        current_hashes = {k.replace("\\", "/"): v for k, v in model_hashes(resolved_model_path).items()}
+        expected_norm = {k.replace("\\", "/"): v for k, v in (expected_model_hashes or {}).items()}
+        model_hashes_matched = bool(expected_norm and current_hashes == expected_norm)
         if not model_hashes_matched:
             errors.append("Model file SHA-256 hashes do not match recorded hashes")
 

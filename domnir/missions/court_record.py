@@ -436,7 +436,9 @@ def verify_mission_court_record(
     if not model_path.is_file():
         check("model_hashes", False, "MuJoCo model file could not be found for verification")
         return result()
-    check("model_hashes", model_hashes(model_path) == sim.get("model_hashes_sha256"),
+    rec_hashes = {k.replace("\\", "/"): v for k, v in (sim.get("model_hashes_sha256") or {}).items()}
+    cur_hashes = {k.replace("\\", "/"): v for k, v in model_hashes(model_path).items()}
+    check("model_hashes", cur_hashes == rec_hashes,
           "Model file SHA-256 hashes do not match recorded hashes")
     check("integration_signature", sim.get("integration_signature") == INTEGRATION_SIGNATURE,
           "Integration state signature mismatch")

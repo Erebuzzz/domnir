@@ -1,1 +1,11 @@
-{"keys":[{"key_id":"175a6cdf9b45d248","public_key":"QojO283tOdUx6c/RdiAH/esn7wxRw0OqhzUoBAPsk04=","algorithm":"Ed25519","ephemeral":false}],"note":"Pin this key to verify records offline: python -m domnir.verify record.json --trusted-key <public_key>"}
+{
+  "keys": [
+    {
+      "key_id": "175a6cdf9b45d248",
+      "public_key": "QojO283tOdUx6c/RdiAH/esn7wxRw0OqhzUoBAPsk04=",
+      "algorithm": "Ed25519",
+      "ephemeral": false
+    }
+  ],
+  "note": "Pin this key to verify records offline: python -m domnir.verify record.json --trusted-key <public_key>"
+}

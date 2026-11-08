@@ -15,7 +15,7 @@ INTEGRATION_SIGNATURE = int(mujoco.mjtState.mjSTATE_INTEGRATION)
 
 def model_hashes(model_path: Path) -> dict[str, str]:
     return {
-        str(path.relative_to(model_path.parent)): hashlib.sha256(
+        path.relative_to(model_path.parent).as_posix(): hashlib.sha256(
             path.read_bytes()
         ).hexdigest()
         for path in [model_path, *sorted((model_path.parent / "assets").glob("*.obj"))]
