@@ -48,6 +48,124 @@ class MissionWallTimeExceededError(RuntimeError):
     """Raised when a mission run exceeds its wall-clock budget."""
 
 
+class MalformedObservationError(RuntimeError):
+    """Raised when an observation frame violates schema, dimensions, or physical consistency."""
+
+
+def validate_observation_frame(
+    obs: Any,
+    *,
+    expected_controller_dt_s: float | None = None,
+    physics_dt_s: float | None = None,
+    current_step_index: int | None = None,
+) -> None:
+    """Validate an observation frame delivered to a flight controller.
+
+    Ensures required fields, finite values, proper vector dimensions, unit quaternion,
+    matching controller dt, and step/time consistency with physics.
+    """
+    if not isinstance(obs, dict):
+        raise MalformedObservationError(f"Observation frame must be a dict, got {type(obs).__name__}")
+
+    required_keys = (
+        "schema_version",
+        "trial_id",
+        "step_index",
+        "sim_time_s",
+        "dt_s",
+        "position_m",
+        "velocity_mps",
+        "orientation_quat_wxyz",
+        "body_angular_velocity_rps",
+        "target_position_m",
+        "target_velocity_mps",
+        "target_yaw_rad",
+        "active_stage_id",
+        "stage_kind",
+    )
+    for k in required_keys:
+        if k not in obs:
+            raise MalformedObservationError(f"Missing required observation field: {k}")
+
+    if obs["schema_version"] != "1.0":
+        raise MalformedObservationError(f"Invalid observation schema_version: {obs['schema_version']!r}")
+
+    if not isinstance(obs["trial_id"], str) or not obs["trial_id"].strip():
+        raise MalformedObservationError("Observation trial_id must be a non-empty string")
+
+    step_idx = obs["step_index"]
+    if not isinstance(step_idx, int) or isinstance(step_idx, bool) or step_idx < 0:
+        raise MalformedObservationError(f"Observation step_index must be a non-negative integer, got {step_idx!r}")
+
+    if current_step_index is not None and step_idx > current_step_index:
+        raise MalformedObservationError(
+            f"Observation step_index {step_idx} exceeds current step {current_step_index}"
+        )
+
+    sim_time = obs["sim_time_s"]
+    if not isinstance(sim_time, (int, float)) or not math.isfinite(sim_time) or sim_time < 0.0:
+        raise MalformedObservationError(
+            f"Observation sim_time_s must be a finite non-negative float, got {sim_time!r}"
+        )
+
+    if physics_dt_s is not None and physics_dt_s > 0:
+        expected_time = step_idx * physics_dt_s
+        if abs(sim_time - expected_time) > 1e-6:
+            raise MalformedObservationError(
+                f"Observation sim_time_s {sim_time:.6f} inconsistent with step_index {step_idx} * physics_dt ({expected_time:.6f})"
+            )
+
+    dt_s = obs["dt_s"]
+    if not isinstance(dt_s, (int, float)) or not math.isfinite(dt_s) or dt_s <= 0.0:
+        raise MalformedObservationError(f"Observation dt_s must be a positive finite float, got {dt_s!r}")
+
+    if expected_controller_dt_s is not None:
+        if abs(dt_s - expected_controller_dt_s) > 1e-9:
+            raise MalformedObservationError(
+                f"Observation dt_s {dt_s} does not match expected controller_dt_s {expected_controller_dt_s}"
+            )
+
+    target_yaw = obs["target_yaw_rad"]
+    if not isinstance(target_yaw, (int, float)) or not math.isfinite(target_yaw):
+        raise MalformedObservationError(f"Observation target_yaw_rad must be a finite float, got {target_yaw!r}")
+
+    if not isinstance(obs["active_stage_id"], str) or not obs["active_stage_id"]:
+        raise MalformedObservationError("Observation active_stage_id must be a non-empty string")
+
+    if not isinstance(obs["stage_kind"], str) or not obs["stage_kind"]:
+        raise MalformedObservationError("Observation stage_kind must be a non-empty string")
+
+    vectors_3d = (
+        ("position_m", obs["position_m"]),
+        ("velocity_mps", obs["velocity_mps"]),
+        ("body_angular_velocity_rps", obs["body_angular_velocity_rps"]),
+        ("target_position_m", obs["target_position_m"]),
+        ("target_velocity_mps", obs["target_velocity_mps"]),
+    )
+    for name, vec in vectors_3d:
+        if not isinstance(vec, (list, tuple)):
+            raise MalformedObservationError(f"Observation {name} must be a list or tuple of 3 floats, got {type(vec).__name__}")
+        if len(vec) != 3:
+            raise MalformedObservationError(f"Observation {name} must have length 3, got length {len(vec)}")
+        for i, v in enumerate(vec):
+            if not isinstance(v, (int, float)) or not math.isfinite(v):
+                raise MalformedObservationError(f"Observation {name}[{i}] must be a finite float, got {v!r}")
+
+    quat = obs["orientation_quat_wxyz"]
+    if not isinstance(quat, (list, tuple)):
+        raise MalformedObservationError(f"Observation orientation_quat_wxyz must be a list or tuple of 4 floats, got {type(quat).__name__}")
+    if len(quat) != 4:
+        raise MalformedObservationError(f"Observation orientation_quat_wxyz must have length 4, got length {len(quat)}")
+    for i, q in enumerate(quat):
+        if not isinstance(q, (int, float)) or not math.isfinite(q):
+            raise MalformedObservationError(f"Observation orientation_quat_wxyz[{i}] must be a finite float, got {q!r}")
+    q_norm = math.sqrt(sum(float(q) ** 2 for q in quat))
+    if abs(q_norm - 1.0) > 1e-2:
+        raise MalformedObservationError(
+            f"Observation orientation_quat_wxyz must be a unit quaternion (|q| = 1.0), got norm {q_norm:.6f}"
+        )
+
+
 def encode_action_payload(raw: Any) -> bytes:
     """Turn a controller's return value into the bytes ``parse_action`` checks.
 
@@ -195,7 +313,19 @@ def fly(
                     "active_stage_id": prog_info["active_stage_id"],
                     "stage_kind": prog_info["stage_kind"],
                 }
+                validate_observation_frame(
+                    true_observation,
+                    expected_controller_dt_s=mission.controller_dt_s,
+                    physics_dt_s=dt,
+                    current_step_index=step_idx,
+                )
                 guest_obs = injector.apply_sensor_faults(true_observation, sim_time)
+                validate_observation_frame(
+                    guest_obs,
+                    expected_controller_dt_s=mission.controller_dt_s,
+                    physics_dt_s=dt,
+                    current_step_index=step_idx,
+                )
                 raw_action = controller_fn(guest_obs)
                 held_action = parse_action(
                     encode_action_payload(raw_action),
