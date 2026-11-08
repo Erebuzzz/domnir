@@ -412,8 +412,9 @@ class CourtRecordVerifier:
 
         sim_sec = record.get("simulator", {})
         expected_hashes = sim_sec.get("model_hashes_sha256") or record.get("model_hashes_sha256", {})
-        current_hashes = model_hashes(model_path)
-        if expected_hashes and current_hashes != expected_hashes:
+        current_norm = {k.replace("\\", "/"): v for k, v in model_hashes(model_path).items()}
+        expected_norm = {k.replace("\\", "/"): v for k, v in (expected_hashes or {}).items()}
+        if expected_norm and current_norm != expected_norm:
             tampered = True
             errors.append("Model file SHA-256 hashes do not match recorded hashes")
 

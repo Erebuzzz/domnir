@@ -100,7 +100,7 @@ def file_hashes(model_path: Path) -> dict[str, str]:
     if assets_dir.is_dir():
         files.extend(sorted(assets_dir.glob("*.obj")))
     return {
-        str(path.relative_to(model_path.parent)): hashlib.sha256(
+        path.relative_to(model_path.parent).as_posix(): hashlib.sha256(
             path.read_bytes()
         ).hexdigest()
         for path in files
