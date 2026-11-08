@@ -416,7 +416,9 @@ def verify_court_record_endpoint(
 
     try:
         result = verify_court_record(
-            record_data, model_path=orchestrator.model_path
+            record_data,
+            model_path=orchestrator.model_path,
+            trusted_keys={get_signer().info.key_id: get_signer().info.public_key},
         )
         return CourtRecordVerifyResponse(**result)
     except Exception as error:

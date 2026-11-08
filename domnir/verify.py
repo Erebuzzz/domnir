@@ -18,14 +18,23 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from domnir.missions.court_record import MISSION_SCHEMA_VERSION, verify_mission_court_record
-from domnir.signing import parse_trusted_keys
+from domnir.signing import (
+    AUTHENTIC,
+    INVALID_SIGNATURE,
+    SIGNED_UNTRUSTED_KEY,
+    UNSIGNED,
+    check_signature,
+    parse_trusted_keys,
+)
 from domnir.court_record import (
     LIMITATIONS,
     REPLAY_TOLERANCE,
     SCHEMA_VERSION,
+    _seal_payload,
     canonical_json,
     compute_legacy_trajectory_hash,
     compute_trajectory_hash,
+    sha256_of,
     verify_event_chain,
 )
 from domnir.replay import (
@@ -82,6 +91,8 @@ class VerificationReport(BaseModel):
     errors: list[str] = Field(default_factory=list)
     tamper_details: list[str] = Field(default_factory=list)
     summary: str = ""
+    authenticity: str = UNSIGNED
+    signer_key_id: str | None = None
     timestamp_utc: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -94,9 +105,11 @@ class CourtRecordVerifier:
         self,
         model_path: Path | str | None = None,
         replay_tolerance: float = REPLAY_TOLERANCE,
+        trusted_keys: dict[str, str] | None = None,
     ) -> None:
         self.model_path = resolve_model_path(model_path)
         self.replay_tolerance = replay_tolerance
+        self.trusted_keys = trusted_keys
 
     def verify(
         self,
@@ -213,6 +226,8 @@ class CourtRecordVerifier:
             errors=all_errors,
             tamper_details=tamper_details,
             summary=summary,
+            authenticity=l0_result.details.get("authenticity", UNSIGNED),
+            signer_key_id=l0_result.details.get("signer_key_id"),
         )
 
     def verify_l0(self, record: dict[str, Any]) -> TierResult:
@@ -228,6 +243,28 @@ class CourtRecordVerifier:
                 tampered=False,
                 errors=["Court record payload is not a dictionary"],
             )
+
+        # Cryptographic seal verification (backward-compatible with unsigned older records)
+        if "record_signature" in record or "content_sha256" in record:
+            body = {k: v for k, v in record.items() if k not in ("content_sha256", "record_signature")}
+            rec_sha = record.get("content_sha256")
+            computed_sha = sha256_of(body)
+            if not rec_sha or computed_sha != rec_sha:
+                tampered = True
+                errors.append(
+                    "Record content SHA-256 mismatch; the record was modified after it was sealed"
+                )
+
+            sig = record.get("record_signature")
+            authenticity, reason = check_signature(_seal_payload(record), sig, self.trusted_keys)
+            details["authenticity"] = authenticity
+            details["signer_key_id"] = sig.get("key_id") if isinstance(sig, dict) else None
+            if authenticity == INVALID_SIGNATURE:
+                tampered = True
+                errors.append(f"Invalid record seal signature: {reason}")
+        else:
+            details["authenticity"] = UNSIGNED
+            details["signer_key_id"] = None
 
         schema_ver = record.get("schema_version")
         if schema_ver != SCHEMA_VERSION:
@@ -746,10 +783,20 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"Error reading {p}: {err}\n")
         return 2
 
-    if isinstance(data, dict) and data.get("schema_version") == MISSION_SCHEMA_VERSION:
-        return _verify_mission_record_cli(data, parsed)
+    try:
+        key_values = [
+            Path(v).read_text(encoding="utf-8") if Path(v).is_file() else v
+            for v in parsed.trusted_key
+        ]
+        trusted = parse_trusted_keys(key_values)
+    except (ValueError, KeyError, json.JSONDecodeError) as err:
+        sys.stderr.write(f"Error: invalid --trusted-key: {err}\n")
+        return 2
 
-    verifier = CourtRecordVerifier(model_path=parsed.model_path)
+    if isinstance(data, dict) and data.get("schema_version") == MISSION_SCHEMA_VERSION:
+        return _verify_mission_record_cli(data, parsed, trusted_keys=trusted)
+
+    verifier = CourtRecordVerifier(model_path=parsed.model_path, trusted_keys=trusted)
     report = verifier.verify(data)
 
     if parsed.json:
@@ -761,6 +808,10 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
         print(f"Record ID:      {report.record_id or 'unknown'}")
         print(f"Experiment ID:  {report.experiment_id or 'unknown'}")
         print(f"Overall Result: {status_str}")
+        print(f"Authenticity:   {report.authenticity} (signer key {report.signer_key_id or 'none'})")
+        if report.authenticity == "SIGNED_UNTRUSTED_KEY":
+            print("                Integrity checks passed, but the signing key is not pinned.")
+            print("                Pass --trusted-key with the issuer's public key to authenticate the record.")
         print("=" * 60)
         for lvl in ("L0", "L1", "L2", "L3"):
             if lvl in report.tiers:
@@ -787,21 +838,22 @@ def verify_court_record_cli(args: Sequence[str] | None = None) -> int:
     return 1
 
 
-def _verify_mission_record_cli(data: dict[str, Any], parsed: argparse.Namespace) -> int:
+def _verify_mission_record_cli(data: dict[str, Any], parsed: argparse.Namespace, trusted_keys: dict[str, str] | None = None) -> int:
     model_path = resolve_model_path(parsed.model_path)
     if model_path is None:
         sys.stderr.write("Error: MuJoCo cf2.xml model not found. Use --model-path.\n")
         return 2
-    try:
-        key_values = [
-            Path(v).read_text(encoding="utf-8") if Path(v).is_file() else v
-            for v in parsed.trusted_key
-        ]
-        trusted = parse_trusted_keys(key_values)
-    except (ValueError, KeyError, json.JSONDecodeError) as err:
-        sys.stderr.write(f"Error: invalid --trusted-key: {err}\n")
-        return 2
-    result = verify_mission_court_record(data, model_path=model_path, trusted_keys=trusted)
+    if trusted_keys is None:
+        try:
+            key_values = [
+                Path(v).read_text(encoding="utf-8") if Path(v).is_file() else v
+                for v in parsed.trusted_key
+            ]
+            trusted_keys = parse_trusted_keys(key_values)
+        except (ValueError, KeyError, json.JSONDecodeError) as err:
+            sys.stderr.write(f"Error: invalid --trusted-key: {err}\n")
+            return 2
+    result = verify_mission_court_record(data, model_path=model_path, trusted_keys=trusted_keys)
     if parsed.json:
         print(json.dumps(result, indent=2))
     else:

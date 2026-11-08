@@ -30,6 +30,13 @@ from domnir.replay import (
     restore_integration_state,
 )
 from domnir.sandbox import RUNTIME_VERSION
+from domnir.signing import (
+    AUTHENTIC,
+    INVALID_SIGNATURE,
+    SIGNED_UNTRUSTED_KEY,
+    UNSIGNED,
+    get_signer,
+)
 from domnir.spec import FlightSpec, GeneratedController
 
 SAMPLE_CONTROLLER = """
@@ -427,6 +434,51 @@ class IndependentReplayVerificationTests(unittest.TestCase):
         self.assertFalse(result["verified"])
         self.assertEqual(result["replay_verdict"], "INVALID")
 
+    def test_court_record_sealed_with_ed25519_signature(self):
+        self.assertIn("content_sha256", self.record)
+        self.assertIn("record_signature", self.record)
+        sig = self.record["record_signature"]
+        self.assertEqual(sig["algorithm"], "Ed25519")
+        signer = get_signer()
+        self.assertEqual(sig["key_id"], signer.info.key_id)
+        self.assertEqual(sig["public_key"], signer.info.public_key)
+
+    def test_verification_with_trusted_key_returns_authentic(self):
+        signer = get_signer()
+        trusted = {signer.info.key_id: signer.info.public_key}
+        res = verify_court_record(self.record, model_path=self.model_path, trusted_keys=trusted)
+        self.assertTrue(res["verified"])
+        self.assertEqual(res["authenticity"], AUTHENTIC)
+        self.assertEqual(res["signer_key_id"], signer.info.key_id)
+
+    def test_verification_without_trusted_key_returns_untrusted(self):
+        res = verify_court_record(self.record, model_path=self.model_path, trusted_keys={})
+        self.assertTrue(res["verified"])
+        self.assertEqual(res["authenticity"], SIGNED_UNTRUSTED_KEY)
+
+    def test_tampered_content_fails_seal_check(self):
+        tampered = copy.deepcopy(self.record)
+        tampered["scenario"]["vertical_disturbance_n"] = 99.0
+        res = verify_court_record(tampered, model_path=self.model_path)
+        self.assertFalse(res["verified"])
+        self.assertTrue(any("Record content SHA-256 mismatch" in e for e in res["errors"]))
+
+    def test_tampered_signature_fails_seal_check(self):
+        tampered = copy.deepcopy(self.record)
+        tampered["record_signature"]["signature"] = "AAAA" * 16
+        res = verify_court_record(tampered, model_path=self.model_path)
+        self.assertFalse(res["verified"])
+        self.assertEqual(res["authenticity"], INVALID_SIGNATURE)
+
+    def test_unsigned_legacy_record_backward_compatible(self):
+        legacy = copy.deepcopy(self.record)
+        legacy.pop("content_sha256", None)
+        legacy.pop("record_signature", None)
+        res = verify_court_record(legacy, model_path=self.model_path)
+        self.assertTrue(res["verified"])
+        self.assertEqual(res["authenticity"], UNSIGNED)
+        self.assertIsNone(res["signer_key_id"])
+
     def test_canonical_json_and_compute_trajectory_hash_numpy_arrays(self):
         traj = self.record["trajectory"]
         hash_from_lists = compute_trajectory_hash(
@@ -555,6 +607,7 @@ class CourtRecordApiEndpointsTests(unittest.TestCase):
         self.assertEqual(verify_resp.status_code, 200)
         verify_data = verify_resp.json()
         self.assertTrue(verify_data["verified"])
+        self.assertEqual(verify_data["authenticity"], "AUTHENTIC")
 
     def test_post_court_record_verify_tampered_detects_failure(self):
         payload = {
