@@ -11,14 +11,17 @@ from .schema import (
 from .progress import MissionProgressTracker, StageStatus
 from .planner import ReferenceTrajectory
 from .simulator import (
+    MalformedObservationError,
     MissionCancelledError,
     MissionSimulationResult,
     MissionWallTimeExceededError,
     run_mission_simulation,
+    validate_observation_frame,
 )
 
 __all__ = [
     "MAX_MISSION_STAGES",
+    "MalformedObservationError",
     "MissionCancelledError",
     "MissionConstraints",
     "MissionProgressTracker",
@@ -31,4 +34,5 @@ __all__ = [
     "StageStatus",
     "StageTimeoutPolicy",
     "run_mission_simulation",
+    "validate_observation_frame",
 ]

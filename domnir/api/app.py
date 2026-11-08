@@ -69,6 +69,7 @@ from domnir.api.models import (
 from domnir.worlds import list_worlds, get_world
 from domnir.missions.defaults import default_mission
 from domnir.missions import (
+    MalformedObservationError,
     MissionCancelledError,
     MissionWallTimeExceededError,
     run_mission_simulation,
@@ -415,7 +416,9 @@ def verify_court_record_endpoint(
 
     try:
         result = verify_court_record(
-            record_data, model_path=orchestrator.model_path
+            record_data,
+            model_path=orchestrator.model_path,
+            trusted_keys={get_signer().info.key_id: get_signer().info.public_key},
         )
         return CourtRecordVerifyResponse(**result)
     except Exception as error:
@@ -841,6 +844,11 @@ def run_mission_endpoint(request: MissionRunRequest) -> MissionRunResponse:
             run_error = HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc))
         except MissionCancelledError as exc:
             run_error = HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+        except MalformedObservationError as exc:
+            run_error = HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Malformed observation frame: {exc}",
+            )
         except Exception as exc:
             if guest is None:
                 raise

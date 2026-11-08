@@ -204,3 +204,43 @@ def test_cli_json_output_mode(valid_court_record, tmp_path: Path, capsys):
     assert "L1" in parsed_json["tiers"]
     assert "L2" in parsed_json["tiers"]
     assert "L3" in parsed_json["tiers"]
+
+def test_cli_hover_record_authenticity_with_trusted_key(valid_court_record, tmp_path: Path, capsys):
+    rec_file = tmp_path / "record.json"
+    rec_file.write_text(json.dumps(valid_court_record), encoding="utf-8")
+    sig = valid_court_record["record_signature"]
+    key_id = sig["key_id"]
+    pubkey = sig["public_key"]
+
+    exit_code = verify_court_record_cli([str(rec_file), "--trusted-key", pubkey])
+    assert exit_code == 0
+
+    captured = capsys.readouterr()
+    assert f"Authenticity:   AUTHENTIC (signer key {key_id})" in captured.out
+
+
+def test_cli_hover_record_authenticity_untrusted_key(valid_court_record, tmp_path: Path, capsys):
+    rec_file = tmp_path / "record.json"
+    rec_file.write_text(json.dumps(valid_court_record), encoding="utf-8")
+    sig = valid_court_record["record_signature"]
+    key_id = sig["key_id"]
+
+    exit_code = verify_court_record_cli([str(rec_file)])
+    assert exit_code == 0
+
+    captured = capsys.readouterr()
+    assert f"Authenticity:   SIGNED_UNTRUSTED_KEY (signer key {key_id})" in captured.out
+    assert "Integrity checks passed, but the signing key is not pinned." in captured.out
+
+
+def test_cli_hover_record_tampered_signature_detects_tampering(valid_court_record, tmp_path: Path, capsys):
+    tampered = copy.deepcopy(valid_court_record)
+    tampered["record_signature"]["signature"] = "AAAA" * 16
+    rec_file = tmp_path / "tampered_sig.json"
+    rec_file.write_text(json.dumps(tampered), encoding="utf-8")
+
+    exit_code = verify_court_record_cli([str(rec_file)])
+    assert exit_code == 1
+
+    captured = capsys.readouterr()
+    assert "TAMPERING DETECTED" in captured.out

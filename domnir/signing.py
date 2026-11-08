@@ -36,7 +36,9 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from domnir.court_record import canonical_json
+def _canonical_json(payload: Any) -> bytes:
+    from domnir.court_record import canonical_json
+    return canonical_json(payload)
 
 ALGORITHM = "Ed25519"
 SIGNING_KEY_ENV = "DOMNIR_PROVENANCE_SIGNING_KEY"
@@ -96,7 +98,7 @@ class ProvenanceSigner:
         return cls(Ed25519PrivateKey.generate(), ephemeral=True)
 
     def sign(self, payload: Any) -> dict[str, Any]:
-        message = canonical_json(payload)
+        message = _canonical_json(payload)
         return {
             "algorithm": ALGORITHM,
             "key_id": self.info.key_id,
@@ -172,7 +174,7 @@ def check_signature(
         signature = _unb64(signature_block["signature"])
         if key_id_for(public_raw) != signature_block.get("key_id"):
             return INVALID_SIGNATURE, "key_id does not match the embedded public key"
-        message = canonical_json(payload)
+        message = _canonical_json(payload)
         if hashlib.sha256(message).hexdigest() != signature_block.get("payload_sha256"):
             return INVALID_SIGNATURE, "Signed payload hash does not match the payload"
         Ed25519PublicKey.from_public_bytes(public_raw).verify(signature, message)

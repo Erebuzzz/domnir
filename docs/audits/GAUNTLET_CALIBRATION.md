@@ -58,5 +58,26 @@ Tolerances were tightened, not relaxed, so a stage only counts when the vehicle 
   | −0.015 N | NOT_COMPLETED (1/5) | NOT_FALSIFIED | misses the slalom deadline, 0.004 m pillar clearance |
 
   Even a 0.01 N gust (about 4% of hover thrust) defeats the baseline, so the gust-loaded Gauntlet is an open problem for the controller, not a calibrated pass.
-- The open-field default was recalibrated separately. Its deadlines are now 0.85 / 2.20 / 3.10 s (were 0.25 / 0.60 / 0.90 s), against baseline arrivals of 0.644 / 1.738 / 2.450 s, which leaves 26–32% margin. Targets and tolerances are unchanged. `gate-corridor` and `wind-tunnel` share this default, so their missions never go near the gate or between the walls. They need missions of their own.
+- The open-field default was recalibrated separately. Its deadlines are now 0.85 / 2.20 / 3.10 s (were 0.25 / 0.60 / 0.90 s), against baseline arrivals of 0.644 / 1.738 / 2.450 s, which leaves 26-32% margin. Targets and tolerances are unchanged.
+- `gate-corridor` and `wind-tunnel` have dedicated calibrated default missions exercising their physical geometry:
+
+  **Gate Corridor Default Mission:**
+  | Stage | Target (m) | Tolerance (m) | Deadline | Baseline arrival | Margin |
+  |---|---|---:|---:|---:|---:|
+  | takeoff | (0.00, 0.00, 0.25) | 0.08 | 0.85 s | 0.628 s | +0.222 s (35.4%) |
+  | approach_gate | (0.35, 0.00, 0.35) | 0.08 | 3.10 s | 2.438 s | +0.662 s (27.2%) |
+  | transit_gate | (0.75, 0.00, 0.35) | 0.08 | 5.60 s | 4.526 s | +1.074 s (23.7%) |
+  | exit_corridor | (1.10, 0.00, 0.30) | 0.08 | 8.00 s | 6.550 s | +1.450 s (22.1%) |
+
+  Result: `COMPLETED (4/4)`, `NOT_FALSIFIED`, 0 obstacle contacts. Flown trajectory crosses gate plane x = 0.65 m centered inside the aperture (width 0.45 m, height 0.45 m).
+
+  **Wind Tunnel Default Mission:**
+  | Stage | Target (m) | Tolerance (m) | Deadline | Baseline arrival | Margin |
+  |---|---|---:|---:|---:|---:|
+  | takeoff | (0.00, 0.00, 0.25) | 0.08 | 0.85 s | 0.628 s | +0.222 s (35.4%) |
+  | corridor_entry | (0.35, 0.00, 0.30) | 0.08 | 3.10 s | 2.430 s | +0.670 s (27.6%) |
+  | corridor_mid | (0.70, 0.00, 0.30) | 0.08 | 5.50 s | 4.462 s | +1.038 s (23.3%) |
+  | corridor_exit | (1.05, 0.00, 0.30) | 0.08 | 7.90 s | 6.462 s | +1.438 s (22.3%) |
+
+  Result: `COMPLETED (4/4)`, `NOT_FALSIFIED`, 0 obstacle contacts. Flown trajectory stays strictly between the lateral corridor walls at y = +-0.45 m (inner clearance +-0.425 m).
 - The gains are derived from an uncalibrated simulation model (see `docs/MODEL_CALIBRATION.md`). They say nothing about the real Crazyflie.

@@ -47,6 +47,71 @@ def test_default_open_field_is_completed_with_margin():
 
 
 @needs_model
+def test_default_gate_corridor_is_completed_with_margin_and_aperture_geometry():
+    data = client.post("/missions/run", json={"world_id": "gate-corridor"}).json()
+    assert data["mission_verdict"] == "COMPLETED"
+    assert data["physical_verdict"] == "NOT_FALSIFIED"
+    assert data["stages_completed"] == data["total_stages"] == 4
+    assert [s["stage_id"] for s in data["stage_results"]] == [
+        "takeoff", "approach_gate", "transit_gate", "exit_corridor",
+    ]
+    assert data["contacts_by_class"].get("obstacle", 0) == 0
+
+    # Deadlines must keep >= 20% margin
+    for stage in data["stage_results"]:
+        margin = stage["completion_deadline_s"] - stage["completed_at_s"]
+        margin_pct = 100 * margin / stage["completed_at_s"]
+        assert margin_pct >= 20.0, f"{stage['stage_id']} margin {margin_pct:.1f}% is below 20%"
+
+    # Flown trajectory must cross gate plane inside the aperture
+    world = get_world("gate-corridor")
+    gate = world.get_entity("gate-1")
+    gx = gate.pose.position_m[0]
+    gy = gate.pose.position_m[1]
+    gz = gate.pose.position_m[2]
+    half_w = gate.aperture_m[0] / 2.0
+    half_h = gate.aperture_m[1] / 2.0
+
+    traj = data["trajectory"]
+    crossing = next(
+        (b for a, b in zip(traj, traj[1:]) if a["position_m"][0] < gx <= b["position_m"][0]),
+        None,
+    )
+    assert crossing is not None, "Flight never crossed gate x-plane"
+    assert abs(crossing["position_m"][1] - gy) < half_w, "Gate crossing y is outside aperture"
+    assert abs(crossing["position_m"][2] - gz) < half_h, "Gate crossing z is outside aperture"
+
+
+@needs_model
+def test_default_wind_tunnel_is_completed_with_margin_and_stays_within_walls():
+    data = client.post("/missions/run", json={"world_id": "wind-tunnel"}).json()
+    assert data["mission_verdict"] == "COMPLETED"
+    assert data["physical_verdict"] == "NOT_FALSIFIED"
+    assert data["stages_completed"] == data["total_stages"] == 4
+    assert [s["stage_id"] for s in data["stage_results"]] == [
+        "takeoff", "corridor_entry", "corridor_mid", "corridor_exit",
+    ]
+    assert data["contacts_by_class"].get("obstacle", 0) == 0
+
+    # Deadlines must keep >= 20% margin
+    for stage in data["stage_results"]:
+        margin = stage["completion_deadline_s"] - stage["completed_at_s"]
+        margin_pct = 100 * margin / stage["completed_at_s"]
+        assert margin_pct >= 20.0, f"{stage['stage_id']} margin {margin_pct:.1f}% is below 20%"
+
+    # Flown trajectory must stay strictly within the corridor walls (y = +-0.45, inner face +-0.425)
+    world = get_world("wind-tunnel")
+    wall_left = world.get_entity("wall-left")
+    wall_right = world.get_entity("wall-right")
+    inner_left_y = wall_left.pose.position_m[1] - wall_left.dimensions_m[1] / 2.0
+    inner_right_y = wall_right.pose.position_m[1] + wall_right.dimensions_m[1] / 2.0
+
+    for pt in data["trajectory"]:
+        y = pt["position_m"][1]
+        assert inner_right_y < y < inner_left_y, f"Trajectory point y={y:.3f} penetrated corridor wall boundary [{inner_right_y}, {inner_left_y}]"
+
+
+@needs_model
 def test_gauntlet_deadlines_keep_margin_over_the_baseline_flight(gauntlet):
     # Deadlines were set from the measured baseline flight with margin. If
     # the baseline gets slower this fails before the demo silently degrades.

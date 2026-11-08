@@ -84,6 +84,29 @@ def canonical_json(value: Any) -> bytes:
         return legacy_canonical_json(value)
 
 
+def sha256_of(payload: Any) -> str:
+    """Compute deterministic SHA-256 over canonical JSON representation."""
+    return hashlib.sha256(canonical_json(payload)).hexdigest()
+
+
+def _seal_payload(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": record.get("schema_version"),
+        "record_id": record.get("record_id"),
+        "content_sha256": record.get("content_sha256"),
+    }
+
+
+from domnir.signing import (
+    AUTHENTIC,
+    INVALID_SIGNATURE,
+    SIGNED_UNTRUSTED_KEY,
+    UNSIGNED,
+    check_signature,
+    get_signer,
+)
+
+
 def compute_legacy_trajectory_hash(
     steps: int,
     timestamps: list[float] | np.ndarray,
@@ -289,7 +312,7 @@ def build_court_record(
     all_alt = [p[2] for p in position_m] if position_m else [initial_altitude_m]
     target_alt = float(spec_dict.get("target_altitude_m", 0.1))
 
-    return {
+    record = {
         "schema_version": SCHEMA_VERSION,
         "record_id": rec_id,
         "experiment_id": experiment_id,
@@ -367,14 +390,21 @@ def build_court_record(
         "limitations": list(MANDATORY_LIMITATIONS),
     }
 
+    body = {k: v for k, v in record.items() if k not in ("content_sha256", "record_signature")}
+    record["content_sha256"] = sha256_of(body)
+    record["record_signature"] = get_signer().sign(_seal_payload(record))
+    return record
+
 
 def verify_court_record(
     court_record: dict[str, Any],
     *,
     model_path: Path | None = None,
     tolerance: float = REPLAY_TOLERANCE,
+    trusted_keys: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     errors: list[str] = []
+    seal = {"authenticity": UNSIGNED, "signer_key_id": None}
 
     if not isinstance(court_record, dict):
         return {
@@ -388,9 +418,31 @@ def verify_court_record(
             "event_chain_verified": False,
             "record_id": None,
             "experiment_id": None,
+            "authenticity": UNSIGNED,
+            "signer_key_id": None,
             "errors": ["Court record must be a dictionary"],
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+    # Verify cryptographic seal if present (backward compatible with unsigned older records)
+    if "record_signature" in court_record or "content_sha256" in court_record:
+        body = {k: v for k, v in court_record.items() if k not in ("content_sha256", "record_signature")}
+        rec_content_sha = court_record.get("content_sha256")
+        computed_content_sha = sha256_of(body)
+        if not rec_content_sha or computed_content_sha != rec_content_sha:
+            errors.append(
+                "Record content SHA-256 mismatch; the record was modified after it was sealed"
+            )
+
+        sig = court_record.get("record_signature")
+        authenticity, reason = check_signature(_seal_payload(court_record), sig, trusted_keys)
+        seal["authenticity"] = authenticity
+        seal["signer_key_id"] = sig.get("key_id") if isinstance(sig, dict) else None
+        if authenticity not in (AUTHENTIC, SIGNED_UNTRUSTED_KEY):
+            errors.append(f"Record seal: {reason}")
+    else:
+        seal["authenticity"] = UNSIGNED
+        seal["signer_key_id"] = None
 
     schema_ver = court_record.get("schema_version")
     if schema_ver != SCHEMA_VERSION:
@@ -661,6 +713,8 @@ def verify_court_record(
         "event_chain_verified": event_chain_verified,
         "record_id": court_record.get("record_id"),
         "experiment_id": court_record.get("experiment_id"),
+        "authenticity": seal["authenticity"],
+        "signer_key_id": seal["signer_key_id"],
         "errors": errors,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

@@ -1,0 +1,80 @@
+{
+  "created_at": "2026-11-08T07:55:36.203577+00:00",
+  "host": "domnir-feasibility",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "mode": "microvm",
+  "note": "Real microVM mission smoke test executed on Vultr AMD EPYC KVM host (domnir-feasibility) on 2026-11-08T07:55:36Z as service user domnir. Verified all 4 cases: 500 Hz hover, 100 Hz hover, malformed action (HTTP 502), guest crash (HTTP 502). Zero residual sandboxes, cleanup_status SUCCEEDED, authenticity AUTHENTIC.",
+  "results": [
+    {
+      "case": "hover_500hz",
+      "http_status": 200,
+      "expected_status": 200,
+      "wall_time_s": 1.383,
+      "sandboxes_created": [
+        "domnir-8cc78d1145d7428bb9187ba11d3e85be"
+      ],
+      "execution_backend": "microvm",
+      "isolation_status": "MICROVM",
+      "cleanup_status": "SUCCEEDED",
+      "controller_exchanges": 200,
+      "controller_invocations": 200,
+      "effective_controller_hz": 500.0,
+      "mission_verdict": "COMPLETED",
+      "physical_verdict": "NOT_FALSIFIED",
+      "replay_matched": true,
+      "provenance_status": "UNVERIFIED_ORIGIN",
+      "record_verified": true,
+      "record_authenticity": "AUTHENTIC",
+      "residual_sandboxes": [],
+      "passed": true
+    },
+    {
+      "case": "hover_100hz",
+      "http_status": 200,
+      "expected_status": 200,
+      "wall_time_s": 1.218,
+      "sandboxes_created": [
+        "domnir-b6b45a3af0d74dbba8ecf525eb1cd4bc"
+      ],
+      "execution_backend": "microvm",
+      "isolation_status": "MICROVM",
+      "cleanup_status": "SUCCEEDED",
+      "controller_exchanges": 40,
+      "controller_invocations": 40,
+      "effective_controller_hz": 100.0,
+      "mission_verdict": "COMPLETED",
+      "physical_verdict": "NOT_FALSIFIED",
+      "replay_matched": true,
+      "provenance_status": "UNVERIFIED_ORIGIN",
+      "record_verified": true,
+      "record_authenticity": "AUTHENTIC",
+      "residual_sandboxes": [],
+      "passed": true
+    },
+    {
+      "case": "malformed_action",
+      "http_status": 502,
+      "expected_status": 502,
+      "wall_time_s": 1.119,
+      "sandboxes_created": [
+        "domnir-3ec5fcde45a44451bebf71f0ac860cf0"
+      ],
+      "detail": "Controller execution failed (InvalidFrame: Unexpected frame fields). Guest cleanup: SUCCEEDED.",
+      "residual_sandboxes": [],
+      "passed": true
+    },
+    {
+      "case": "guest_crash",
+      "http_status": 502,
+      "expected_status": 502,
+      "wall_time_s": 1.125,
+      "sandboxes_created": [
+        "domnir-06b15e8340d9492a92329c5af6576d86"
+      ],
+      "detail": "Controller execution failed (ChannelError: Guest output closed). Guest cleanup: SUCCEEDED.",
+      "residual_sandboxes": [],
+      "passed": true
+    }
+  ],
+  "passed": true
+}

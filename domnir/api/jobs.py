@@ -27,7 +27,13 @@ from domnir.api.models import (
     RunExperimentRequest,
     StateTransitionRecord,
 )
-from domnir.court_record import build_court_record, chain_events
+from domnir.court_record import (
+    _seal_payload,
+    build_court_record,
+    chain_events,
+    sha256_of,
+)
+from domnir.signing import get_signer
 from domnir.inference.vultr import DEFAULT_MODEL, VultrInferenceClient, resolve_model_id
 from domnir.protocol import ActionBounds, parse_action
 from domnir.replay import (
@@ -554,6 +560,10 @@ class JobOrchestrator:
                 job.court_record["event_log"]["event_count"] = len(chained)
                 job.court_record["event_log"]["head_sha256"] = head_sha
                 job.court_record["event_log"]["chain_integrity"] = "VERIFIED"
+
+            body = {k: v for k, v in job.court_record.items() if k not in ("content_sha256", "record_signature")}
+            job.court_record["content_sha256"] = sha256_of(body)
+            job.court_record["record_signature"] = get_signer().sign(_seal_payload(job.court_record))
 
     def _run_simulation(self, job: ExperimentJob) -> None:
         if not self.model_path.is_file():
