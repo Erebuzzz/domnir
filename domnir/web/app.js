@@ -1377,9 +1377,24 @@
 
     switchStep(4);
 
-    const initAlt = parseFloat(elements.initAltitude.value) || 0.15;
-    const vertDist = parseFloat(elements.vertDisturbance.value) || 0.0;
-    const seed = parseInt(elements.seedVal.value, 10) || 42;
+    const override = state.activeScenarioOverride;
+    state.activeScenarioOverride = null;
+
+    const initAlt = override && typeof override.initial_altitude_m === "number"
+      ? override.initial_altitude_m
+      : (parseFloat(elements.initAltitude.value) || 0.15);
+    const vertDist = override && typeof override.vertical_disturbance_n === "number"
+      ? override.vertical_disturbance_n
+      : (parseFloat(elements.vertDisturbance.value) || 0.0);
+    const pulseStart = override && typeof override.pulse_start_s === "number"
+      ? override.pulse_start_s
+      : 0.0;
+    const pulseDur = override && typeof override.pulse_duration_s === "number"
+      ? override.pulse_duration_s
+      : 0.0;
+    const seed = override && typeof override.seed === "number"
+      ? override.seed
+      : (parseInt(elements.seedVal.value, 10) || 42);
     const isAsync = elements.asyncToggle.checked;
 
     elements.runExperimentBtn.disabled = true;
@@ -1398,6 +1413,8 @@
       model: provenanceModel,
       initial_altitude_m: initAlt,
       vertical_disturbance_n: vertDist,
+      pulse_start_s: pulseStart,
+      pulse_duration_s: pulseDur,
       seed: seed,
       run_async: isAsync,
     };
@@ -5095,8 +5112,19 @@
       elements.seedVal.value = sc.seed;
     }
 
+    state.activeScenarioOverride = {
+      initial_altitude_m: sc.initial_altitude_m,
+      vertical_disturbance_n: sc.disturbance_force_z,
+      pulse_start_s: typeof sc.pulse_start_s === "number" ? sc.pulse_start_s : 0.0,
+      pulse_duration_s: typeof sc.pulse_duration_s === "number" ? sc.pulse_duration_s : 0.0,
+      seed: typeof sc.seed === "number" ? sc.seed : 42,
+    };
+
     switchMainTab("tab-workspace");
-    toast("Witness scenario transferred (Alt: " + sc.initial_altitude_m + "m, Disturbance: " + sc.disturbance_force_z + "N). Executing trial replay...", "info");
+    const pulseInfo = (sc.pulse_duration_s && sc.pulse_duration_s > 0)
+      ? " [pulse " + sc.pulse_start_s.toFixed(2) + "s - " + (sc.pulse_start_s + sc.pulse_duration_s).toFixed(2) + "s]"
+      : " [continuous]";
+    toast("Witness scenario transferred (Alt: " + sc.initial_altitude_m.toFixed(3) + "m, Disturbance: " + sc.disturbance_force_z.toFixed(3) + "N" + pulseInfo + "). Executing trial replay...", "info");
     await runExperiment();
   }
 
