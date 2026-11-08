@@ -49,6 +49,7 @@ from domnir.missions.simulator import (
     MissionSimulationResult,
     compile_world_xml,
     fly,
+    portable_mjcf_fingerprint,
 )
 from domnir.replay import INTEGRATION_SIGNATURE, model_hashes
 from domnir.worlds import get_world
@@ -223,7 +224,9 @@ def build_mission_court_record(
             "platform": platform.platform(),
             "model_path": model_path.name,
             "model_hashes_sha256": model_hashes(model_path),
+            # Raw hash is informational: it includes this host's absolute mesh path.
             "compiled_mjcf_sha256": hashlib.sha256(result.compiled_xml.encode("utf-8")).hexdigest(),
+            "compiled_mjcf_portable_sha256": portable_mjcf_fingerprint(result.compiled_xml),
             "integration_signature": INTEGRATION_SIGNATURE,
             "physics_dt_s": mission.physics_dt_s,
             "controller_dt_s": mission.controller_dt_s,
@@ -438,8 +441,15 @@ def verify_mission_court_record(
     check("integration_signature", sim.get("integration_signature") == INTEGRATION_SIGNATURE,
           "Integration state signature mismatch")
     compiled_xml = compile_world_xml(model_path, world)
-    check("compiled_mjcf", hashlib.sha256(compiled_xml.encode("utf-8")).hexdigest() == sim.get("compiled_mjcf_sha256"),
-          "Compiled MJCF scene hash mismatch")
+    if "compiled_mjcf_portable_sha256" in sim:
+        check("compiled_mjcf", portable_mjcf_fingerprint(compiled_xml) == sim.get("compiled_mjcf_portable_sha256"),
+              "Compiled MJCF scene hash mismatch")
+    else:
+        # Records sealed before the portable hash existed only carry the raw
+        # hash, which embeds the issuing host's mesh path and so can only be
+        # checked on a host with the model at the same path.
+        check("compiled_mjcf", hashlib.sha256(compiled_xml.encode("utf-8")).hexdigest() == sim.get("compiled_mjcf_sha256"),
+              "Compiled MJCF scene hash mismatch (legacy record: raw hash includes the issuing host's model path)")
     check("controller_rate", sim.get("controller_period_steps") == mission.controller_period_steps
           and sim.get("physics_steps") == mission.physics_steps,
           "Controller period or step count does not match the mission spec")

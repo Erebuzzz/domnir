@@ -13,12 +13,14 @@ one entry per invocation, not per physics step.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import threading
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Callable
 
 import mujoco
@@ -185,6 +187,21 @@ def encode_action_payload(raw: Any) -> bytes:
 
 def compile_world_xml(base_model_path: Path, world: WorldSpec) -> str:
     return MJCFWorldCompiler.compile(base_model_path, world)
+
+
+def portable_mjcf_fingerprint(compiled_xml: str) -> str:
+    """SHA-256 of the compiled scene with the host-specific mesh path removed.
+
+    The world compiler writes the model's absolute ``meshdir`` into the XML,
+    so hashing the raw string only matches on a machine that keeps the model
+    at the same path. The mesh files themselves are covered by the model file
+    hashes, so normalising ``meshdir`` to its final component loses nothing.
+    """
+    root = ET.fromstring(compiled_xml)
+    compiler = root.find("compiler")
+    if compiler is not None and "meshdir" in compiler.attrib:
+        compiler.set("meshdir", PurePath(compiler.attrib["meshdir"].replace("\\", "/")).name)
+    return hashlib.sha256(ET.tostring(root, encoding="unicode").encode("utf-8")).hexdigest()
 
 
 def classify_contact(pair_name: str) -> str:
