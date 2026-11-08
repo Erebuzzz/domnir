@@ -226,6 +226,7 @@
     returnToSourceTabBtn: document.getElementById("returnToSourceTabBtn"),
     runBenchmarkComparisonBtn: document.getElementById("runBenchmarkComparisonBtn"),
     benchDeSpeedup: document.getElementById("benchDeSpeedup"),
+    benchStrategySummary: document.getElementById("benchStrategySummary"),
     benchSobolDispersion: document.getElementById("benchSobolDispersion"),
     benchMinReduction: document.getElementById("benchMinReduction"),
     benchHoldoutRate: document.getElementById("benchHoldoutRate"),
@@ -5140,6 +5141,22 @@
 
       if (elements.benchDeSpeedup) {
         elements.benchDeSpeedup.textContent = formatDiscoveryEfficiency(comp);
+      }
+
+      // Per-strategy evidence: evaluations used, first violation and the
+      // worst robustness seen, whether or not any violation was found.
+      if (elements.benchStrategySummary) {
+        elements.benchStrategySummary.innerHTML = "";
+        [["differential_evolution", "Differential evolution"], ["sobol", "Sobol"], ["uniform_random", "Uniform random"]]
+          .forEach(([key, label]) => {
+            const r = comp[key];
+            if (!r) return;
+            const li = document.createElement("li");
+            const first = typeof r.first_violation === "number" ? "first violation at #" + r.first_violation : "no violation";
+            const worst = typeof r.min_robustness === "number" ? r.min_robustness.toFixed(4) : "n/a";
+            li.textContent = label + ": " + r.evaluations + " evaluations, " + first + ", worst robustness " + worst;
+            elements.benchStrategySummary.appendChild(li);
+          });
       }
 
       if (elements.benchSobolDispersion) {

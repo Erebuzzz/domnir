@@ -739,6 +739,10 @@ class WebAppDeliveryTests(unittest.TestCase):
         # P1-F: no fabricated efficiency ratio when no breach was found.
         self.assertIn("N/A: no violation discovered", js)
         self.assertIn("formatDiscoveryEfficiency(comp)", bench_fn)
+        # Per-strategy sample counts and worst robustness stay visible.
+        self.assertIn('id="benchStrategySummary"', html)
+        self.assertIn("worst robustness", bench_fn)
+        self.assertIn("r.evaluations", bench_fn)
         self.assertNotIn('"1.00x"', js)
         self.assertNotIn("|| 18", bench_fn)
         for placeholder in ('id="benchDeSpeedup">2.40x', 'id="benchSobolDispersion">0.94',
