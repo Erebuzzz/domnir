@@ -291,7 +291,7 @@ class SecurityDefensesTests(unittest.TestCase):
 
             # L2 without approved sandbox must fail closed and never execute on host
             from unittest.mock import patch
-            with patch.dict(os.environ, {"DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK": ""}):
+            with patch.dict(os.environ, {"DOMNIR_DEV_ALLOW_SUBPROCESS_FALLBACK": ""}), patch("domnir.evaluator.is_microvm_available", return_value=False):
                 l2_report = verifier.verify_l2(crafted_record)
                 self.assertFalse(marker_file.exists(), "CRITICAL: Marker created during L2 verification!")
                 self.assertFalse(l2_report.passed)

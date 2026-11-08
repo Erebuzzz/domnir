@@ -280,7 +280,7 @@ def test_concurrent_missions_are_serialised_by_slots_and_loop_stays_responsive(f
 @needs_model
 def test_wall_time_budget_returns_504_and_releases_slot(fresh_slots, monkeypatch):
     slots = fresh_slots()
-    monkeypatch.setattr(app_module, "MAX_MISSION_WALL_TIME_S", 1e-9)
+    monkeypatch.setattr(app_module, "MAX_MISSION_WALL_TIME_S", -1.0)
     resp = client.post("/missions/run", json={"world_id": "open-field", "mission": SHORT_MISSION})
     assert resp.status_code == 504
     assert "wall-time" in resp.json()["detail"]
