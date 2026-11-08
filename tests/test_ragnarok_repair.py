@@ -167,3 +167,57 @@ def test_repair_rejects_nominal_regression(base_contract, weak_controller):
     assert res.outcome == "UNREPAIRED_WITHIN_BUDGET"
     assert res.repaired_controller is None
     assert "Regression on nominal hover" in res.history[0].rejection_reason
+
+
+def test_repair_extracts_source_from_inference_response_object(base_contract, weak_controller):
+    from unittest.mock import MagicMock
+    from domnir.inference.vultr import InferenceResponse
+
+    witness = ScenarioParameter(initial_altitude_m=0.08, disturbance_force_z=-0.06)
+    mock_res = STLRobustnessResult(
+        satisfied=False,
+        verdict="VIOLATED",
+        min_robustness=-0.02,
+        critical_timestamp_s=0.15,
+        critical_step_index=75,
+        critical_predicate="floor",
+        critical_actual_value=0.03,
+        critical_threshold=0.05,
+        summary="Floor breach",
+        timeline=[],
+    )
+
+    mock_client = MagicMock()
+    mock_client.chat_completion.return_value = InferenceResponse(
+        content="```python\ndef observe(observation: dict) -> list[float]:\n    kp = 2.0\n    return [0.26, 0.26, 0.26, 0.26]\n```",
+        model="meta/llama-3.3-70b-instruct",
+        prompt_tokens=10,
+        completion_tokens=20,
+        total_tokens=30,
+        finish_reason="stop",
+    )
+
+    def mock_evaluator(ctrl: GeneratedController, s: ScenarioParameter) -> STLRobustnessResult:
+        return STLRobustnessResult(
+            satisfied=True,
+            verdict="SATISFIED",
+            min_robustness=0.02,
+            critical_timestamp_s=0.20,
+            critical_step_index=100,
+            critical_predicate="ceiling",
+            critical_actual_value=0.11,
+            critical_threshold=1.00,
+            summary="Pass",
+            timeline=[],
+        )
+
+    engine = AutonomousRepairEngine(
+        base_contract,
+        evaluator=mock_evaluator,
+        inference_client=mock_client,
+        max_revisions=1,
+    )
+    res = engine.run_repair(weak_controller, witness, mock_res)
+    assert res.outcome == "REPAIRED"
+    assert res.repaired_controller is not None
+    assert "kp = 2.0" in res.repaired_controller.source_code

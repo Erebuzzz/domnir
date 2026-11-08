@@ -105,7 +105,11 @@ class AutonomousRepairEngine:
         self.max_revisions = max(1, max_revisions)
         self.holdout_suite = HoldoutSuite.generate_suite(contract.target_altitude_m)
 
-    def extract_python_source(self, response_text: str) -> str:
+    def extract_python_source(self, response_text: Any) -> str:
+        if hasattr(response_text, "content"):
+            response_text = response_text.content
+        if not isinstance(response_text, str):
+            response_text = str(response_text)
         pattern = r"```(?:python)?\s*\n(.*?)```"
         match = re.search(pattern, response_text, re.DOTALL)
         if match:
@@ -137,10 +141,11 @@ class AutonomousRepairEngine:
                 if candidate_generator:
                     raw_patch = candidate_generator(prompt)
                 elif self.inference_client:
-                    raw_patch = self.inference_client.chat_completion(
+                    resp = self.inference_client.chat_completion(
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.2,
                     )
+                    raw_patch = resp.content if hasattr(resp, "content") else str(resp)
                 else:
                     return RepairCampaignResult(
                         initial_controller_sha256=initial_hash,
